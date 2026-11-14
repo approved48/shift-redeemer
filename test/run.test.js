@@ -283,6 +283,47 @@ test('game launch assist: launches, waits, closes, resumes — or pauses with a 
   assert.deepEqual(closed, []);
   running = [];
 
+  // 3c. Seamless: the game is closed as soon as SHiFT accepts codes again, not after the full wait.
+  launched.length = 0;
+  closed.length = 0;
+  mock.setLaunchAfter(2);
+  ({ engine, store } = fresh());
+  store.updateSettings({ gameAssist: { mode: 'auto', warmupSeconds: 120 } });
+  let naps = 0;
+  engine.sleep = async () => void naps++;
+  s = await engine.run();
+  assert.equal(s.redeemed, 4, JSON.stringify(s));
+  assert.equal(s.assists, 1);
+  assert.deepEqual(closed, [999]);
+  assert.ok(naps < 60, `waited too long before closing (${naps} naps)`);
+
+  // 3d. "Close game & resume" skips the rest of the wait.
+  closed.length = 0;
+  ({ engine, store } = fresh());
+  store.updateSettings({ gameAssist: { mode: 'auto', warmupSeconds: 120 } });
+  naps = 0;
+  engine.probeUnblocked = async () => false; // SHiFT hasn't noticed yet…
+  engine.sleep = async () => {
+    if (engine.state.assist?.step === 'warmup' && ++naps === 3) engine.skipAssist(); // …but the user presses the button
+  };
+  s = await engine.run();
+  assert.deepEqual(closed, [999]);
+  assert.ok(naps < 10, `skip didn't cut the wait short (${naps} naps)`);
+
+  // 3e. Stop while the game is open closes the game it started.
+  closed.length = 0;
+  ({ engine, store } = fresh());
+  store.updateSettings({ gameAssist: { mode: 'auto', warmupSeconds: 120 } });
+  naps = 0;
+  engine.probeUnblocked = async () => false;
+  engine.sleep = async () => {
+    if (engine.state.assist?.step === 'warmup' && ++naps === 3) engine.stop();
+  };
+  s = await engine.run();
+  assert.equal(s.stopped, 'Stopped by you');
+  assert.deepEqual(closed, [999], 'Stop should close the game the app started');
+  running = [];
+
   // 4. Consoles can't be launched remotely → paused with that explanation.
   mock.setLaunchAfter(0);
   ({ engine, store } = fresh());
@@ -422,6 +463,27 @@ test('rewards v1.3: count styles, keys per game, cosmetics by type', async () =>
   assert.equal(r.cosmetics.length, 3, 'same cosmetic on two platforms is listed once');
   assert.deepEqual(r.cosmetics.find((c) => c.kind === 'head').services.sort(), ['epic', 'steam']);
   assert.ok(r.itemKinds.some((x) => x.id === 'drone'));
+
+  // Account standing per game: redeemed here / already redeemed / still to do (targeted only).
+  const acctDb = {
+    codes: {
+      'AAAAA-1': { check: { status: 'ok', offers: [{ title: 'Borderlands 3', titleId: 'bl3', service: 'steam' }, { title: 'Borderlands 3', titleId: 'bl3', service: 'epic' }] } },
+      'BBBBB-2': { check: { status: 'ok', offers: [{ title: 'Borderlands 3', titleId: 'bl3', service: 'steam' }, { title: 'Borderlands 3', titleId: 'bl3', service: 'psn' }] } },
+      'CCCCC-3': { check: { status: 'ok', offers: [{ title: 'Borderlands 3', titleId: 'bl3', service: 'steam' }] } },
+      'DDDDD-4': { check: { status: 'expired', offers: [{ title: 'Borderlands 3', titleId: 'bl3', service: 'steam' }] } },
+      'EEEEE-5': { check: { status: 'ok', offers: [{ title: 'Borderlands 2', titleId: 'bl2', service: 'steam' }] } },
+    },
+    redemptions: {
+      'AAAAA-1|bl3|steam': { status: 'success', at: now, title: 'Borderlands 3', service: 'steam' },
+      'AAAAA-1|bl3|epic': { status: 'redeemed', at: now, title: 'Borderlands 3', service: 'epic' },
+      'BBBBB-2|bl3|steam': { status: 'redeemed', at: now, title: 'Borderlands 3', service: 'steam' },
+    },
+  };
+  const wants = (t, svc) => svc !== 'psn'; // PlayStation not targeted
+  const ra = buildReport(acctDb, { wants });
+  assert.deepEqual(ra.titles.find((t) => t.id === 'bl3').account, { app: 1, already: 2, todo: 1, total: 4 });
+  assert.deepEqual(ra.titles.find((t) => t.id === 'bl2').account, { app: 0, already: 0, todo: 1, total: 1 }, 'a game with only codes to do still gets a card');
+  assert.deepEqual(buildReport(acctDb, { wants, platform: 'epic' }).titles.find((t) => t.id === 'bl3').account, { app: 0, already: 1, todo: 0, total: 1 });
 });
 
 test('AI instructions: personalised, and the AI reply imports cleanly', async () => {
@@ -469,4 +531,83 @@ test('AI instructions: personalised, and the AI reply imports cleanly', async ()
   // A feed that puts the code in the expiry field doesn't show it as a date.
   engine.ingest([{ code: 'ZFR3J-WZHBJ-BJBBB-3JBBB-F9R3W', reward: '3 Golden Keys', expires: 'ZFR3J-WZHBJ-BJBBB-3JBBB-F9R3W' }], { id: 'feed', name: 'Feed' });
   assert.equal(store.db.codes['ZFR3J-WZHBJ-BJBBB-3JBBB-F9R3W'].expires, '');
+});
+
+test('updater: picks the right download, verifies it, and writes a safe helper', async () => {
+  const http = await import('node:http');
+  const crypto = await import('node:crypto');
+  const u = await import('../lib/updater.js');
+  assert.ok(u.newer('1.3.1', '1.3.0') && u.newer('2.0.0', '1.9.9') && !u.newer('1.3.0', '1.3.0') && !u.newer('1.2.9', '1.3.0'));
+
+  const env = { LOCALAPPDATA: 'C:\\Users\\vh\\AppData\\Local' };
+  assert.equal(u.installKind({ platform: 'win32', execPath: 'C:\\Users\\vh\\AppData\\Local\\Programs\\SHiFT Redeemer\\SHiFT Redeemer.exe', packaged: true, env }).kind, 'windows-installer');
+  assert.equal(u.installKind({ platform: 'win32', execPath: 'D:\\Games\\SHiFT-Redeemer-1.3.0-Windows-Portable.exe', packaged: true, env }).kind, 'windows-portable');
+  assert.deepEqual(u.installKind({ platform: 'darwin', execPath: '/Applications/SHiFT Redeemer.app/Contents/MacOS/shift-redeemer', packaged: true }), { kind: 'macos', target: '/Applications/SHiFT Redeemer.app' });
+  assert.deepEqual(u.installKind({ platform: 'linux', execPath: '/home/vh/SHiFT-Redeemer/shift-redeemer', packaged: true }), { kind: 'linux', target: '/home/vh/SHiFT-Redeemer' });
+  assert.equal(u.installKind({ packaged: false }).kind, 'source');
+
+  const assets = ['SHiFT-Redeemer-Setup-1.4.0-Windows.exe', 'SHiFT-Redeemer-1.4.0-Windows-Portable.exe', 'SHiFT-Redeemer-1.4.0-macOS.dmg', 'SHiFT-Redeemer-1.4.0-Linux-x64.tar.gz'].map((name) => ({ name }));
+  assert.equal(u.pickAsset(assets, 'windows-installer').name, 'SHiFT-Redeemer-Setup-1.4.0-Windows.exe');
+  assert.equal(u.pickAsset(assets, 'windows-portable').name, 'SHiFT-Redeemer-1.4.0-Windows-Portable.exe');
+  assert.equal(u.pickAsset(assets, 'macos').name, 'SHiFT-Redeemer-1.4.0-macOS.dmg');
+  assert.equal(u.pickAsset(assets, 'linux').name, 'SHiFT-Redeemer-1.4.0-Linux-x64.tar.gz');
+  assert.equal(u.pickAsset(assets, 'source'), null);
+  assert.equal(u.whatsNew("## What's new\n- **Faster** launches\n\n## Download\n| x |"), '- **Faster** launches');
+
+  // A local "GitHub" serving a release and its file.
+  const body = Buffer.from('pretend installer bytes '.repeat(500));
+  const sha = crypto.createHash('sha256').update(body).digest('hex');
+  const srv = http.createServer((req, res) => {
+    if (req.url === '/release') {
+      res.writeHead(200, { 'content-type': 'application/json' });
+      return res.end(JSON.stringify({ tag_name: 'v9.9.9', html_url: 'https://x/rel', body: "## What's new\n- Thing", assets: [{ name: 'SHiFT-Redeemer-9.9.9-Linux-x64.tar.gz', size: body.length, digest: `sha256:${sha}`, browser_download_url: `http://127.0.0.1:${srv.address().port}/file` }] }));
+    }
+    res.writeHead(200, { 'content-length': body.length });
+    res.end(body);
+  });
+  await new Promise((r) => srv.listen(0, '127.0.0.1', r));
+  process.env.SHIFT_UPDATE_API = `http://127.0.0.1:${srv.address().port}/release`;
+  try {
+    const rel = await u.checkLatest({ current: '1.0.0' });
+    assert.equal(rel.version, '9.9.9');
+    assert.equal(rel.notes, '- Thing');
+    assert.equal(await u.checkLatest({ current: '9.9.9' }), null, 'same version is not an update');
+    const asset = { name: 'SHiFT-Redeemer-9.9.9-Linux-x64.tar.gz', url: `http://127.0.0.1:${srv.address().port}/file`, size: body.length, digest: `sha256:${sha}` };
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'upd-'));
+    const seen = [];
+    const ok = await u.download(asset, { dir: tmp, onProgress: (p) => seen.push(p) });
+    assert.equal(ok.sha256, sha);
+    assert.deepEqual(fs.readFileSync(ok.file), body);
+    assert.equal(seen.at(-1), 1);
+    await assert.rejects(u.download({ ...asset, name: 'bad.tar.gz', digest: `sha256:${'0'.repeat(64)}` }, { dir: tmp }), /checksum/);
+    assert.ok(!fs.existsSync(path.join(tmp, 'bad.tar.gz')) && !fs.existsSync(path.join(tmp, 'bad.tar.gz.part')), 'a bad download is deleted');
+    await assert.rejects(u.download({ ...asset, name: 'short.tar.gz', size: body.length + 1, digest: null }, { dir: tmp }), /incomplete/);
+    fs.rmSync(tmp, { recursive: true, force: true });
+  } finally {
+    delete process.env.SHIFT_UPDATE_API;
+    srv.close();
+  }
+
+  // The Windows helper (a copy of the app run with --apply-update) replaces the app and restarts it.
+  const { run, encodeJob } = await import('../lib/apply-update.js');
+  const wdir = fs.mkdtempSync(path.join(os.tmpdir(), 'apply-'));
+  const target = path.join(wdir, "it's the app.sh");
+  const marker = path.join(wdir, 'started');
+  fs.writeFileSync(target, '#!/bin/sh\necho old > "$0.ran"\n', { mode: 0o755 });
+  const newFile = path.join(wdir, 'new.sh');
+  fs.writeFileSync(newFile, `#!/bin/sh\necho "$1" > '${marker}'\n`, { mode: 0o755 });
+  const out = await run(encodeJob({ kind: 'windows-portable', file: newFile, target, pid: 999999, relaunchArgs: ['--after-update=window'] }));
+  assert.equal(out.ok, true);
+  for (let i = 0; i < 40 && !fs.existsSync(marker); i++) await new Promise((r) => setTimeout(r, 50));
+  assert.equal(fs.readFileSync(marker, 'utf8').trim(), '--after-update=window', 'the new version was started with the hand-over flag');
+  assert.ok(!fs.existsSync(newFile), 'the download is cleaned up');
+  assert.match(fs.readFileSync(path.join(wdir, 'update.log'), 'utf8'), /replaced the app/);
+  fs.rmSync(wdir, { recursive: true, force: true });
+
+  // Paths with quotes and spaces can't break out of the macOS / Linux helper scripts.
+  const mac = u.helperScript({ kind: 'macos', file: "/tmp/a'b.dmg", target: '/Applications/SHiFT Redeemer.app', pid: 7 });
+  assert.match(mac, /'\/tmp\/a'\\''b\.dmg'/);
+  assert.match(mac, /APP='\/Applications\/SHiFT Redeemer.app'/);
+  const lin = u.helperScript({ kind: 'linux', file: '/tmp/x.tar.gz', target: '/opt/SHiFT-Redeemer', pid: 7, relaunchArgs: ['--after-update=background'] });
+  assert.match(lin, /nohup "\$DIR\/shift-redeemer" '--after-update=background'/);
 });

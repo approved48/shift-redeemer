@@ -1,10 +1,9 @@
 ## What's new
-- **Rewards guide.** Help → *Rewards guide* explains what Golden, Diamond and Skeleton Keys do in each game, and what each type of cosmetic is, with links to the Borderlands Wiki. Hover any key or cosmetic in the app for a quick explanation.
-- **Cosmetics in your report.** The Rewards page now lists every skin, head, trinket and other cosmetic you've unlocked, grouped by type and game.
-- **Ask an AI to find codes.** Sources → *Ask an AI to find codes* gives you instructions for ChatGPT, Claude, Gemini or Grok. Import the answer on Codes → Import list.
-- **More code sources:** Eurogamer, PCGamesN and Game8.
-- **Playing while it runs?** Setup now asks. If you are, the app never starts or closes a game by itself, and carries on by itself when your game is already open. Now and then it offers to switch automatic launching back on.
-- **Menu for small windows.** When the window is narrow, the tabs fold into a ☰ menu instead of disappearing.
+- **Updates install from inside the app.** When a new version is out, select **Update now** on the dashboard: SHiFT Redeemer downloads it, checks it, restarts and keeps your codes and settings. **Settings → Updates** can check now or install updates automatically. *(This works from 1.4.0 onwards. If you have an older version, install this one over it once.)*
+- **Smoother game launches.** An **Auto-launch games** switch on the dashboard, the game closes as soon as SHiFT accepts codes again, each step is shown live, and **Close game & resume** skips the wait.
+- **Your games on the dashboard.** Slim per-game tiles show keys and cosmetics, with a live **+N** as a run adds to each game.
+- **Themed game cards** on the Rewards page, with original banner art for each game.
+- **See what's already on your account.** Each game on the Rewards page shows how many rewards are on your SHiFT account: redeemed by the app, **already redeemed** before (website, in-game or another device), and how many are still to go.
 
 ## Download
 

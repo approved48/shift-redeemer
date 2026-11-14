@@ -9,6 +9,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Saira+Stencil+One&family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <!-- Typefaces for the per-game wordmarks on the Rewards page -->
+  <link href="https://fonts.googleapis.com/css2?family=Russo+One&family=Cinzel+Decorative:wght@700&family=Permanent+Marker&family=Audiowide&family=Bangers&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
@@ -60,6 +62,7 @@
       </div>
 
       <div class="statbar" id="stats"></div>
+      <div class="game-strip" id="gameStrip" aria-label="Rewards by game" hidden></div>
       <div id="dashBanners"></div>
 
       <div class="grid-dash">
@@ -330,22 +333,31 @@
           <p class="hint" id="assistModeHint"></p>
           <div class="field-row">
             <label class="field"><span class="label">Game to launch</span><select data-setting="gameAssist.game" id="assistGame"></select></label>
-            <label class="field"><span class="label">Wait at the main menu</span>
+            <label class="field"><span class="label">Keep the game open for at most</span>
               <select data-setting="gameAssist.warmupSeconds" data-num><option value="45">45 seconds</option><option value="60">1 minute</option><option value="75">75 seconds</option><option value="90">90 seconds</option><option value="120">2 minutes</option><option value="180">3 minutes</option></select>
             </label>
           </div>
+          <p class="hint">It closes as soon as SHiFT accepts codes again, usually well before this.</p>
           <label class="switch-row"><input type="checkbox" class="switch" data-setting="gameAssist.closeAfter"><span><b>Close the game afterwards</b><small>Only a game this app started. A game you opened yourself is never closed.</small></span></label>
           <label class="switch-row" id="assistRemindRow"><input type="checkbox" class="switch" data-setting="gameAssist.dontAsk"><span><b>Don't suggest turning automatic launching back on</b><small>When this is set to Ask me or Off, the dashboard occasionally offers to switch back to Automatically. Turn this on to stop that.</small></span></label>
           <label class="field"><span class="label">Epic Games launch link <small>(optional)</small></span><input data-setting="gameAssist.epicLink" placeholder="com.epicgames.launcher://apps/…?action=launch&amp;silent=true" spellcheck="false"></label>
           <p class="hint">In the Epic launcher, right-click a Borderlands game → <b>Manage</b> → <b>Desktop shortcut</b>. Then right-click the shortcut → <b>Properties</b> and copy the URL.</p>
           <div class="assist-detect" id="assistDetect"></div>
-          <div class="card-foot"><span class="foot-note">The game opens for about a minute, then closes itself.</span><button class="btn btn-sm btn-ghost" id="btnRescan">Re-scan games</button><button class="btn btn-sm" id="btnTestLaunch">Test launch</button></div>
+          <div class="card-foot"><span class="foot-note">The game opens briefly and closes as soon as SHiFT is ready.</span><button class="btn btn-sm btn-ghost" id="btnRescan">Re-scan games</button><button class="btn btn-sm" id="btnTestLaunch">Test launch</button></div>
         </section>
         <section class="panel step" id="setPace">
           <div class="step-head"><h2 class="step-title"><span class="step-n">3</span>Pace <span class="tag-opt">Optional</span></h2><button class="btn btn-sm btn-ghost" data-help="rate limit">?</button></div>
           <p class="step-hint">SHiFT rate-limits fast clients. Slower is safer.</p>
           <label class="field"><span class="label">Delay between SHiFT requests <output id="delayOut"></output></span><input type="range" min="2" max="30" step="1" data-setting="delaySeconds" id="delayRange"></label>
           <label class="field inline"><span class="label">Max codes to check per run <small>(0 = no limit)</small></span><input type="number" min="0" max="5000" data-setting="maxChecksPerRun"></label>
+        </section>
+        <section class="panel step" id="setUpdates">
+          <div class="step-head"><h2 class="step-title"><span class="step-n">5</span>Updates</h2><button class="btn btn-sm btn-ghost" data-help="update the app">?</button></div>
+          <p class="step-hint">New versions install from inside the app: no website, no installer to find. Your codes and settings are kept.</p>
+          <div class="update-status" id="updateStatus"></div>
+          <label class="switch-row"><input type="checkbox" class="switch" data-setting="updates.autoCheck"><span><b>Check for updates automatically</b><small>When the app starts, then every few hours.</small></span></label>
+          <label class="switch-row"><input type="checkbox" class="switch" data-setting="updates.autoInstall"><span><b>Install updates automatically</b><small>Handy with auto-pilot: when nothing is running, the update installs and the app restarts by itself.</small></span></label>
+          <div class="card-foot"><span class="foot-note" id="updateChecked"></span><button class="btn btn-sm" data-act="update-check">Check now</button><button class="btn btn-sm btn-eridian" data-act="update-install" id="btnUpdateNow" hidden>Update now</button></div>
         </section>
         <section class="panel step" id="setData">
           <div class="step-head"><h2 class="step-title"><span class="step-n">4</span>Data &amp; display</h2><button class="btn btn-sm btn-ghost" data-help="where is my data">?</button></div>
@@ -431,10 +443,10 @@
           <!-- 6 -->
           <section class="wz-page" data-step="5" hidden>
             <h2 class="step-title">Will you play Borderlands while this runs?</h2>
-            <p class="lead">Now and then SHiFT stops accepting codes until a SHiFT-enabled game has been started. SHiFT Redeemer can start one for about a minute and close it again, but that would get in your way if you're playing.</p>
+            <p class="lead">Now and then SHiFT stops accepting codes until a SHiFT-enabled game has been started. SHiFT Redeemer can start one, wait until SHiFT notices it (usually under a minute) and close it again, but that would get in your way if you're playing.</p>
             <div class="choice-grid" role="radiogroup" aria-label="Will you play while SHiFT Redeemer runs?">
               <button type="button" class="choice" role="radio" data-act="wz-play" data-v="yes"><span class="tile-ic" aria-hidden="true">🎮</span><span><b>Yes, I'll often be playing</b><small>It never starts or closes a game by itself. If you're already in a Borderlands game, SHiFT sees it and redeeming carries on. Otherwise you get a one-click <i>Launch &amp; resume</i>.</small></span></button>
-              <button type="button" class="choice" role="radio" data-act="wz-play" data-v="no"><span class="tile-ic" aria-hidden="true">💤</span><span><b>No, it mostly runs while I'm away</b><small>When SHiFT asks, it starts a game for about a minute, then closes it and carries on. It only ever closes a game it started.</small></span></button>
+              <button type="button" class="choice" role="radio" data-act="wz-play" data-v="no"><span class="tile-ic" aria-hidden="true">💤</span><span><b>No, it mostly runs while I'm away</b><small>When SHiFT asks, it starts a game, closes it as soon as SHiFT is ready (usually within a minute) and carries on. It only ever closes a game it started.</small></span></button>
             </div>
             <p class="hint" id="wzAssistText"></p>
           </section>

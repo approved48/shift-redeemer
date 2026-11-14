@@ -4,6 +4,7 @@ import { initHelp } from './help.js';
 import { initReport } from './report.js';
 import { initLists } from './lists.js';
 import { initTips } from './glossary.js';
+import { artSVG, isLightArt, accentOf } from './titleart.js';
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -218,7 +219,24 @@ async function flushSettings() {
 
 // ------------------------------------------------------------------ state
 
+let bootVersion = null;
 function applyState(st, { keepSettings = false } = {}) {
+  // Reconnected to a newer version after an update: reload to pick up its new screens.
+  if (bootVersion && st.app?.version && st.app.version !== bootVersion) {
+    location.reload();
+    return;
+  }
+  bootVersion = bootVersion || st.app?.version || null;
+  if (st.app?.justUpdated) {
+    let seen = null;
+    try {
+      seen = localStorage.getItem('sr.updatedTo');
+      localStorage.setItem('sr.updatedTo', st.app.version);
+    } catch {
+      /* storage unavailable */
+    }
+    if (seen !== st.app.version) setTimeout(() => toast(`Updated to version ${st.app.version}. See what's new under Help.`, 'ok'), 600);
+  }
   S.app = st.app || {};
   S.account = st.account;
   S.engine = st.engine;
@@ -269,7 +287,10 @@ function connect() {
     appendLog(entry);
   });
   es.addEventListener('state', (e) => {
+    const was = S.engine?.running;
     S.engine = JSON.parse(e.data);
+    if (!was && S.engine.running && S.engine.kind === 'redeem') startStripRun();
+    if (was && !S.engine.running) scheduleGameStrip(300);
     renderRun();
   });
   es.addEventListener('account', (e) => {
@@ -283,6 +304,7 @@ function connect() {
     renderStats();
     loadCodes();
     report.refresh(S.catalog.platforms);
+    scheduleGameStrip();
   });
   es.addEventListener('app', (e) => {
     S.app = JSON.parse(e.data);
@@ -299,6 +321,15 @@ function connect() {
     $('#acctPill').className = 'acct-pill off';
     if (quitting) return;
     clearTimeout(offlineTimer);
+    if (S.app?.update?.state === 'installing') {
+      showOverlay(`Updating to version ${S.app.update.version}…`, 'SHiFT Redeemer is installing the update and will restart by itself in a moment. This window reconnects automatically. There’s nothing you need to do.');
+      $('#overlay').classList.add('updating');
+      offlineTimer = setTimeout(
+        () => showOverlay('The update is taking longer than usual', 'If SHiFT Redeemer doesn’t come back in a minute, open it again from your Start menu, desktop or Applications folder. Your codes and settings are safe.'),
+        180_000,
+      );
+      return;
+    }
     offlineTimer = setTimeout(
       () => showOverlay('SHiFT Redeemer isn’t running', 'Open SHiFT Redeemer again from your Start menu, desktop or Applications folder. This window reconnects automatically.'),
       4000,
@@ -459,11 +490,70 @@ function platPicksHTML() {
 
 // ------------------------------------------------------------------ render
 
+// ------------------------------------------------------------------ dashboard game strip
+// A slim row of the games you target, with keys and cosmetics so far and a "+N" as a run adds to
+// each one. The full breakdown lives on the Rewards page.
+
+const GS = { data: null, base: null, live: false, timer: null, bumped: new Set() };
+async function loadGameStrip() {
+  try {
+    GS.data = await api('GET', '/api/report');
+    renderGameStrip();
+  } catch {
+    /* the strip is optional */
+  }
+}
+function scheduleGameStrip(ms = 1200) {
+  clearTimeout(GS.timer);
+  GS.timer = setTimeout(loadGameStrip, ms);
+}
+const stripTotals = (t) => ({ keys: (t?.keys.golden || 0) + (t?.keys.diamond || 0) + (t?.keys.skeleton || 0), items: t?.items.length || 0 });
+function startStripRun() {
+  GS.live = true;
+  GS.base = Object.fromEntries((GS.data?.titles || []).map((t) => [t.id, stripTotals(t)]));
+  renderGameStrip();
+}
+function renderGameStrip() {
+  const box = $('#gameStrip');
+  if (!S.settings || !GS.data) return;
+  const st = S.settings.titles;
+  const ids = S.catalog.titles.filter((t) => !t.discovered && (st.mode === 'all' || st.selected.includes(t.id))).map((t) => t.id);
+  box.hidden = !ids.length;
+  if (!GS.base && !S.engine.running) GS.live = false;
+  const KEYN = { golden: 'Golden', diamond: 'Diamond', skeleton: 'Skeleton' };
+  const html = ids
+    .map((id) => {
+      const info = titleById(id);
+      const t = GS.data.titles.find((x) => x.id === id);
+      const now = stripTotals(t);
+      const base = GS.base?.[id] || (GS.base ? { keys: 0, items: 0 } : now);
+      const dk = now.keys - base.keys;
+      const di = now.items - base.items;
+      const keys = t ? ['golden', 'diamond', 'skeleton'].filter((k) => t.keys[k]).map((k) => `<b>${t.keys[k].toLocaleString()}</b> ${KEYN[k]}`) : [];
+      const delta = dk || di ? `<span class="gs-delta ${GS.bumped.has(`${id}:${dk}:${di}`) ? '' : 'pop'}">${dk ? `+${dk} key${dk === 1 ? '' : 's'}` : `+${di} item${di === 1 ? '' : 's'}`}</span>` : '';
+      if (dk || di) GS.bumped.add(`${id}:${dk}:${di}`);
+      const tip = `${info.name}: ${keys.length ? keys.map((k) => k.replace(/<\/?b>/g, '')).join(', ') + ' Keys' : 'no keys yet'}, ${now.items} cosmetic${now.items === 1 ? '' : 's'} & items.${dk || di ? ` ${GS.live && S.engine.running ? 'This run' : 'Last run'}: ${dk ? `+${dk} keys` : ''}${dk && di ? ', ' : ''}${di ? `+${di} items` : ''}.` : ''} Select for the full report.`;
+      return `<a class="gs-tile ${isLightArt(id) ? 'on-light' : ''} ${dk || di ? 'gained' : ''}" href="#rewards" data-rp-title="${esc(id)}" style="--c:${accentOf(id, info.color)}" data-tip="${esc(tip)}">
+        ${artSVG(id, 'gs', 'gs-art')}
+        <span class="gs-name">${esc(info.short)}</span>
+        <span class="gs-keys">${keys.length ? keys.join(' · ') : '<span class="gs-none">No keys yet</span>'}</span>
+        <span class="gs-sub">${now.items ? `${now.items} cosmetic${now.items === 1 ? '' : 's'} & items` : ''}</span>
+        ${delta}
+      </a>`;
+    })
+    .join('');
+  if (box.dataset.sig !== html) {
+    box.innerHTML = html;
+    box.dataset.sig = html;
+  }
+}
+
 function renderAll() {
   if (!S.settings) return;
   renderAccount();
   renderRun();
   renderDashboard();
+  renderGameStrip();
   renderTargets();
   renderSources();
   renderSettingsBound();
@@ -473,8 +563,57 @@ function renderAll() {
   renderWizard();
 }
 
+// ------------------------------------------------------------------ updates
+
+// Release notes are short Markdown lists; show them as simple HTML.
+function notesHTML(md) {
+  const inline = (t) => esc(t).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/\*(.+?)\*/g, '<i>$1</i>').replace(/`(.+?)`/g, '<code>$1</code>');
+  const items = String(md || '').split('\n').map((l) => l.trim()).filter(Boolean);
+  const li = items.filter((l) => /^[-*] /.test(l)).map((l) => `<li>${inline(l.slice(2))}</li>`);
+  return li.length ? `<ul class="list">${li.join('')}</ul>` : items.map((l) => `<p>${inline(l)}</p>`).join('');
+}
+
+function updateBanner(u) {
+  const page = `<a class="btn btn-sm btn-ghost" href="${esc(u.url)}" target="_blank" rel="noopener">Release page</a>`;
+  const notes = u.notes ? `<details class="update-notes"><summary>What’s new in ${esc(u.version)}</summary>${notesHTML(u.notes)}</details>` : '';
+  if (u.state === 'downloading') {
+    const pct = Math.round((u.progress || 0) * 100);
+    return callout('eridian', '⬇', `Downloading version ${esc(u.version)}… ${pct}%`, `<div class="bar live"><i style="width:${Math.max(pct, 2)}%"></i></div>Once it’s downloaded, SHiFT Redeemer installs it and restarts by itself.`);
+  }
+  if (u.state === 'installing') return callout('eridian', '⟳', `Installing version ${esc(u.version)}…`, 'SHiFT Redeemer restarts by itself in a moment. This window reconnects automatically.');
+  if (u.state === 'error')
+    return callout('danger', '⚠', 'The update didn’t install', `${esc(u.error || 'Something went wrong.')} Nothing was changed. Try again, or download it from the release page.`, `<button class="btn btn-sm btn-eridian" data-act="update-install">Try again</button>${page}`);
+  if (!u.canInstall) return callout('eridian', '⬆', `Update available: version ${esc(u.version)}`, `You have ${esc(S.app.version)}. ${esc(u.reason || '')}${notes}`, `<a class="btn btn-sm btn-eridian" href="${esc(u.url)}" target="_blank" rel="noopener">Download</a>`);
+  return callout(
+    'eridian',
+    '⬆',
+    `Update available: version ${esc(u.version)}`,
+    `You have ${esc(S.app.version)}. Updating takes about a minute: the app downloads it, restarts, and keeps your codes and settings.${notes}`,
+    `<button class="btn btn-sm btn-eridian" data-act="update-install" ${S.engine.running ? 'disabled title="Wait for the current run to finish, or press Stop"' : ''}>Update now</button>${page}`,
+  );
+}
+
+function renderUpdates() {
+  const a = S.app || {};
+  const u = a.update;
+  const box = $('#updateStatus');
+  if (!box) return;
+  let html;
+  if (!a.packaged) html = `<span class="chip"><i></i>From source</span> Version ${esc(a.version)}. Update with <code>git pull</code>.`;
+  else if (u?.state === 'downloading') html = `<span class="chip ok"><i style="--c:var(--eridian)"></i>Downloading</span> Version ${esc(u.version)}, ${Math.round((u.progress || 0) * 100)}%`;
+  else if (u?.state === 'installing') html = `<span class="chip ok"><i style="--c:var(--eridian)"></i>Installing</span> Version ${esc(u.version)}. Restarting in a moment…`;
+  else if (u?.state === 'error') html = `<span class="chip"><i style="--c:var(--red)"></i>Update failed</span> ${esc(u.error)}`;
+  else if (u) html = `<span class="chip ok"><i style="--c:var(--amber)"></i>Update available</span> Version ${esc(u.version)} is out (you have ${esc(a.version)}).${u.canInstall ? '' : ` ${esc(u.reason || '')}`}`;
+  else if (a.updateError) html = `<span class="chip"><i style="--c:var(--amber)"></i>Couldn't check</span> ${esc(a.updateError)}`;
+  else html = `<span class="chip ok"><i style="--c:var(--green)"></i>Up to date</span> You have the latest version, ${esc(a.version)}.`;
+  box.innerHTML = html;
+  $('#btnUpdateNow').hidden = !(u && u.canInstall && ['available', 'error'].includes(u.state));
+  $('#updateChecked').textContent = a.updateCheckedAt ? `Last checked ${ago(a.updateCheckedAt)}` : a.packaged ? 'Not checked yet' : '';
+}
+
 function renderAppInfo() {
   const a = S.app || {};
+  renderUpdates();
   $$('.js-autostart-row').forEach((r) => (r.hidden = !a.autostartSupported));
   $$('.js-autostart').forEach((c) => (c.checked = !!a.autostart));
   $('#versionLine').textContent = `Version ${a.version || '?'}${a.update ? ` · update ${a.update.version} available` : ''}`;
@@ -522,9 +661,36 @@ let assistTick;
 function assistLine(a) {
   if (a.step === 'launching') return `Starting ${esc(a.title)} via ${esc(a.via)}…`;
   if (a.step === 'starting') return `Waiting for ${esc(a.title)} to start · ${mmss(Date.now() - (a.since || Date.now()))}`;
-  if (a.step === 'warmup') return `${esc(a.title)} is running so SHiFT can register it · resuming in ${mmss((a.endsAt || 0) - Date.now())}`;
+  if (a.step === 'warmup')
+    return a.checking
+      ? `${esc(a.title)} is open · checking whether SHiFT is ready…`
+      : `${esc(a.title)} is open so SHiFT can register it · ${mmss(Date.now() - (a.since || Date.now()))} · closes as soon as SHiFT is ready`;
   if (a.step === 'closing') return `Closing ${esc(a.title)}…`;
   return '';
+}
+
+// Dashboard switch for game launch assist: on = Automatically, off = Ask me.
+function assistToggle() {
+  const ga = S.settings?.gameAssist || {};
+  const steam = S.games?.steam || {};
+  const on = ga.mode === 'auto';
+  const canLaunch = !!(steam.installed?.length || ga.epicLink);
+  const tip = !canLaunch && !on
+    ? 'No Borderlands game was found on Steam. Epic players can add a launch link in Settings → Game launch assist.'
+    : on
+      ? 'On: when SHiFT asks for a game, one is started for you and closed as soon as SHiFT is ready. Turn off if you’re playing.'
+      : 'Off: when SHiFT asks for a game, redeeming pauses and offers one-click Launch & resume. Turn on to have it happen by itself.';
+  return `<button type="button" class="mini-toggle ${on ? 'on' : ''}" data-act="assist-toggle" role="switch" aria-checked="${on}" data-tip="${esc(tip)}" ${canLaunch || on ? '' : 'disabled'}>Auto-launch games<i aria-hidden="true"></i></button>`;
+}
+
+// Where a game launch is up to: start → wait for SHiFT → close → resume.
+function assistTrack(a) {
+  const own = a.via === 'the game you have open';
+  const idx = { launching: 0, starting: 0, warmup: 1, closing: 2 }[a.step] ?? 0;
+  const labels = [own ? 'Use your open game' : `Start ${a.title}`, a.checking ? 'Checking with SHiFT' : 'Wait for SHiFT', own ? 'Leave it open' : 'Close game', 'Resume'];
+  return `<div class="assist-track" role="list" aria-label="Game launch progress">${labels
+    .map((l, i) => `<span role="listitem" class="as ${i < idx ? 'done' : i === idx ? 'cur' : ''}"><i>${i < idx ? '✓' : i + 1}</i>${esc(l)}</span>`)
+    .join('')}${a.step === 'warmup' ? `<button type="button" class="btn btn-xs btn-eridian" data-act="assist-skip">${own ? 'Resume now' : 'Close game &amp; resume'}</button>` : ''}</div>`;
 }
 
 function renderRun() {
@@ -543,15 +709,16 @@ function renderRun() {
   else if (paused) current = `SHiFT needs a game launched · ${lr.pause.waiting} code${lr.pause.waiting === 1 ? '' : 's'} waiting`;
   else current = `${S.stats.queue ?? 0} code${S.stats.queue === 1 ? '' : 's'} in the queue`;
   const phaseChanged = phase;
-  const warmPct = e.assist?.step === 'warmup' && e.assist.endsAt ? 100 - Math.round(((e.assist.endsAt - Date.now()) / (Number(S.settings?.gameAssist?.warmupSeconds || 75) * 1000)) * 100) : null;
+  const warmPct = e.assist?.step === 'warmup' && e.assist.endsAt ? 100 - Math.round(((e.assist.endsAt - Date.now()) / (e.assist.warm || Number(S.settings?.gameAssist?.warmupSeconds || 90) * 1000)) * 100) : null;
   $('#runCard').innerHTML = `
     <div class="cmd-line"><span class="cmd-dot ${dot}"></span><span class="cmd-phase ${live ? 'live' : ''} ${paused ? 'warn' : ''} ${phase !== lastPhase && lastPhase !== null ? 'flick' : ''}">${phase}</span><span class="cmd-current">${current}</span></div>
     <div class="bar ${live ? 'live' : ''} ${e.assist ? 'assist' : ''}"><i style="width:${live ? Math.max(warmPct ?? pct, 2) : 0}%"></i></div>
+    ${live && e.assist ? assistTrack(e.assist) : ''}
     <div class="cmd-meta">
       <span>Last search <b>${e.lastCollect ? `${ago(e.lastCollect.at)} · ${e.lastCollect.added} new` : 'never'}</b></span>
       <span>Last run <b>${lr ? `${ago(lr.finishedAt || lr.at)} · ${lr.redeemed} redeemed` : 'never'}</b></span>
       <span>Auto-pilot <b>${S.settings?.autoRun.enabled ? (e.nextRun ? `next ${ago(e.nextRun)}` : 'on') : 'off'}</b></span>
-      <span>Game assist <b>${{ auto: 'automatic', ask: 'asks first', off: 'off' }[S.settings?.gameAssist?.mode] || 'off'}</b></span>
+      ${assistToggle()}
       ${e.message && !e.assist ? `<span class="cmd-msg">${esc(e.message)}</span>` : ''}
     </div>`;
   lastPhase = phaseChanged;
@@ -566,8 +733,7 @@ function renderBanners() {
     out.push(callout('eridian', '🔑', 'Connect your SHiFT account to start redeeming', 'Codes can be found without an account, but redeeming them needs you signed in.', '<button class="btn btn-sm btn-eridian" data-act="setup">Run setup</button><a class="btn btn-sm" href="#account">Account</a>'));
   if (S.account.saved && !S.account.saved.secure)
     out.push(callout('danger', '⚠', 'Your SHiFT password is saved without encryption', "It's stored as readable text on this computer because secure storage wasn't available.", '<button class="btn btn-sm" data-act="acct-forget">Forget password</button>'));
-  if (S.app?.update)
-    out.push(callout('eridian', '⬆', `Update available: version ${esc(S.app.update.version)}`, `You have ${esc(S.app.version)}. Install the new version over this one; your codes and settings are kept.`, `<a class="btn btn-sm btn-eridian" href="${esc(S.app.update.url)}" target="_blank" rel="noopener">Download</a>`));
+  if (S.app?.update) out.push(updateBanner(S.app.update));
   const lr = S.engine.lastRun;
   if (!S.engine.running && lr?.pause) out.push(pauseBanner(lr.pause));
   const nudge = assistNudge();
@@ -595,7 +761,7 @@ function assistNudge() {
     'eridian',
     '🕹',
     'Launch games automatically when you’re not playing?',
-    `Game launch assist is set to <b>${ga.mode === 'ask' ? 'Ask me' : 'Off'}</b>${why}. When you’re away, SHiFT Redeemer can start ${best ? esc(best) : 'a game'} for about a minute whenever SHiFT asks, then close it and carry on. It never closes a game you opened yourself.`,
+    `Game launch assist is set to <b>${ga.mode === 'ask' ? 'Ask me' : 'Off'}</b>${why}. When you’re away, SHiFT Redeemer can start ${best ? esc(best) : 'a game'} whenever SHiFT asks and close it as soon as SHiFT is ready, usually within a minute. It never closes a game you opened yourself.`,
     '<button class="btn btn-sm btn-eridian" data-act="nudge-on">Turn on</button><button class="btn btn-sm" data-act="nudge-later">Not now</button><button class="btn btn-sm btn-ghost" data-act="nudge-never">Don’t ask again</button>',
   );
 }
@@ -607,7 +773,7 @@ function pauseBanner(p) {
   let body;
   let buttons = '';
   if (p.why === 'ask' || (p.why === 'off' && p.canLaunch)) {
-    body = `SHiFT stopped accepting codes on ${esc(where)} until a SHiFT-enabled game is launched (${waiting}). SHiFT Redeemer can start <b>${esc(p.game)}</b> via ${esc(p.via)}, wait about a minute, close it and carry on.`;
+    body = `SHiFT stopped accepting codes on ${esc(where)} until a SHiFT-enabled game is launched (${waiting}). SHiFT Redeemer can start <b>${esc(p.game)}</b> via ${esc(p.via)}, close it as soon as SHiFT is ready and carry on. Turn on <b>Auto-launch games</b> above to have this happen by itself.`;
     buttons = `<button class="btn btn-sm btn-eridian" data-act="assist-resume">Launch ${esc(p.game)} &amp; resume</button><button class="btn btn-sm" data-act="redeem">I launched a game, resume</button>`;
   } else if (p.why === 'still-blocked') {
     body = `${esc(p.message)} (${waiting}).`;
@@ -1036,6 +1202,26 @@ document.addEventListener('click', async (ev) => {
     loadState();
   } else if (a === 'redeem') {
     await act(() => api('POST', '/api/run', {})).catch(() => {});
+  } else if (a === 'update-check') {
+    try {
+      const r = await api('POST', '/api/update/check');
+      S.app = r.app;
+      renderAppInfo();
+      renderBanners();
+      toast(r.app.update ? `Version ${r.app.update.version} is available` : 'You have the latest version', 'ok');
+    } catch (e) {
+      toast(e.message, 'err');
+      loadState().catch(() => {});
+    }
+  } else if (a === 'update-install') {
+    await act(() => api('POST', '/api/update/install'), 'Downloading the update…').catch(() => {});
+  } else if (a === 'assist-toggle') {
+    const on = S.settings.gameAssist.mode !== 'auto';
+    setSetting('gameAssist.askedAt', Date.now());
+    setSetting('gameAssist.mode', on ? 'auto' : 'ask', { now: true });
+    toast(on ? 'Games will be launched automatically when SHiFT asks' : 'Auto-launch off: you’ll get a one-click Launch & resume instead', 'ok');
+  } else if (a === 'assist-skip') {
+    await act(() => api('POST', '/api/games/skip')).catch(() => {});
   } else if (a === 'assist-resume') {
     await act(() => api('POST', '/api/games/resume'), 'Launching the game, then resuming…').catch(() => {});
   } else if (a === 'setup') {
@@ -1388,6 +1574,7 @@ showTab();
 loadState()
   .then(() => {
     loadCodes();
+    loadGameStrip();
     if (!S.settings.setupComplete) {
       // People who were already up and running before setup existed don't need it.
       if (S.account.loggedIn && S.engine.lastRun) setSetting('setupComplete', true, { now: true });

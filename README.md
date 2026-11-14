@@ -37,7 +37,9 @@ You can run the wizard again any time from **Settings**.
 
 **Share code lists.** On **Codes**, **Import list** takes a friend's or community list: drop in a text, CSV or SHiFT Redeemer list file, or paste it. You see how many codes are new before anything is added, and can redeem them straight away. **Export list** saves your working codes, your queue or everything as text, CSV or a list file to share or back up. Exports never include your account or which rewards you've had.
 
-**Your rewards report.** The **Rewards** tab adds up everything the app has unlocked for you: Golden, Diamond and Skeleton Keys and cosmetic items, per game and per platform. It includes a month-by-month chart, every cosmetic you've collected grouped by type (skins, heads, weapon skins, trinkets and more), the full history, filters for time period and platform, and **Export CSV**. When one code gives different rewards in different games, each game is credited with its own share.
+**Per-game tiles on the dashboard** show the keys and cosmetics each game has received, with a live **+N** as a run adds to it. Select one for the full breakdown.
+
+**Your rewards report.** The **Rewards** tab adds up everything the app has unlocked for you: Golden, Diamond and Skeleton Keys and cosmetic items, per game and per platform. It includes a month-by-month chart, every cosmetic you've collected grouped by type (skins, heads, weapon skins, trinkets and more), the full history, filters for time period and platform, and **Export CSV**. When one code gives different rewards in different games, each game is credited with its own share. Each game card also shows what's **on your account**: rewards the app redeemed, ones that were **already redeemed** (on the website, in a game or on another device), and how many are still to go.
 
 **What do the rewards actually do?** Help → **Rewards guide** explains what Golden, Diamond and Skeleton Keys open in each game and what each kind of cosmetic is, with links to the [Borderlands Wiki](https://borderlands.fandom.com) for more. Hover over any key or cosmetic in the app for a quick explanation.
 
@@ -53,11 +55,11 @@ That's it. The app searches the web for codes, checks each one with SHiFT, and r
 
 ### Good to know
 
-- **"Launch a SHiFT-enabled game first."** Gearbox sometimes pauses redemptions until you start a game. **Game launch assist** handles this. If you play Borderlands while the app runs, choose *Ask me* (setup does this for you): the app then never starts or closes a game itself, and if your game is already open it just waits for SHiFT to notice and carries on. The app finds a Borderlands game installed through Steam (or uses your Epic launch link), starts it, waits about a minute at the main menu so SHiFT registers it, closes it again and carries on redeeming. It only closes a game it started itself. Set it to *Automatically*, *Ask me* (one click: "Launch & resume") or *Off* in **Settings**. Games can't be started invisibly, so you'll see it open briefly. Console games can't be launched remotely; for those the dashboard says exactly what it's waiting for.
+- **"Launch a SHiFT-enabled game first."** Gearbox sometimes pauses redemptions until you start a game. **Game launch assist** handles this, and the **Auto-launch games** switch on the dashboard turns it on or off in one click. The game is closed as soon as SHiFT accepts codes again (the app quietly checks every 15 seconds), the dashboard shows each step, and **Close game & resume** skips the wait. If you play Borderlands while the app runs, choose *Ask me* (setup does this for you): the app then never starts or closes a game itself, and if your game is already open it just waits for SHiFT to notice and carries on. The app finds a Borderlands game installed through Steam (or uses your Epic launch link), starts it, waits until SHiFT registers it (usually under a minute), closes it again and carries on redeeming. It only closes a game it started itself. Set it to *Automatically*, *Ask me* (one click: "Launch & resume") or *Off* in **Settings**. Games can't be started invisibly, so you'll see it open briefly. Console games can't be launched remotely; for those the dashboard says exactly what it's waiting for.
 - **Missing a platform?** SHiFT only redeems for platforms linked to your account. Link them on the SHiFT website under *Gaming Platforms*.
 - **Your data stays on your computer.** The app only talks to SHiFT and the code websites it searches.
 - **"Keep me signed in"** saves your SHiFT password in your system's secure password storage: **Windows Credential Manager** or the **macOS Keychain** (on Linux, GNOME Keyring or KWallet). If that isn't available, the app asks first and clearly warns you before saving it unencrypted, and you can always choose not to save it. **Forget saved password** on the Account tab removes it.
-- **Updating:** when a new version is out, the app shows a banner. Install the new version over the old one; your codes and settings are kept.
+- **Updating:** when a new version is out, the dashboard shows a banner. Select **Update now** and the app downloads it, checks it against GitHub's published checksum, restarts and keeps your codes and settings. **Settings → Updates** has **Check now** and an option to install updates automatically. (Self-updating works from version 1.4.0 onwards. For anything older, install the new version over the old one once.)
 - **Uninstalling (Windows):** Settings → Apps → SHiFT Redeemer → Uninstall.
 
 ## Where codes come from
@@ -102,15 +104,18 @@ The workflow builds every platform, tests the apps and the Windows installer (si
 
 | Path | Role |
 | --- | --- |
+| `main.js` | Packaged-app entry: starts the app, or acts as the Windows update helper |
 | `server.js` | Local HTTP server and API, single-instance handling, app window lifecycle |
 | `lib/shift.js` | SHiFT website client (sign-in, code check, redemption) |
 | `lib/engine.js` | Queue, targeting, redemption runs, auto-pilot scheduler |
 | `lib/sources.js` | Code discovery |
-| `lib/runtime.js` | Packaged-app behaviour (data folder, app window, start with computer, update check) |
+| `lib/runtime.js` | Packaged-app behaviour (data folder, app window, start with computer) |
+| `lib/updater.js` | In-app updates: check GitHub releases, download and verify, install and restart |
+| `lib/apply-update.js` | Windows update helper (a copy of the app) that installs the update and restarts it |
 | `lib/codelists.js` | Import and export of shareable code lists |
 | `lib/rewards.js` | Reward parsing (keys per game, cosmetic types) and the rewards report |
 | `lib/llm.js` | Instructions for AI assistants to find codes |
-| `public/` | UI (no build step): `app.js`, `help.js`, `report.js`, `lists.js`, `glossary.js` (rewards guide and tooltips) |
+| `public/` | UI (no build step): `app.js`, `help.js`, `report.js`, `lists.js`, `glossary.js` (rewards guide and tooltips), `titleart.js` (original per-game banners on the Rewards page) |
 | `scripts/build.mjs` | Packages the single-file app for the current OS |
 | `packaging/windows/installer.iss` | Windows installer (Inno Setup, per-user, no admin prompt) |
 

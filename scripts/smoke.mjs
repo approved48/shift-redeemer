@@ -3,6 +3,8 @@
 // Usage: npm run smoke   (after npm run build)
 
 import fs from 'node:fs';
+import http from 'node:http';
+import crypto from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
@@ -24,7 +26,28 @@ const base = `http://127.0.0.1:${PORT}`;
 const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'shift-smoke-'));
 process.env.SHIFT_SECRETS_NAMESPACE = `smoke-${process.pid}`;
 const mock = await startMock();
-const env = { ...process.env, NO_OPEN: '1', NO_UPDATE_CHECK: '1', PORT: String(PORT), DATA_DIR: dataDir, SHIFT_BASE_URL: mock.url };
+
+// A pretend GitHub release, "99.0.0", whose download is this OS's own release file, so the
+// in-app updater can be tested for real: download, verify, quit, install, restart.
+const RELEASE_DIR = path.join(ROOT, 'dist', 'release');
+const releaseFiles = fs.existsSync(RELEASE_DIR) ? fs.readdirSync(RELEASE_DIR) : [];
+const relServer = http.createServer((req, res) => {
+  if (req.url === '/release') {
+    const assets = releaseFiles.map((name) => {
+      const buf = fs.readFileSync(path.join(RELEASE_DIR, name));
+      return { name, size: buf.length, digest: `sha256:${crypto.createHash('sha256').update(buf).digest('hex')}`, browser_download_url: `http://127.0.0.1:${relServer.address().port}/dl/${encodeURIComponent(name)}` };
+    });
+    res.writeHead(200, { 'content-type': 'application/json' });
+    return res.end(JSON.stringify({ tag_name: 'v99.0.0', html_url: 'https://example.invalid/release', body: "## What's new\n- Smoke test update\n\n## Download\n", assets }));
+  }
+  const name = decodeURIComponent((req.url.match(/^\/dl\/(.+)$/) || [])[1] || '');
+  if (!releaseFiles.includes(name)) return res.writeHead(404).end();
+  res.writeHead(200, { 'content-type': 'application/octet-stream', 'content-length': fs.statSync(path.join(RELEASE_DIR, name)).size });
+  fs.createReadStream(path.join(RELEASE_DIR, name)).pipe(res);
+});
+await new Promise((r) => relServer.listen(0, '127.0.0.1', r));
+
+const env = { ...process.env, NO_OPEN: '1', NO_UPDATE_CHECK: '1', PORT: String(PORT), DATA_DIR: dataDir, SHIFT_BASE_URL: mock.url, SHIFT_UPDATE_API: `http://127.0.0.1:${relServer.address().port}/release` };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const api = async (method, p, body) => {
   const r = await fetch(base + p, { method, headers: { 'content-type': 'application/json', 'x-shift-redeemer': '1' }, body: body ? JSON.stringify(body) : undefined });
@@ -52,7 +75,7 @@ try {
   // 2. serves the embedded UI
   const html = await fetch(`${base}/`).then((r) => r.text());
   assert.match(html, /SHiFT Redeemer/);
-  for (const f of ['/app.js', '/help.js', '/report.js', '/lists.js', '/glossary.js', '/styles.css', '/icon.svg']) assert.equal((await fetch(base + f)).status, 200, `${f} missing`);
+  for (const f of ['/app.js', '/help.js', '/report.js', '/lists.js', '/glossary.js', '/titleart.js', '/styles.css', '/icon.svg']) assert.equal((await fetch(base + f)).status, 200, `${f} missing`);
   const st = await api('GET', '/api/state');
   assert.equal(st.app.packaged, true, 'not running in packaged mode');
   console.log('✔ UI served from embedded assets');
@@ -130,10 +153,40 @@ try {
   assert.equal(code2, 0, 'second instance did not exit cleanly');
   console.log('✔ second launch detected the running app');
 
-  // 5. quit from the UI
+  // 5. in-app update: finds the "new" release, downloads and verifies it, quits, installs, restarts
+  const chk = (await api('POST', '/api/update/check')).app;
+  assert.equal(chk.update?.version, '99.0.0', `update not found: ${JSON.stringify(chk.updateError || chk.update)}`);
+  assert.ok(chk.update.canInstall, `update can't install: ${chk.update.reason}`);
+  assert.match(chk.update.notes, /Smoke test update/);
+  console.log(`✔ update found (${chk.installKind}: ${chk.update.asset.name})`);
+  for (let i = 0; i < 120 && (await api('GET', '/api/state')).engine.running; i++) await sleep(500); // updates wait for runs to finish
+  const oldPid = (await api('GET', '/api/ping')).pid;
+  await api('POST', '/api/update/install');
+  for (let i = 0; i < 120 && exited === null; i++) await sleep(500);
+  assert.equal(exited, 0, 'app did not quit to install the update');
+  let back = null;
+  const quickPing = () => fetch(`${base}/api/ping`, { signal: AbortSignal.timeout(1500) }).then((r) => r.json()).catch(() => null);
+  for (const until = Date.now() + 150_000; Date.now() < until && !(back && back.pid !== oldPid); ) {
+    await sleep(1000);
+    back = await quickPing();
+  }
+  if (!(back && back.pid !== oldPid)) {
+    const log = path.join(os.tmpdir(), 'shift-redeemer-update', 'update.log');
+    if (fs.existsSync(log)) console.error(`--- update.log ---\n${fs.readFileSync(log, 'utf8')}`);
+  }
+  assert.ok(back && back.pid !== oldPid, 'app did not restart after installing the update');
+  assert.equal(back.afterUpdate, 'background');
+  const after = await api('GET', '/api/state');
+  assert.ok(after.logs.some((l) => /Updated to SHiFT Redeemer/.test(l.msg)), 'restarted app did not report the update');
+  console.log(`✔ update installed and the app restarted by itself (pid ${oldPid} → ${back.pid})`);
+
+  // 6. quit from the UI
   await api('POST', '/api/app/quit');
-  for (let i = 0; i < 40 && exited === null; i++) await sleep(250);
-  assert.equal(exited, 0, 'app did not quit');
+  for (let i = 0; i < 40; i++) {
+    await sleep(250);
+    if (!(await quickPing())) break;
+  }
+  assert.equal(await quickPing(), null, 'app did not quit');
   console.log('✔ quit cleanly');
   console.log('\nSMOKE TEST PASSED');
 } catch (e) {
@@ -144,4 +197,5 @@ try {
 } finally {
   if (exited === null) child.kill();
   await mock.close();
+  relServer.close();
 }
