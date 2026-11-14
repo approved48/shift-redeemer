@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
 import { startMock } from '../test/mock-shift.js';
 import { secureStoreInfo, loadSecret } from '../lib/secrets.js';
+import { listProcesses } from '../lib/games.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const BUILD = path.join(ROOT, 'dist', 'build');
@@ -101,6 +102,13 @@ try {
     assert.ok(!fs.readFileSync(path.join(dataDir, 'session.json'), 'utf8').includes('hunter2'), 'plain-text password not removed');
     console.log('✔ plain-text fallback saved only with consent, and removed on Forget');
   }
+
+  // 3c. game launch assist plumbing works on this OS (Steam detection + process list)
+  const g = await api('POST', '/api/games/refresh');
+  assert.equal(typeof g.games?.steam?.found, 'boolean', 'game detection failed');
+  const procs = await listProcesses();
+  assert.ok(procs.length > 3 && procs.some((p) => p.pid === process.pid), `process list looks wrong (${procs.length} entries)`);
+  console.log(`✔ game detection works (Steam ${g.games.steam.found ? 'found' : 'not installed'}; ${procs.length} processes listed)`);
 
   // 4. a second launch hands over to the running copy and exits
   const second = spawn(bin, ['--background'], { env, stdio: 'ignore' });

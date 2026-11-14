@@ -12,6 +12,7 @@ const S = {
   stats: {},
   catalog: { titles: [], platforms: [] },
   sources: [],
+  games: { steam: { found: false, installed: [] } },
   logs: [],
   codes: [],
   filter: { q: '', status: 'queue', game: '' },
@@ -143,6 +144,7 @@ async function flushSettings() {
     loadCodes();
   } catch (e) {
     toast(e.message, 'err');
+    loadState().catch(() => {});
   }
 }
 
@@ -156,6 +158,7 @@ function applyState(st, { keepSettings = false } = {}) {
   S.stats = st.stats;
   S.catalog = st.catalog;
   S.sources = st.sources;
+  if (st.games) S.games = st.games;
   if (st.logs) S.logs = st.logs;
   renderAll();
 }
@@ -388,6 +391,20 @@ function renderAccount() {
   $$('.js-links').forEach((el) => (el.innerHTML = linksHTML()));
 }
 
+const mmss = (ms) => {
+  const t = Math.max(0, Math.round(ms / 1000));
+  return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`;
+};
+let assistTick;
+
+function assistLine(a) {
+  if (a.step === 'launching') return `Starting ${esc(a.title)} via ${esc(a.via)}…`;
+  if (a.step === 'starting') return `Waiting for ${esc(a.title)} to start · ${mmss(Date.now() - (a.since || Date.now()))}`;
+  if (a.step === 'warmup') return `${esc(a.title)} is running so SHiFT can register it · resuming in ${mmss((a.endsAt || 0) - Date.now())}`;
+  if (a.step === 'closing') return `Closing ${esc(a.title)}…`;
+  return '';
+}
+
 function renderRun() {
   const e = S.engine;
   const live = e.running;
@@ -395,18 +412,27 @@ function renderRun() {
   $('#btnStop').hidden = !live;
   ['#btnGo', '#btnCollect', '#btnRedeem', '#btnCollectAll'].forEach((s) => ($(s).disabled = live));
   const lr = e.lastRun;
-  const dot = live ? 'live' : S.account.loggedIn ? 'on' : 'off';
-  const phase = live ? esc(e.phase) : S.account.loggedIn ? 'Standing by' : 'Not connected';
-  const current = live ? esc(e.current || '…') : `${S.stats.queue ?? 0} code${S.stats.queue === 1 ? '' : 's'} in the queue`;
+  const paused = !live && lr?.pause;
+  const dot = live ? 'live' : paused ? 'warn' : S.account.loggedIn ? 'on' : 'off';
+  const phase = live ? esc(e.phase) : paused ? 'Paused' : S.account.loggedIn ? 'Standing by' : 'Not connected';
+  let current;
+  if (live && e.assist) current = assistLine(e.assist);
+  else if (live) current = `${esc(e.current || '…')}${e.total ? ` · ${e.done}/${e.total} · ${pct}%` : ''}`;
+  else if (paused) current = `SHiFT needs a game launched · ${lr.pause.waiting} code${lr.pause.waiting === 1 ? '' : 's'} waiting`;
+  else current = `${S.stats.queue ?? 0} code${S.stats.queue === 1 ? '' : 's'} in the queue`;
+  const warmPct = e.assist?.step === 'warmup' && e.assist.endsAt ? 100 - Math.round(((e.assist.endsAt - Date.now()) / (Number(S.settings?.gameAssist?.warmupSeconds || 75) * 1000)) * 100) : null;
   $('#runCard').innerHTML = `
-    <div class="cmd-line"><span class="cmd-dot ${dot}"></span><span class="cmd-phase ${live ? 'live' : ''}">${phase}</span><span class="cmd-current">${current}${live && e.total ? ` · ${e.done}/${e.total} · ${pct}%` : ''}</span></div>
-    <div class="bar ${live ? 'live' : ''}"><i style="width:${live ? Math.max(pct, 2) : 0}%"></i></div>
+    <div class="cmd-line"><span class="cmd-dot ${dot}"></span><span class="cmd-phase ${live ? 'live' : ''} ${paused ? 'warn' : ''}">${phase}</span><span class="cmd-current">${current}</span></div>
+    <div class="bar ${live ? 'live' : ''} ${e.assist ? 'assist' : ''}"><i style="width:${live ? Math.max(warmPct ?? pct, 2) : 0}%"></i></div>
     <div class="cmd-meta">
       <span>Last search <b>${e.lastCollect ? `${ago(e.lastCollect.at)} · ${e.lastCollect.added} new` : 'never'}</b></span>
       <span>Last run <b>${lr ? `${ago(lr.finishedAt || lr.at)} · ${lr.redeemed} redeemed` : 'never'}</b></span>
       <span>Auto-pilot <b>${S.settings?.autoRun.enabled ? (e.nextRun ? `next ${ago(e.nextRun)}` : 'on') : 'off'}</b></span>
-      ${e.message ? `<span class="cmd-msg">${esc(e.message)}</span>` : ''}
+      <span>Game assist <b>${{ auto: 'automatic', ask: 'asks first', off: 'off' }[S.settings?.gameAssist?.mode] || 'off'}</b></span>
+      ${e.message && !e.assist ? `<span class="cmd-msg">${esc(e.message)}</span>` : ''}
     </div>`;
+  clearInterval(assistTick);
+  if (live && e.assist && ['starting', 'warmup'].includes(e.assist.step)) assistTick = setInterval(renderRun, 1000);
   renderBanners();
 }
 
@@ -418,11 +444,37 @@ function renderBanners() {
     out.push(`<div class="banner danger"><div><b>Your SHiFT password is saved without encryption</b><p>It's stored as readable text on this computer because secure storage wasn't available.</p></div><button class="btn btn-xs" data-act="acct-forget">Forget password</button></div>`);
   if (S.app?.update)
     out.push(`<div class="banner eridian"><div><b>Update available: version ${esc(S.app.update.version)}</b><p>You have ${esc(S.app.version)}. Install the new version over this one; your codes and settings are kept.</p></div><a class="btn btn-eridian btn-xs" href="${esc(S.app.update.url)}" target="_blank" rel="noopener">Download</a></div>`);
-  const blocked = S.engine.blocked || [];
   const lr = S.engine.lastRun;
-  if (blocked.length || lr?.stopped === 'Launch a game')
-    out.push(`<div class="banner"><div><b>SHiFT wants you to launch a game</b><p>Gearbox pauses redemptions until you start any SHiFT-enabled Borderlands title${blocked.length ? ` on ${blocked.map((b) => platformById(b)?.name || b).join(', ')}` : ''}. Launch one, wait at the main menu for a minute, then redeem again.</p></div><button class="btn btn-eridian btn-xs" data-act="redeem">Redeem again</button></div>`);
+  if (!S.engine.running && lr?.pause) out.push(pauseBanner(lr.pause));
   $('#dashBanners').innerHTML = out.join('');
+}
+
+const platNames = (svcs) => svcs.map((x) => platformById(x)?.name || x).join(' & ');
+
+function pauseBanner(p) {
+  const where = platNames(p.services || []);
+  const waiting = `${p.waiting} code${p.waiting === 1 ? '' : 's'} still waiting`;
+  const auto = S.settings?.autoRun.enabled ? ' Auto-pilot will try again on its next run.' : '';
+  let body;
+  let buttons = '';
+  if (p.why === 'ask' || (p.why === 'off' && p.canLaunch)) {
+    body = `SHiFT stopped accepting codes on ${esc(where)} until a SHiFT-enabled game is launched (${waiting}). SHiFT Redeemer can start <b>${esc(p.game)}</b> via ${esc(p.via)}, wait about a minute, close it and carry on.`;
+    buttons = `<button class="btn btn-eridian btn-xs" data-act="assist-resume">Launch ${esc(p.game)} &amp; resume</button><button class="btn btn-xs" data-act="redeem">I launched a game, resume</button>`;
+  } else if (p.why === 'still-blocked') {
+    body = `${esc(p.message)} (${waiting}).`;
+    buttons = `<button class="btn btn-eridian btn-xs" data-act="assist-resume">Launch again &amp; resume</button><button class="btn btn-xs" data-act="redeem">Resume</button>`;
+  } else {
+    body = `SHiFT stopped accepting codes on ${esc(where)} until a SHiFT-enabled game is launched (${waiting}). ${esc(p.message)} Start any Borderlands game, wait at its main menu for a minute, then press Resume.`;
+    buttons = `<button class="btn btn-eridian btn-xs" data-act="redeem">Resume</button><a class="btn btn-ghost btn-xs" href="#settings">Game launch settings</a>`;
+  }
+  return `<div class="banner pause"><div><b>⏸ Redeeming paused: SHiFT needs a game launched</b><p>${body}${auto}</p></div><div class="row gap">${buttons}</div></div>`;
+}
+
+function runResult(lr) {
+  if (lr.pause) return `<span style="color:var(--amber)">Paused: waiting for a game launch (${esc(platNames(lr.pause.services || []))})</span>`;
+  const map = { 'Stopped by you': 'Stopped by you', 'Not signed in': 'Not signed in to SHiFT', 'Signed out': 'Signed out of SHiFT, so sign in again', 'Launch a game': 'Paused: waiting for a game launch' };
+  if (lr.stopped) return `<span style="color:var(--amber)">${esc(map[lr.stopped] || lr.stopped)}</span>`;
+  return '<span style="color:var(--green)">Finished</span>';
 }
 
 function renderStats() {
@@ -459,13 +511,14 @@ function renderDashboard() {
   const lr = S.engine.lastRun;
   $('#lastRun').innerHTML = lr
     ? `<dl class="kv">
-        <dt>Finished</dt><dd>${ago(lr.finishedAt || lr.at)}</dd>
+        <dt>Result</dt><dd>${runResult(lr)}</dd>
+        <dt>When</dt><dd>${ago(lr.finishedAt || lr.at)}</dd>
         <dt>Codes checked</dt><dd>${lr.checked}</dd>
         <dt>Redeemed</dt><dd style="color:var(--green)">${lr.redeemed}</dd>
         <dt>Already had</dt><dd>${lr.already}</dd>
         <dt>Expired / invalid</dt><dd>${lr.dead}</dd>
         <dt>Errors</dt><dd>${lr.errors}</dd>
-        ${lr.stopped ? `<dt>Stopped</dt><dd style="color:var(--amber)">${esc(lr.stopped)}</dd>` : ''}
+        ${lr.assists ? `<dt>Game launches</dt><dd>${lr.assists}</dd>` : ''}
       </dl>`
     : '<p class="hint" style="margin:0">No runs yet. Press <b>Find &amp; redeem</b> to start.</p>';
 }
@@ -541,8 +594,41 @@ function renderSources() {
 
 // --- settings bound inputs
 
+function renderAssist() {
+  if (!S.settings) return;
+  const ga = S.settings.gameAssist || {};
+  const steam = S.games.steam || {};
+  $$('[data-setting="gameAssist.mode"] button').forEach((b) => b.classList.toggle('on', b.dataset.v === ga.mode));
+  $('#assistModeHint').textContent = {
+    auto: 'When SHiFT asks, a game is launched, left at the main menu, closed, and redeeming carries on by itself.',
+    ask: 'When SHiFT asks, redeeming pauses and the dashboard offers a one-click “Launch & resume”.',
+    off: 'Redeeming pauses when SHiFT asks; start a game yourself, then press Resume.',
+  }[ga.mode] || '';
+  const sel = $('#assistGame');
+  const opts = `<option value="auto">Fastest installed game (automatic)</option>${S.catalog.titles
+    .filter((t) => !t.discovered)
+    .map((t) => `<option value="${esc(t.id)}" ${steam.installed?.includes(t.id) ? '' : 'disabled'}>${esc(t.name)}${steam.installed?.includes(t.id) ? '' : ' (not installed on Steam)'}</option>`)
+    .join('')}`;
+  if (sel.dataset.sig !== opts) {
+    sel.innerHTML = opts;
+    sel.dataset.sig = opts;
+  }
+  sel.value = ga.game || 'auto';
+  $('#assistDetect').innerHTML = steam.found
+    ? steam.installed?.length
+      ? `<span class="chip ok"><i style="--c:${C.green}"></i>Steam</span> Installed: ${steam.installed.map((id) => esc(titleById(id)?.name || id)).join(', ')}`
+      : '<span class="chip"><i></i>Steam</span> Found, but no Borderlands games are installed through it.'
+    : "<span class=\"chip\"><i style=\"--c:#6f665c\"></i>Steam</span> Not found on this computer. Epic users can add a launch link above.";
+  $$('.js-assist-auto').forEach((c) => (c.checked = ga.mode === 'auto'));
+  const best = steam.installed?.length ? titleById(['bl2', 'tps', 'bl1', 'bl3', 'ttw', 'bl4'].find((id) => steam.installed.includes(id)))?.name : null;
+  $('#wzAssistText').textContent = best
+    ? `SHiFT sometimes pauses codes until a SHiFT-enabled game is launched. The app will open ${best} via Steam for about a minute, then close it and carry on.`
+    : 'SHiFT sometimes pauses codes until a SHiFT-enabled game is launched. No Borderlands game was found on Steam here, so the app will pause and tell you when that happens.';
+}
+
 function renderSettingsBound() {
   if (!S.settings) return;
+  renderAssist();
   $$('[data-setting]').forEach((el) => {
     if (el.classList.contains('seg')) return;
     if (document.activeElement === el && el.type !== 'checkbox') return;
@@ -550,7 +636,7 @@ function renderSettingsBound() {
     if (el.type === 'checkbox') el.checked = !!v;
     else el.value = v;
   });
-  $('#delayOut').textContent = `${S.settings.delaySeconds}s`;
+  $('#delayOut').textContent = `${S.settings.delaySeconds} sec`;
   const nr = S.engine.nextRun;
   $('#nextRun').textContent = S.settings.autoRun.enabled
     ? nr
@@ -780,6 +866,8 @@ document.addEventListener('click', async (ev) => {
     loadState();
   } else if (a === 'redeem') {
     await act(() => api('POST', '/api/run', {})).catch(() => {});
+  } else if (a === 'assist-resume') {
+    await act(() => api('POST', '/api/games/resume'), 'Launching the game, then resuming…').catch(() => {});
   } else if (a === 'setup') {
     openWizard(S.account.loggedIn ? 2 : 1);
   } else if (a === 'wz-change') {
@@ -815,6 +903,15 @@ $('#btnQuit').addEventListener('click', async () => {
   }
   showOverlay('SHiFT Redeemer has stopped', 'You can close this window. Open SHiFT Redeemer again from your Start menu, desktop or Applications folder.');
   setTimeout(() => window.close(), 600);
+});
+$('#btnTestLaunch').addEventListener('click', () => act(() => api('POST', '/api/games/test')).then((r) => toast(`Launching ${r.plan.title} via ${r.plan.via}…`, 'ok')).catch(() => {}));
+$('#btnRescan').addEventListener('click', async () => {
+  const r = await act(() => api('POST', '/api/games/refresh')).catch(() => null);
+  if (r) {
+    S.games = r.games;
+    renderAssist();
+    toast('Installed games re-scanned', 'ok');
+  }
 });
 $('#btnOpenData').addEventListener('click', () => api('POST', '/api/app/open-data').catch((e) => toast(e.message, 'err')));
 $('#btnClearLog').addEventListener('click', () => {
@@ -867,6 +964,8 @@ document.addEventListener('change', async (e) => {
     setSetting(`${kind}.selected`, [...sel]);
   } else if (el.dataset.source) {
     api('PUT', '/api/settings', { sources: { [el.dataset.source]: { enabled: el.checked } } }).then((st) => applyState(st));
+  } else if (el.classList.contains('js-assist-auto')) {
+    setSetting('gameAssist.mode', el.checked ? 'auto' : 'ask', { now: true });
   } else if (el.classList.contains('js-autostart')) {
     try {
       const r = await api('PUT', '/api/app/autostart', { enabled: el.checked });
@@ -879,11 +978,11 @@ document.addEventListener('change', async (e) => {
     renderAppInfo();
   } else if (el.dataset.setting && !el.closest('.seg')) {
     let v = el.type === 'checkbox' ? el.checked : el.value;
-    if (el.type === 'range' || el.type === 'number' || el.tagName === 'SELECT') v = Number(v);
+    if (el.type === 'range' || el.type === 'number' || 'num' in el.dataset) v = Number(v);
     setSetting(el.dataset.setting, v);
   }
 });
-$('#delayRange').addEventListener('input', (e) => ($('#delayOut').textContent = `${e.target.value}s`));
+$('#delayRange').addEventListener('input', (e) => ($('#delayOut').textContent = `${e.target.value} sec`));
 
 // sign-in forms (used on the Account tab and in setup)
 function askPlaintextConsent(err) {

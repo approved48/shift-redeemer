@@ -133,6 +133,7 @@ async function fullState() {
     catalog: engine.catalog(),
     sources: engine.sourceDefs().map((d) => ({ id: d.id, name: d.name, site: d.site, description: d.description, enabled: d.enabled, custom: !!d.custom, status: sourceStatus[d.id] || null })),
     logs: engine.logs.slice(-200),
+    games: await engine.gameInfo(),
     baseUrl: BASE_URL,
   };
 }
@@ -204,9 +205,18 @@ const routes = {
   },
 
   'PUT /api/settings': async ({ body }) => {
-    const allowed = ['titles', 'platforms', 'delaySeconds', 'skipExpired', 'useSourceHints', 'maxChecksPerRun', 'autoRun', 'sources', 'setupComplete'];
+    const allowed = ['titles', 'platforms', 'delaySeconds', 'skipExpired', 'useSourceHints', 'maxChecksPerRun', 'autoRun', 'sources', 'setupComplete', 'gameAssist'];
     const patch = {};
     for (const k of allowed) if (k in body) patch[k] = body[k];
+    if (patch.gameAssist) {
+      const g = patch.gameAssist;
+      if ('mode' in g && !['auto', 'ask', 'off'].includes(g.mode)) throw bad('Unknown game launch mode');
+      if ('epicLink' in g) {
+        g.epicLink = String(g.epicLink || '').trim();
+        if (g.epicLink && !/^com\.epicgames\.launcher:\/\//i.test(g.epicLink)) throw bad('That isn\'t an Epic launch link. It should start with com.epicgames.launcher://');
+      }
+      if ('warmupSeconds' in g) g.warmupSeconds = Math.min(600, Math.max(20, Number(g.warmupSeconds) || 75));
+    }
     if (patch.titles?.selected && !Array.isArray(patch.titles.selected)) delete patch.titles.selected;
     if (patch.platforms?.selected && !Array.isArray(patch.platforms.selected)) delete patch.platforms.selected;
     store.updateSettings(patch);
@@ -256,6 +266,15 @@ const routes = {
       })(),
     );
     return { started: true };
+  },
+  'POST /api/games/resume': () => {
+    background(engine.run({ assistNow: true }));
+    return { started: true };
+  },
+  'POST /api/games/test': async () => ({ plan: await engine.testLaunch() }),
+  'POST /api/games/refresh': async () => {
+    engine.gameCache = null;
+    return { games: await engine.gameInfo() };
   },
   'POST /api/stop': () => {
     engine.stop();

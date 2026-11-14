@@ -191,3 +191,90 @@ test('remember me: secure store, plain-text only with consent, migration, auto s
   assert.equal(await loadSecret('vault@hunter.test'), 'hunter2');
   delete process.env.SHIFT_SECRETS;
 });
+
+test('game launch assist: launches, waits, closes, resumes — or pauses with a clear reason', async () => {
+  const games = await import('../lib/games.js');
+  assert.deepEqual(games.parseLibraryFolders('"libraryfolders"{ "0" { "path" "C:\\\\Program Files (x86)\\\\Steam" } "1" { "path" "D:\\\\SteamLibrary" } }'), [
+    'C:\\Program Files (x86)\\Steam',
+    'D:\\SteamLibrary',
+  ]);
+
+  const launched = [];
+  const closed = [];
+  let running = [];
+  const fakeGames = {
+    ...games,
+    detectSteam: async () => ({ found: true, root: 'C:/Steam', installed: ['bl3', 'bl2'] }),
+    listProcesses: async () => running.map((p) => ({ pid: p.pid, name: p.name })),
+    runningGames: async () => {
+      if (running.length) mock.launchGame(); // like real SHiFT: a running game counts, whoever started it
+      return running;
+    },
+    launch: async (target) => {
+      launched.push(target);
+      running = [{ pid: 999, name: 'Borderlands2.exe', titleId: 'bl2' }];
+      mock.launchGame(); // SHiFT lifts its block once a game has run
+    },
+    closeProcess: async (pid) => {
+      closed.push(pid);
+      running = running.filter((p) => p.pid !== pid);
+    },
+  };
+  const fresh = () => {
+    fs.rmSync(path.join(dir, 'db.json'), { force: true });
+    mock.redeemed.clear();
+    mock.launchGame();
+    const { store, shift } = makeEngine();
+    const engine = new Engine({ store, shift, games: fakeGames });
+    made.push({ store, engine });
+    engine.sleep = async () => {};
+    engine.addManual('DDDDD-DDDDD-DDDDD-DDDDD-DDDD1 EEEEE-EEEEE-EEEEE-EEEEE-EEEE1 CCCCC-CCCCC-CCCCC-CCCCC-CCCC1');
+    store.updateSettings({ titles: { mode: 'all' }, platforms: { mode: 'select', selected: ['steam'] }, gameAssist: { mode: 'auto', game: 'auto', warmupSeconds: 0, closeAfter: true } });
+    return { engine, store };
+  };
+
+  // 1. Automatic: SHiFT blocks after 2 redemptions → BL2 (fastest installed) is launched, closed, run resumes.
+  mock.setLaunchAfter(2);
+  let { engine, store } = fresh();
+  let s = await engine.run();
+  assert.equal(s.redeemed, 4, JSON.stringify(s));
+  assert.equal(s.assists, 1);
+  assert.equal(s.pause, null);
+  assert.deepEqual(launched, ['steam://rungameid/49520']);
+  assert.deepEqual(closed, [999], 'should close the game it started');
+
+  // 2. A game the user already had open is never closed.
+  launched.length = 0;
+  closed.length = 0;
+  ({ engine } = fresh());
+  running = [{ pid: 555, name: 'Borderlands3.exe', titleId: 'bl3' }];
+  s = await engine.run();
+  assert.equal(s.redeemed, 4, JSON.stringify(s));
+  assert.deepEqual(launched, [], 'should not launch when a game is already running');
+  assert.deepEqual(closed, []);
+  running = [];
+
+  // 3. "Ask me": pauses with a ready-to-launch reason; "Launch game & resume" then finishes.
+  ({ engine, store } = fresh());
+  store.updateSettings({ gameAssist: { mode: 'ask' } });
+  s = await engine.run();
+  assert.equal(s.redeemed, 2);
+  assert.equal(s.pause.why, 'ask');
+  assert.equal(s.pause.canLaunch, true);
+  assert.equal(s.pause.game, 'Borderlands 2');
+  assert.deepEqual(s.pause.services, ['steam']);
+  assert.ok(s.pause.waiting >= 1);
+  s = await engine.run({ assistNow: true });
+  assert.equal(s.redeemed, 2, JSON.stringify(s));
+  assert.equal(s.pause, null);
+
+  // 4. Consoles can't be launched remotely → paused with that explanation.
+  mock.setLaunchAfter(0);
+  ({ engine, store } = fresh());
+  store.updateSettings({ platforms: { mode: 'select', selected: ['psn'] } });
+  s = await engine.run();
+  assert.equal(s.pause.why, 'cannot-launch');
+  assert.match(s.pause.message, /console/i);
+
+  mock.setLaunchAfter(Infinity);
+});
