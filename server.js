@@ -458,6 +458,11 @@ async function start() {
   rt.out(`\n  SHiFT Redeemer ${rt.VERSION} is running → ${appUrl()}\n  Data folder: ${DATA_DIR}\n  ${rt.isPackaged ? 'Close the app window to quit.' : 'Press Ctrl+C to stop.'}\n`);
   if (BASE_URL !== 'https://shift.gearboxsoftware.com') rt.out(`  (Using SHiFT endpoint ${BASE_URL})\n`);
 
+  if (AFTER_UPDATE) {
+    engine.log('ok', `Updated to SHiFT Redeemer ${rt.VERSION}`);
+    // The old window normally reconnects on its own; open one if it doesn't.
+    if (AFTER_UPDATE === 'window' && process.env.NO_OPEN !== '1') setTimeout(() => !clients.size && showWindow(), 8000);
+  }
   if (!NO_WINDOW) showWindow();
   // Quit if the window never connects (e.g. no browser could open).
   scheduleIdleExit();
@@ -468,11 +473,6 @@ async function start() {
   engine.seedStarter();
   engine.schedule();
 
-  if (AFTER_UPDATE) {
-    engine.log('ok', `Updated to SHiFT Redeemer ${rt.VERSION}`);
-    // The old window normally reconnects on its own; open one if it doesn't.
-    if (AFTER_UPDATE === 'window' && process.env.NO_OPEN !== '1') setTimeout(() => !clients.size && showWindow(), 8000);
-  }
   const autoCheck = () => store.settings.updates?.autoCheck !== false && checkUpdate().catch(() => {});
   setTimeout(autoCheck, 5000);
   setInterval(autoCheck, 6 * 3600_000).unref();

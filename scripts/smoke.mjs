@@ -183,8 +183,12 @@ try {
   }
   assert.ok(back && back.pid !== oldPid, 'app did not restart after installing the update');
   assert.equal(back.afterUpdate, 'background');
-  const after = await api('GET', '/api/state');
-  assert.ok(after.logs.some((l) => /Updated to SHiFT Redeemer/.test(l.msg)), 'restarted app did not report the update');
+  let reported = false;
+  for (let i = 0; i < 20 && !reported; i++) {
+    reported = (await api('GET', '/api/state')).logs.some((l) => /Updated to SHiFT Redeemer/.test(l.msg));
+    if (!reported) await sleep(250);
+  }
+  assert.ok(reported, 'restarted app did not report the update');
   console.log(`✔ update installed and the app restarted by itself (pid ${oldPid} → ${back.pid})`);
 
   // 6. quit from the UI
