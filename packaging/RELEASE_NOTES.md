@@ -31,6 +31,8 @@ Nothing else to install. Everything the app needs is included.
 2. **Pick your games and platforms**, or leave everything selected.
 3. Press **Find & redeem**.
 
+**Keep me signed in** stores your password in **Windows Credential Manager** or the **macOS Keychain**, never in a plain file. If secure storage isn't available, the app asks you first and warns you before saving anything unencrypted.
+
 To update, install the new version over the old one. Your codes and settings are kept.
 
 *Free, non-commercial fan tool. Not affiliated with Gearbox Software, 2K or Take-Two.*

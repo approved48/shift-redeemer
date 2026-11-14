@@ -122,6 +122,6 @@ export function startMock({ port = 0, email = 'vault@hunter.test', password = 'h
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
-  const m = await startMock({ port: Number(process.env.MOCK_PORT) || 4999 });
+  const m = await startMock({ port: Number(process.env.MOCK_PORT) || 4999, launchAfter: process.env.MOCK_LAUNCH_AFTER ? Number(process.env.MOCK_LAUNCH_AFTER) : Infinity });
   console.log(`Mock SHiFT running at ${m.url} (login: vault@hunter.test / hunter2)`);
 }

@@ -60,6 +60,9 @@ test('source parsing: tables and free text', () => {
   assert.equal(c.code, 'S6RJJ-6THZT-BJJTJ-TB3JT-R995J');
   assert.equal(c.reward, '5 Golden Keys');
   assert.equal(c.expires, 'Nov 17, 2026');
+  // A list of codes, one per line: no code should borrow its neighbour as a "reward".
+  const list = codesFromText('AAAAA-11111-AAAAA-11111-AAAAA\nBBBBB-22222-BBBBB-22222-BBBBB');
+  assert.deepEqual(list.map((c) => c.reward), ['', '']);
   const [t] = codesFromText('Borderlands 3 code for 3 Golden Keys: ABCDE-12345-ABCDE-12345-ABCDE expires Dec 1, 2026');
   assert.deepEqual(t.games, ['bl3']);
   assert.equal(t.expires, 'Dec 1, 2026');
@@ -76,7 +79,7 @@ test('offer parser assigns forms to their headings', async () => {
 test('login rejects bad credentials, accepts good ones, cookie persists', async () => {
   const { engine, store } = makeEngine();
   await assert.rejects(engine.login('vault@hunter.test', 'nope'));
-  await engine.login('vault@hunter.test', 'hunter2', false);
+  await engine.login('vault@hunter.test', 'hunter2');
   assert.ok(store.session.cookies.si);
   assert.equal(store.session.credentials, undefined);
   // new client from persisted cookie
@@ -84,7 +87,7 @@ test('login rejects bad credentials, accepts good ones, cookie persists', async 
   assert.equal((await again.engine.refreshAccount()).loggedIn, true);
   // cookie import path
   const imp = makeEngine();
-  imp.engine.logout();
+  await imp.engine.logout();
   assert.equal((await imp.engine.useCookies({ si: store.session.cookies.si })).loggedIn, true);
 });
 
@@ -139,4 +142,139 @@ test('"launch a game" blocks the platform and stops the run', async () => {
   mock.setLaunchAfter(Infinity);
   const s2 = await engine.run();
   assert.equal(s2.redeemed, 3, JSON.stringify(s2)); // E/steam, C BL3/steam, C BL2/steam (D/steam done already)
+});
+
+test('remember me: secure store, plain-text only with consent, migration, auto sign-in', async () => {
+  const sessionFile = path.join(dir, 'session.json');
+  const read = () => JSON.parse(fs.readFileSync(sessionFile, 'utf8'));
+  const { loadSecret } = await import('../lib/secrets.js');
+
+  // 1. Secure store available → password goes to the vault, never to disk.
+  process.env.SHIFT_SECRETS = 'memory';
+  let { engine, store } = makeEngine();
+  await engine.login('vault@hunter.test', 'hunter2', { remember: true });
+  assert.deepEqual(read().credentials, { email: 'vault@hunter.test', store: 'memory' });
+  assert.ok(!fs.readFileSync(sessionFile, 'utf8').includes('hunter2'), 'password leaked to disk');
+  assert.equal(await loadSecret('vault@hunter.test'), 'hunter2');
+  assert.equal((await engine.credentialsInfo()).saved.secure, true);
+
+  // 2. Session expires → auto sign-in uses the vault.
+  store.saveSession({ cookies: {} });
+  ({ engine } = makeEngine());
+  assert.equal(await engine.ensureLogin(), true);
+
+  // 3. Sign-out removes the vault entry too.
+  await engine.logout();
+  assert.equal(await loadSecret('vault@hunter.test'), null);
+  assert.equal(read().credentials, undefined);
+
+  // 4. No secure store → refuse to write plain text unless the user agrees.
+  process.env.SHIFT_SECRETS = 'unavailable';
+  ({ engine } = makeEngine());
+  await assert.rejects(engine.login('vault@hunter.test', 'hunter2', { remember: true }), (e) => e.status === 409 && e.code === 'SECURE_STORE_UNAVAILABLE');
+  assert.equal(read().credentials, undefined);
+  assert.equal(engine.account.loggedIn, true, 'should still be signed in for this session');
+  await engine.login('vault@hunter.test', 'hunter2', { remember: true, allowPlaintext: true });
+  assert.deepEqual(read().credentials, { email: 'vault@hunter.test', store: 'plaintext', password: 'hunter2' });
+  assert.equal((await engine.credentialsInfo()).saved.secure, false);
+
+  // 5. Unticking "remember" forgets it.
+  await engine.login('vault@hunter.test', 'hunter2');
+  assert.equal(read().credentials, undefined);
+
+  // 6. A plain-text password from an older version moves into the vault once one is available.
+  ({ engine, store } = makeEngine());
+  store.saveSession({ credentials: { email: 'vault@hunter.test', password: 'hunter2' } });
+  process.env.SHIFT_SECRETS = 'memory';
+  await engine.migrateCredentials();
+  assert.deepEqual(read().credentials, { email: 'vault@hunter.test', store: 'memory' });
+  assert.equal(await loadSecret('vault@hunter.test'), 'hunter2');
+  delete process.env.SHIFT_SECRETS;
+});
+
+test('game launch assist: launches, waits, closes, resumes — or pauses with a clear reason', async () => {
+  const games = await import('../lib/games.js');
+  assert.deepEqual(games.parseLibraryFolders('"libraryfolders"{ "0" { "path" "C:\\\\Program Files (x86)\\\\Steam" } "1" { "path" "D:\\\\SteamLibrary" } }'), [
+    'C:\\Program Files (x86)\\Steam',
+    'D:\\SteamLibrary',
+  ]);
+
+  const launched = [];
+  const closed = [];
+  let running = [];
+  const fakeGames = {
+    ...games,
+    detectSteam: async () => ({ found: true, root: 'C:/Steam', installed: ['bl3', 'bl2'] }),
+    listProcesses: async () => running.map((p) => ({ pid: p.pid, name: p.name })),
+    runningGames: async () => {
+      if (running.length) mock.launchGame(); // like real SHiFT: a running game counts, whoever started it
+      return running;
+    },
+    launch: async (target) => {
+      launched.push(target);
+      running = [{ pid: 999, name: 'Borderlands2.exe', titleId: 'bl2' }];
+      mock.launchGame(); // SHiFT lifts its block once a game has run
+    },
+    closeProcess: async (pid) => {
+      closed.push(pid);
+      running = running.filter((p) => p.pid !== pid);
+    },
+  };
+  const fresh = () => {
+    fs.rmSync(path.join(dir, 'db.json'), { force: true });
+    mock.redeemed.clear();
+    mock.launchGame();
+    const { store, shift } = makeEngine();
+    const engine = new Engine({ store, shift, games: fakeGames });
+    made.push({ store, engine });
+    engine.sleep = async () => {};
+    engine.addManual('DDDDD-DDDDD-DDDDD-DDDDD-DDDD1 EEEEE-EEEEE-EEEEE-EEEEE-EEEE1 CCCCC-CCCCC-CCCCC-CCCCC-CCCC1');
+    store.updateSettings({ titles: { mode: 'all' }, platforms: { mode: 'select', selected: ['steam'] }, gameAssist: { mode: 'auto', game: 'auto', warmupSeconds: 0, closeAfter: true } });
+    return { engine, store };
+  };
+
+  // 1. Automatic: SHiFT blocks after 2 redemptions → BL2 (fastest installed) is launched, closed, run resumes.
+  mock.setLaunchAfter(2);
+  let { engine, store } = fresh();
+  let s = await engine.run();
+  assert.equal(s.redeemed, 4, JSON.stringify(s));
+  assert.equal(s.assists, 1);
+  assert.equal(s.pause, null);
+  assert.deepEqual(launched, ['steam://rungameid/49520']);
+  assert.deepEqual(closed, [999], 'should close the game it started');
+
+  // 2. A game the user already had open is never closed.
+  launched.length = 0;
+  closed.length = 0;
+  ({ engine } = fresh());
+  running = [{ pid: 555, name: 'Borderlands3.exe', titleId: 'bl3' }];
+  s = await engine.run();
+  assert.equal(s.redeemed, 4, JSON.stringify(s));
+  assert.deepEqual(launched, [], 'should not launch when a game is already running');
+  assert.deepEqual(closed, []);
+  running = [];
+
+  // 3. "Ask me": pauses with a ready-to-launch reason; "Launch game & resume" then finishes.
+  ({ engine, store } = fresh());
+  store.updateSettings({ gameAssist: { mode: 'ask' } });
+  s = await engine.run();
+  assert.equal(s.redeemed, 2);
+  assert.equal(s.pause.why, 'ask');
+  assert.equal(s.pause.canLaunch, true);
+  assert.equal(s.pause.game, 'Borderlands 2');
+  assert.deepEqual(s.pause.services, ['steam']);
+  assert.ok(s.pause.waiting >= 1);
+  s = await engine.run({ assistNow: true });
+  assert.equal(s.redeemed, 2, JSON.stringify(s));
+  assert.equal(s.pause, null);
+
+  // 4. Consoles can't be launched remotely → paused with that explanation.
+  mock.setLaunchAfter(0);
+  ({ engine, store } = fresh());
+  store.updateSettings({ platforms: { mode: 'select', selected: ['psn'] } });
+  s = await engine.run();
+  assert.equal(s.pause.why, 'cannot-launch');
+  assert.match(s.pause.message, /console/i);
+
+  mock.setLaunchAfter(Infinity);
 });

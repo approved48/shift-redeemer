@@ -9,6 +9,8 @@ import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
 import { startMock } from '../test/mock-shift.js';
+import { secureStoreInfo, loadSecret } from '../lib/secrets.js';
+import { listProcesses } from '../lib/games.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const BUILD = path.join(ROOT, 'dist', 'build');
@@ -20,6 +22,7 @@ assert.ok(fs.existsSync(bin), `Built app not found at ${bin} — run npm run bui
 const PORT = 4791;
 const base = `http://127.0.0.1:${PORT}`;
 const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'shift-smoke-'));
+process.env.SHIFT_SECRETS_NAMESPACE = `smoke-${process.pid}`;
 const mock = await startMock();
 const env = { ...process.env, NO_OPEN: '1', NO_UPDATE_CHECK: '1', PORT: String(PORT), DATA_DIR: dataDir, SHIFT_BASE_URL: mock.url };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -67,6 +70,45 @@ try {
   assert.equal(code?.status, 'redeemed', `redeem failed: ${JSON.stringify(code)}`);
   assert.ok(fs.existsSync(path.join(dataDir, 'session.json')), 'session not saved');
   console.log('✔ signed in and redeemed a code');
+
+  // 3b. "Keep me signed in" uses the OS password store (Credential Manager / Keychain)
+  const login = (extra = {}) =>
+    fetch(`${base}/api/account/login`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-shift-redeemer': '1' },
+      body: JSON.stringify({ email: 'vault@hunter.test', password: 'hunter2', remember: true, ...extra }),
+    }).then(async (r) => ({ status: r.status, body: await r.json() }));
+  let r = await login();
+  const info = await secureStoreInfo();
+  if (r.status === 409) {
+    assert.equal(r.body.code, 'SECURE_STORE_UNAVAILABLE');
+    console.log(`  secure storage unavailable here (${r.body.reason}) — testing the plain-text consent path`);
+    r = await login({ allowPlaintext: true });
+  }
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  const saved = r.body.account.saved;
+  assert.ok(saved, 'password not saved');
+  const sessionText = fs.readFileSync(path.join(dataDir, 'session.json'), 'utf8');
+  if (saved.secure) {
+    assert.ok(!sessionText.includes('hunter2'), 'password leaked into session.json');
+    assert.equal(await loadSecret('vault@hunter.test'), 'hunter2', `password not readable from ${info.name}`);
+    await api('POST', '/api/account/forget');
+    assert.equal(await loadSecret('vault@hunter.test'), null, `password still in ${info.name} after Forget`);
+    console.log(`✔ password saved to and removed from ${info.name}`);
+  } else {
+    assert.ok(!info.available || process.platform === 'linux', `expected ${info.name} to work on ${process.platform}`);
+    assert.ok(sessionText.includes('hunter2'));
+    await api('POST', '/api/account/forget');
+    assert.ok(!fs.readFileSync(path.join(dataDir, 'session.json'), 'utf8').includes('hunter2'), 'plain-text password not removed');
+    console.log('✔ plain-text fallback saved only with consent, and removed on Forget');
+  }
+
+  // 3c. game launch assist plumbing works on this OS (Steam detection + process list)
+  const g = await api('POST', '/api/games/refresh');
+  assert.equal(typeof g.games?.steam?.found, 'boolean', 'game detection failed');
+  const procs = await listProcesses();
+  assert.ok(procs.length > 3 && procs.some((p) => p.pid === process.pid), `process list looks wrong (${procs.length} entries)`);
+  console.log(`✔ game detection works (Steam ${g.games.steam.found ? 'found' : 'not installed'}; ${procs.length} processes listed)`);
 
   // 4. a second launch hands over to the running copy and exits
   const second = spawn(bin, ['--background'], { env, stdio: 'ignore' });

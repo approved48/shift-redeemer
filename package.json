@@ -12,7 +12,8 @@
     "test": "node --test test/run.test.js",
     "mock": "node test/mock-shift.js",
     "build": "node scripts/build.mjs",
-    "smoke": "node scripts/smoke.mjs"
+    "smoke": "node scripts/smoke.mjs",
+    "secrets-check": "node scripts/secrets-check.mjs"
   },
   "devDependencies": {
     "esbuild": "^0.28.2",

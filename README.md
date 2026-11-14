@@ -24,9 +24,15 @@ You don't need to install anything else.
 
 ## Using it
 
-1. **Sign in** with your SHiFT email and password, the same ones you use on [shift.gearboxsoftware.com](https://shift.gearboxsoftware.com).
-2. **Pick your games and platforms**, or leave everything selected.
-3. Press **Find & redeem**.
+The first time you open it, a short **setup wizard** walks you through everything:
+
+1. **Connect your SHiFT account**: your SHiFT email and password, or (if SHiFT asks for extra verification) a session borrowed from your browser.
+2. **Link your gaming platforms** on the SHiFT website, so rewards have somewhere to go.
+3. **Pick your games and platforms**, or leave everything selected.
+4. **Turn on auto-pilot** if you'd like it to keep going on its own.
+5. Press **Find & redeem**.
+
+You can run the wizard again any time from **Settings**.
 
 That's it. The app searches the web for codes, checks each one with SHiFT, and redeems it for every game and platform you picked. It remembers what it has already done, so nothing is redeemed twice.
 
@@ -36,9 +42,10 @@ That's it. The app searches the web for codes, checks each one with SHiFT, and r
 
 ### Good to know
 
-- **"Launch a SHiFT-enabled game first."** Gearbox sometimes pauses redemptions until you start a game. The app tells you when this happens. Start any Borderlands game, wait at the main menu for a minute, then press **Redeem queue**.
+- **"Launch a SHiFT-enabled game first."** Gearbox sometimes pauses redemptions until you start a game. **Game launch assist** handles this. The app finds a Borderlands game installed through Steam (or uses your Epic launch link), starts it, waits about a minute at the main menu so SHiFT registers it, closes it again and carries on redeeming. It only closes a game it started itself. Set it to *Automatically*, *Ask me* (one click: "Launch & resume") or *Off* in **Settings**. Games can't be started invisibly, so you'll see it open briefly. Console games can't be launched remotely; for those the dashboard says exactly what it's waiting for.
 - **Missing a platform?** SHiFT only redeems for platforms linked to your account. Link them on the SHiFT website under *Gaming Platforms*.
 - **Your data stays on your computer.** The app only talks to SHiFT and the code websites it searches.
+- **"Keep me signed in"** saves your SHiFT password in your system's secure password storage: **Windows Credential Manager** or the **macOS Keychain** (on Linux, GNOME Keyring or KWallet). If that isn't available, the app asks first and clearly warns you before saving it unencrypted, and you can always choose not to save it. **Forget saved password** on the Account tab removes it.
 - **Updating:** when a new version is out, the app shows a banner. Install the new version over the old one; your codes and settings are kept.
 - **Uninstalling (Windows):** Settings → Apps → SHiFT Redeemer → Uninstall.
 
