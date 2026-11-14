@@ -278,3 +278,51 @@ test('game launch assist: launches, waits, closes, resumes — or pauses with a 
 
   mock.setLaunchAfter(Infinity);
 });
+
+test('rewards report: parses keys per title and aggregates', async () => {
+  const { parseReward, buildReport } = await import('../lib/rewards.js');
+  const k = (t, id) => parseReward(t, id).keys;
+  assert.deepEqual(k('5 Golden Keys', 'bl4'), { golden: 5, diamond: 0, skeleton: 0 });
+  assert.deepEqual(k('1 Golden Key', 'bl3'), { golden: 1, diamond: 0, skeleton: 0 });
+  assert.deepEqual(k('10 Skeleton Keys', 'ttw'), { golden: 0, diamond: 0, skeleton: 10 });
+  // shared code: Diamond Keys only for the game named after them
+  const pax = 'This SHiFT Code unlocks 50 Golden Keys in multiple Gearbox games plus 20 Diamond Keys in Borderlands 3!';
+  assert.deepEqual(k(pax, 'bl3'), { golden: 50, diamond: 20, skeleton: 0 });
+  assert.deepEqual(k(pax, 'bl2'), { golden: 50, diamond: 0, skeleton: 0 });
+  // "each for <list of games>"
+  const movie = 'unlocks one Golden Key each for Borderlands: Game of the Year Edition, Borderlands 2, Borderlands: The Pre-Sequel, and Borderlands 3!';
+  assert.deepEqual(k(movie, 'bl2'), { golden: 1, diamond: 0, skeleton: 0 });
+  assert.deepEqual(k(movie, 'bl4'), { golden: 0, diamond: 0, skeleton: 0 });
+  // cosmetic items and unknowns
+  assert.equal(parseReward('Cosmic Hunter Skin', 'bl3').item, 'Cosmic Hunter Skin');
+  assert.equal(parseReward('3 Golden Keys and a Weapon Skin', 'bl3').item, '3 Golden Keys and a Weapon Skin');
+  assert.equal(parseReward('', 'bl3').unknown, true);
+  // real-world feed quirks
+  assert.deepEqual(k('50 Golden PAX West Keys', 'bl1'), { golden: 50, diamond: 0, skeleton: 0 });
+  assert.deepEqual(k('1 Golden Key2K Japan', 'bl4'), { golden: 1, diamond: 0, skeleton: 0 });
+  assert.equal(parseReward('1 Golden Key2K Japan', 'bl4').item, null);
+  assert.deepEqual(k('SDCC 2024 Skeleton Keys', 'ttw'), { golden: 0, diamond: 0, skeleton: 1 });
+  assert.equal(parseReward('Vault Hunter SkinHype Squad', 'bl4').item, 'Vault Hunter Skin: Hype Squad');
+  assert.equal(parseReward('Vault Hunter skinLuck of the Kairish', 'bl4').item, 'Vault Hunter skin: Luck of the Kairish');
+
+  const now = Date.now();
+  const db = {
+    codes: { 'AAAAA-1': { reward: '5 Golden Keys' }, 'BBBBB-2': { reward: pax }, 'CCCCC-3': { reward: 'Neon Skin' } },
+    redemptions: {
+      'AAAAA-1|bl4|steam': { status: 'success', at: now, title: 'Borderlands 4', service: 'steam' },
+      'BBBBB-2|bl3|steam': { status: 'success', at: now, title: 'Borderlands 3', service: 'steam' },
+      'BBBBB-2|bl2|epic': { status: 'success', at: now, title: 'Borderlands 2', service: 'epic' },
+      'CCCCC-3|bl3|steam': { status: 'redeemed', at: now, title: 'Borderlands 3', service: 'steam' },
+      'CCCCC-3|bl2|steam': { status: 'trylater', at: now, title: 'Borderlands 2', service: 'steam' },
+    },
+  };
+  const r = buildReport(db);
+  assert.deepEqual(r.totals.keys, { golden: 105, diamond: 20, skeleton: 0 });
+  assert.equal(r.totals.rewards, 3);
+  assert.equal(r.totals.already, 1);
+  assert.equal(r.titles.find((t) => t.id === 'bl3').keys.diamond, 20);
+  assert.equal(r.months.length, 12);
+  assert.equal(r.months.at(-1).golden, 105);
+  assert.equal(buildReport(db, { platform: 'epic' }).totals.keys.golden, 50);
+  assert.equal(buildReport(db, { since: now + 1000 }).totals.rewards, 0);
+});

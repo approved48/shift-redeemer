@@ -34,6 +34,8 @@ The first time you open it, a short **setup wizard** walks you through everythin
 
 You can run the wizard again any time from **Settings**.
 
+**Your rewards report.** The **Rewards** tab adds up everything the app has unlocked for you: Golden, Diamond and Skeleton Keys and cosmetic items, per game and per platform. It includes a month-by-month chart, the full history, filters for time period and platform, and **Export CSV**. When one code gives different rewards in different games, each game is credited with its own share.
+
 **Need help?** Press **?** (or the **Help** button) any time. You can search questions and settings, browse quick answers and topics, or jump straight to a setting with **show me**. Pin answers you want to keep handy, and use **Support → Copy diagnostics** when reporting a problem.
 
 That's it. The app searches the web for codes, checks each one with SHiFT, and redeems it for every game and platform you picked. It remembers what it has already done, so nothing is redeemed twice.

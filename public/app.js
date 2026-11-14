@@ -1,6 +1,7 @@
 // SHiFT Redeemer front-end (no build step, no framework).
 
 import { initHelp } from './help.js';
+import { initReport } from './report.js';
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -221,6 +222,7 @@ function connect() {
     S.stats = JSON.parse(e.data).stats;
     renderStats();
     loadCodes();
+    report.refresh(S.catalog.platforms);
   });
   es.addEventListener('app', (e) => {
     S.app = JSON.parse(e.data);
@@ -251,6 +253,7 @@ function showTab() {
   const valid = $$('.tab').some((t) => t.id === `tab-${tab}`) ? tab : 'dashboard';
   $$('.tab').forEach((t) => (t.hidden = t.id !== `tab-${valid}`));
   $$('#tabs a').forEach((a) => a.classList.toggle('active', a.dataset.tab === valid));
+  if (valid === 'rewards' && typeof report !== 'undefined') report.refresh(S.catalog.platforms);
   window.scrollTo({ top: 0 });
 }
 window.addEventListener('hashchange', showTab);
@@ -1140,6 +1143,7 @@ function getDiagnostics() {
   return redact(lines.join('\n'));
 }
 
+const report = initReport({ api, toast, isVisible: () => location.hash === '#rewards' });
 const help = initHelp({ goTo, runAction, getDiagnostics, repoUrl: 'https://github.com/approved48/shift-redeemer' });
 
 // ------------------------------------------------------------------ start

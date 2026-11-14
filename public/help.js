@@ -56,6 +56,11 @@ const FAQ = [
   { cat: 'Game launch assist', q: 'Does it work with Epic Games?', a: ['Yes, with your game\'s Epic launch link. In the Epic launcher, create a desktop shortcut for the game, open the shortcut\'s properties, copy the URL and paste it into <b>Settings → Game launch assist</b>.'], go: { tab: 'settings', el: 'setAssist', label: 'Show me' } },
   { cat: 'Game launch assist', q: 'What about PlayStation, Xbox and Switch?', a: ['Console games can\'t be started from a computer. When SHiFT asks, start any Borderlands game on your console, wait at the main menu for a minute, then press <b>Resume</b> on the dashboard.'] },
 
+  { cat: 'Redeeming', q: 'How is the rewards report counted?', a: [
+    'The <b>Rewards</b> page adds up what this app has unlocked for you, game by game. Key counts come from each code\'s published reward description, such as "5 Golden Keys".',
+    'When one code gives different rewards in different games (for example Diamond Keys in Borderlands 3 only), each game is only credited with its own share. Rewards you already had are listed separately and not counted again.',
+    'Codes you redeemed on the SHiFT website yourself aren\'t included.'], go: { tab: 'rewards', el: 'rpTotals', label: 'Open the report' } },
+
   // ---- Games & platforms
   { cat: 'Games & platforms', q: 'How do I choose which games get rewards?', a: ['Open <b>Games &amp; Platforms</b>. Leave <b>All titles</b> on, or choose <b>Only the ones I pick</b> and select your games. Platforms work the same way.'], go: { tab: 'targets', el: 'stepTitles', label: 'Show me' } },
   { cat: 'Games & platforms', q: 'Why isn\'t my platform shown as linked?', a: [
@@ -111,6 +116,7 @@ const SETTINGS = [
   { ic: '🎮', name: 'Titles', desc: 'Games & Platforms · step 1', tab: 'targets', el: 'stepTitles', k: 'games titles borderlands choose pick select' },
   { ic: '🖥️', name: 'Platforms', desc: 'Games & Platforms · step 2', tab: 'targets', el: 'stepPlatforms', k: 'platforms steam epic playstation xbox switch' },
   { ic: '🧹', name: 'Smart filtering', desc: 'Games & Platforms · step 3', tab: 'targets', el: 'stepFiltering', k: 'hints expired skip filter trust' },
+  { ic: '📊', name: 'Rewards report', desc: 'Rewards', tab: 'rewards', el: 'rpTotals', k: 'rewards report keys golden diamond skeleton items summary totals export csv history' },
   { ic: '➕', name: 'Add codes', desc: 'Codes', tab: 'codes', el: 'btnAddCodes', action: 'paste', k: 'add paste code manual found' },
   { ic: '📡', name: 'Built-in sources', desc: 'Sources · step 1', tab: 'sources', el: 'stepBuiltin', k: 'sources feed reddit steam ozbargain mentalmars' },
   { ic: '🌐', name: 'Your sources', desc: 'Sources · step 2', tab: 'sources', el: 'stepCustom', k: 'custom website page url follow links' },
@@ -155,7 +161,7 @@ const TOPICS = [
   ['Where is my data', 'where is my data'], ['Start over', 'start over'], ['Password safety', 'password safe'], ['Privacy', 'send my data'],
   ['Official?', 'official gearbox'], ['Nothing redeemed', 'nothing gets redeemed'], ['Too many requests', 'too many requests'], ['Retry', 'retry'],
   ['Windows warning', 'windows protected'], ['macOS warning', 'macos opened'], ['Run results', 'results of a run'], ['How long', 'how long run'],
-  ['Setup again', 'run setup again'], ['Supported games', 'which games supported'], ['Which game launches', 'which game launch'], ['Still paused', 'still paused'],
+  ['Rewards report', 'rewards report counted'], ['Export rewards', 'rewards report export csv'], ['Setup again', 'run setup again'], ['Supported games', 'which games supported'], ['Which game launches', 'which game launch'], ['Still paused', 'still paused'],
 ];
 
 const TILES = [
@@ -165,6 +171,7 @@ const TILES = [
   { ic: '🏷️', t: 'Code statuses', d: 'Queued, redeemed, expired, not targeted and the rest.', s: 'code statuses', q: 'What do the code statuses mean?' },
   { ic: '🎮', t: 'Games & platforms', d: 'Choose where rewards go, and link your platforms.', s: 'choose games', q: 'How do I choose which games get rewards?' },
   { ic: '⏱️', t: 'Auto-pilot', d: 'Keep redeeming new codes without lifting a finger.', s: 'auto-pilot', q: 'How does auto-pilot work?' },
+  { ic: '📊', t: 'Rewards report', d: 'Keys and items unlocked, game by game.', s: 'rewards report counted', q: 'How is the rewards report counted?' },
   { ic: '🔒', t: 'Password safety', d: 'Where your sign-in is kept, and how to remove it.', s: 'password safe', q: 'Is my password safe?' },
   { ic: '➕', t: 'Add your own codes', d: 'Paste codes you found anywhere.', s: 'add a code', q: 'Can I add a code I found myself?' },
   { ic: '🛠️', t: 'Something not working?', d: 'Quick fixes for the most common problems.', tab: 'trouble', feature: true },

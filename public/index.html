@@ -28,6 +28,7 @@
       <nav class="tabs" id="tabs" aria-label="Sections">
         <a href="#dashboard" data-tab="dashboard">Dashboard</a>
         <a href="#codes" data-tab="codes">Codes <span class="tab-count" id="tabCount"></span></a>
+        <a href="#rewards" data-tab="rewards">Rewards</a>
         <a href="#targets" data-tab="targets">Games &amp; Platforms</a>
         <a href="#sources" data-tab="sources">Sources</a>
         <a href="#account" data-tab="account">Account</a>
@@ -112,6 +113,42 @@
 
       <div class="code-list" id="codeList"></div>
       <div class="center"><button class="btn" id="btnMore" hidden>Show more</button></div>
+    </section>
+
+    <!-- ============================================================ REWARDS -->
+    <section class="tab" id="tab-rewards" hidden>
+      <div class="hero panel">
+        <span class="kicker">Rewards</span>
+        <h1 class="hero-title">Your rewards report</h1>
+        <p class="hero-sub">Keys and items SHiFT Redeemer has unlocked for you, game by game. Counts come from each code's published reward description.</p>
+        <div class="hero-actions"><button class="btn" id="rpExport">Export CSV</button><button class="btn btn-ghost" data-help="rewards report">How is this counted?</button></div>
+      </div>
+      <div class="toolbar panel">
+        <div class="seg" id="rpRange" role="tablist" aria-label="Time period">
+          <button data-days="0" class="on">All time</button><button data-days="90">Last 90 days</button><button data-days="30">Last 30 days</button><button data-days="7">Last 7 days</button>
+        </div>
+        <select id="rpPlatform" aria-label="Platform"><option value="">All platforms</option></select>
+        <span class="foot-note" id="rpUpdated"></span>
+      </div>
+      <div id="rpEmpty"></div>
+      <div class="stat-tiles" id="rpTotals"></div>
+      <section class="panel" id="rpChartCard">
+        <div class="card-head">
+          <h2 class="card-title">Keys by month</h2>
+          <div class="row gap"><div class="legend" id="rpLegend"></div><button class="btn btn-sm btn-ghost" id="rpTableToggle" aria-pressed="false">Show table</button></div>
+        </div>
+        <div class="chart" id="rpChart"></div>
+        <div class="chart-table" id="rpChartTable" hidden></div>
+      </section>
+      <div class="rp-titles" id="rpTitles"></div>
+      <section class="panel" id="rpHistoryCard">
+        <div class="card-head">
+          <h2 class="card-title">Reward history</h2>
+          <div class="row gap" id="rpHistoryFilter"></div>
+        </div>
+        <div class="history" id="rpHistory"></div>
+        <div class="center"><button class="btn btn-sm" id="rpMore" hidden>Show more</button></div>
+      </section>
     </section>
 
     <!-- ============================================================ TARGETS -->
