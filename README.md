@@ -34,6 +34,8 @@ The first time you open it, a short **setup wizard** walks you through everythin
 
 You can run the wizard again any time from **Settings**.
 
+**Share code lists.** On **Codes**, **Import list** takes a friend's or community list: drop in a text, CSV or SHiFT Redeemer list file, or paste it. You see how many codes are new before anything is added, and can redeem them straight away. **Export list** saves your working codes, your queue or everything as text, CSV or a list file to share or back up. Exports never include your account or which rewards you've had.
+
 **Your rewards report.** The **Rewards** tab adds up everything the app has unlocked for you: Golden, Diamond and Skeleton Keys and cosmetic items, per game and per platform. It includes a month-by-month chart, the full history, filters for time period and platform, and **Export CSV**. When one code gives different rewards in different games, each game is credited with its own share.
 
 **Need help?** Press **?** (or the **Help** button) any time. You can search questions and settings, browse quick answers and topics, or jump straight to a setting with **show me**. Pin answers you want to keep handy, and use **Support → Copy diagnostics** when reporting a problem.
@@ -98,7 +100,9 @@ The workflow builds every platform, tests the apps and the Windows installer (si
 | `lib/engine.js` | Queue, targeting, redemption runs, auto-pilot scheduler |
 | `lib/sources.js` | Code discovery |
 | `lib/runtime.js` | Packaged-app behaviour (data folder, app window, start with computer, update check) |
-| `public/` | UI (no build step) |
+| `lib/codelists.js` | Import and export of shareable code lists |
+| `lib/rewards.js` | Reward parsing and the rewards report |
+| `public/` | UI (no build step): `app.js`, `help.js`, `report.js`, `lists.js` |
 | `scripts/build.mjs` | Packages the single-file app for the current OS |
 | `packaging/windows/installer.iss` | Windows installer (Inno Setup, per-user, no admin prompt) |
 

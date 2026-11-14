@@ -716,3 +716,116 @@ mark.hl { background: rgba(181, 124, 255, 0.28); color: inherit; padding: 0 1px;
   .data-table th, .data-table td { padding: var(--s2); }
 }
 .history-table .short { white-space: nowrap; }
+
+/* ================================================================ import / export */
+.dropzone {
+  position: relative; display: grid; justify-items: center; gap: 2px; padding: var(--s5) var(--s4); margin-bottom: var(--s3); text-align: center; cursor: pointer;
+  border: 1px dashed #5d3f8a; background: linear-gradient(160deg, rgba(181, 124, 255, 0.07), transparent 70%), #13100f; clip-path: var(--cut-sm);
+  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+}
+.dropzone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.dropzone b { font: 600 var(--fs-body)/1.3 var(--head); text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink); }
+.dropzone small { font-size: var(--fs-hint); color: var(--muted); }
+.dz-ic { width: 36px; height: 36px; display: grid; place-items: center; font-size: 18px; color: var(--eridian-2); border: 1px solid #4a3463; background: #0f0c12; margin-bottom: var(--s1); transition: transform 0.2s var(--ease-snap); }
+.dz-file { color: var(--eridian-2); margin-left: var(--s1); }
+.dropzone:hover, .dropzone.over { border-color: var(--eridian); box-shadow: inset 0 0 24px rgba(181, 124, 255, 0.18); }
+.dropzone:hover .dz-ic, .dropzone.over .dz-ic { transform: translateY(-3px); }
+.dropzone.over { background: linear-gradient(160deg, rgba(181, 124, 255, 0.16), transparent 70%), #15101a; }
+#importText { margin-bottom: var(--s3); }
+.import-sample { margin-top: var(--s2); }
+.ex-preview {
+  margin: var(--s3) 0 0; padding: var(--s2) var(--s3); max-height: 190px; overflow: auto; white-space: pre; font: var(--fs-hint)/1.6 var(--mono); color: var(--ink-2);
+  background: #0a0908; border: 1px solid #000; box-shadow: inset 0 0 0 1px #261f1a;
+}
+#exportPanel .field { margin-bottom: 0; }
+#exportPanel .seg { justify-self: start; }
+
+/* ================================================================ motion: fast, game-menu style */
+:root {
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-snap: cubic-bezier(0.2, 0.9, 0.25, 1.25);
+}
+
+/* boot: HUD slides in */
+.topbar { animation: barIn 0.32s var(--ease-out) both; }
+.brand-mark { animation: markIn 0.5s var(--ease-snap) 0.08s both; }
+@keyframes barIn { from { transform: translateY(-100%); } }
+@keyframes markIn { from { transform: rotate(-120deg) scale(0.4); opacity: 0; } }
+
+/* sliding active-tab highlight */
+.tabs { position: relative; }
+.tab-ink {
+  position: absolute; left: 0; top: 11px; bottom: 11px; width: 0; z-index: 0; pointer-events: none; opacity: 0;
+  background: linear-gradient(180deg, rgba(120, 70, 190, 0.55), rgba(60, 30, 100, 0.55)); border: 1px solid #9b6ae0;
+  box-shadow: 0 0 14px rgba(181, 124, 255, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  transition: transform 0.24s var(--ease-snap), width 0.24s var(--ease-snap), opacity 0.15s;
+}
+.tab-ink.on { opacity: 1; }
+.tabs a { z-index: 1; }
+.tabs a.active::before { background: none; border-color: transparent; box-shadow: none; }
+
+/* page panels cascade in */
+.in { animation: panelIn 0.26s var(--ease-out) both; animation-delay: calc(var(--i, 0) * 28ms); }
+@keyframes panelIn { from { opacity: 0; transform: translateX(-16px) skewX(-4deg); } }
+
+/* buttons: light streak on hover, quick press */
+.btn { position: relative; overflow: hidden; }
+.btn::after {
+  content: ''; position: absolute; inset: -2px; pointer-events: none;
+  background: linear-gradient(105deg, transparent 30%, rgba(255, 255, 255, 0.2) 48%, rgba(255, 255, 255, 0.05) 56%, transparent 70%);
+  transform: translateX(-130%);
+}
+.btn:hover::after { transform: translateX(130%); transition: transform 0.42s var(--ease-out); }
+.btn:active { transform: skewX(-10deg) scale(0.96); transition: transform 0.06s; }
+#btnGo:not(:disabled) { animation: eridianBreathe 2.6s ease-in-out infinite; }
+@keyframes eridianBreathe {
+  50% { box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.7), 0 0 26px rgba(181, 124, 255, 0.62), inset 0 1px 0 rgba(255, 255, 255, 0.2); }
+}
+.seg button { transition: background 0.14s, color 0.14s, box-shadow 0.14s; }
+.icon-btn, .help-chip, .row-btn, .tile, .pick, .source, .code, .stat-tile, .rp-title { transition: transform 0.12s var(--ease-out), box-shadow 0.15s, border-color 0.15s, color 0.15s; }
+.tile:hover, .stat-tile:hover, .rp-title:hover, .row-btn:hover { transform: translateY(-2px); }
+.pick:hover:not(.locked), .source:hover { transform: translateX(2px); }
+.code:hover { transform: translateX(3px); }
+
+/* stat numbers pop when they change */
+.bump { animation: bump 0.42s var(--ease-snap); display: inline-block; }
+@keyframes bump { 30% { transform: skewX(-6deg) scale(1.18); filter: brightness(1.5); } }
+
+/* status phase flicker, like a HUD readout */
+.cmd-phase.flick { animation: flick 0.32s steps(1) 1; }
+@keyframes flick { 0% { opacity: 0.2; } 20% { opacity: 1; } 40% { opacity: 0.35; } 60%, 100% { opacity: 1; } }
+.cmd-dot { transition: background 0.2s, box-shadow 0.2s; }
+
+/* picks stamp when toggled */
+.pick.just .tick { animation: stamp 0.24s var(--ease-snap); }
+@keyframes stamp { 0% { transform: scale(1.8) rotate(-20deg); opacity: 0.4; } 100% { transform: none; } }
+.switch::after { transition: transform 0.16s var(--ease-snap), background 0.15s; }
+
+/* new log lines flash in */
+.log li.new { animation: logIn 0.5s var(--ease-out); }
+@keyframes logIn { from { transform: translateX(-10px); background: rgba(181, 124, 255, 0.18); opacity: 0; } 40% { opacity: 1; } }
+
+/* overlays: banner drops, card rises; pages within slide */
+.overlay:not([hidden]) .modal > .modal-hero { animation: dropIn 0.24s var(--ease-snap) both; }
+.overlay:not([hidden]) .modal > .pop-card { animation: riseIn 0.28s var(--ease-out) 0.04s both; }
+@keyframes dropIn { from { opacity: 0; transform: translateY(-18px) skewX(-3deg); } }
+@keyframes riseIn { from { opacity: 0; transform: translateY(18px); } }
+.wz-page:not([hidden]), .help-pane:not([hidden]), #helpResults:not([hidden]) { animation: stepIn 0.2s var(--ease-out); }
+@keyframes stepIn { from { opacity: 0; transform: translateX(14px); } }
+.faq-item[open] .faq-ans { animation: fadeDown 0.18s var(--ease-out); }
+@keyframes fadeDown { from { opacity: 0; transform: translateY(-4px); } }
+.wz-steps li { transition: color 0.2s, background 0.2s, border-color 0.2s; }
+.wz-steps li.current::before { animation: stamp 0.24s var(--ease-snap); }
+.help-chips.swap { transform: translateX(10px); }
+.help-chips { transition: opacity 0.22s, transform 0.22s; }
+
+/* toasts slide in from the side */
+.toast { animation: toastIn 0.24s var(--ease-snap); }
+@keyframes toastIn { from { opacity: 0; transform: translateX(40px) skewX(-6deg); } }
+
+/* panels opened from the Codes page */
+#pastePanel.in, #importPanel.in, #exportPanel.in { animation: dropIn 0.22s var(--ease-snap) both; }
+
+/* reduced motion: system setting or the in-app switch */
+html.reduce-motion *, html.reduce-motion *::before, html.reduce-motion *::after { animation: none !important; transition: none !important; }
+html.reduce-motion .btn:hover::after { transform: translateX(-130%); }

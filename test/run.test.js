@@ -279,6 +279,49 @@ test('game launch assist: launches, waits, closes, resumes — or pauses with a 
   mock.setLaunchAfter(Infinity);
 });
 
+test('code lists: import every format, export without account data', async () => {
+  const { parseCodeList, exportCodeList, LIST_FORMAT } = await import('../lib/codelists.js');
+  const A = 'AAAAA-11111-AAAAA-11111-AAAAA';
+  const B = 'BBBBB-22222-BBBBB-22222-BBBBB';
+  // plain text, with noise and duplicates
+  let r = parseCodeList(`from my mate:\n${A.toLowerCase()} 5 Golden Keys\n${B}\n${A}`);
+  assert.equal(r.kind, 'text');
+  assert.deepEqual(r.records.map((x) => x.code), [A, B]);
+  // CSV (semicolon, quoted, extra columns)
+  r = parseCodeList(`Code;Reward;Game;Expires\n${A};"3 Golden Keys; BL2";Borderlands 2;Dec 1, 2026\n${B};;Borderlands 4;`);
+  assert.equal(r.kind, 'csv');
+  assert.equal(r.records[0].reward, '3 Golden Keys; BL2');
+  assert.deepEqual(r.records[0].games, ['bl2']);
+  assert.equal(r.records[0].expires, 'Dec 1, 2026');
+  // community feed JSON
+  r = parseCodeList(JSON.stringify([{ meta: {}, codes: [{ code: A, game: 'Borderlands 4', platform: 'universal', reward: '5 Golden Keys', expired: true }] }]));
+  assert.equal(r.records[0].expired, true);
+  assert.deepEqual(r.records[0].games, ['bl4']);
+  // our own list round-trips, and exports carry no account data
+  const codes = [
+    { code: A, reward: '5 Golden Keys', games: ['bl4'], platforms: [], expires: '', check: { status: 'ok' } },
+    { code: B, reward: '', games: [], platforms: [], expires: '', check: { status: 'expired' } },
+  ];
+  const json = exportCodeList(codes, 'json', '1.2.0');
+  const doc = JSON.parse(json.content);
+  assert.equal(doc.format, LIST_FORMAT);
+  assert.deepEqual(doc.codes.map((c) => c.state), ['valid', 'expired']);
+  assert.ok(!/redeemed|email|password|steam/i.test(json.content.replace(/"platforms"/g, '')), 'export leaked account data');
+  r = parseCodeList(json.content);
+  assert.equal(r.kind, 'list');
+  assert.equal(r.records[1].expired, true);
+  assert.equal(exportCodeList(codes, 'txt').content, `${A}\n${B}\n`);
+  assert.match(exportCodeList(codes, 'csv').content, /^code,reward,games,platforms,expires,state\r\n/);
+
+  // engine: dry run reports, real import adds with a source label
+  const { engine, store } = makeEngine();
+  const dry = engine.importList(`${A}\n${B}`, 'friends.txt', { dryRun: true });
+  assert.equal(dry.found, 2);
+  assert.ok(!store.db.codes[B] || dry.fresh < 2);
+  engine.importList(`${A}\n${B}\nCCCCC-33333-CCCCC-33333-CCCCC`, 'friends.txt');
+  assert.equal(store.db.codes['CCCCC-33333-CCCCC-33333-CCCCC'].sources[0].name, 'Imported list (friends.txt)');
+});
+
 test('rewards report: parses keys per title and aggregates', async () => {
   const { parseReward, buildReport } = await import('../lib/rewards.js');
   const k = (t, id) => parseReward(t, id).keys;

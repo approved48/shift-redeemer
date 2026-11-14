@@ -26,6 +26,7 @@
         <span class="wordmark">SHiFT<span>Redeemer</span></span>
       </a>
       <nav class="tabs" id="tabs" aria-label="Sections">
+        <span class="tab-ink" id="tabInk" aria-hidden="true"></span>
         <a href="#dashboard" data-tab="dashboard">Dashboard</a>
         <a href="#codes" data-tab="codes">Codes <span class="tab-count" id="tabCount"></span></a>
         <a href="#rewards" data-tab="rewards">Rewards</a>
@@ -82,7 +83,7 @@
         <span class="kicker">Codes</span>
         <h1 class="hero-title">Code library</h1>
         <p class="hero-sub">Every code found so far and what happened when it was redeemed. SHiFT has the final word on which games and platforms a code works for.</p>
-        <div class="hero-actions"><button class="btn btn-eridian" id="btnAddCodes">+ Add codes</button><button class="btn btn-ghost" data-help="code statuses">What do the statuses mean?</button></div>
+        <div class="hero-actions"><button class="btn btn-eridian" id="btnAddCodes">+ Paste codes</button><button class="btn" id="btnImportOpen">Import list</button><button class="btn" id="btnExportOpen">Export list</button><button class="btn btn-ghost btn-icon" data-help="code statuses" title="What do the statuses mean?">?</button></div>
       </div>
 
       <section class="panel step" id="pastePanel" hidden>
@@ -97,6 +98,39 @@
           <button class="btn" id="btnPasteAdd">Add to library</button>
           <button class="btn btn-eridian" id="btnPasteRedeem">Add &amp; redeem now</button>
         </div>
+      </section>
+
+      <section class="panel step" id="importPanel" hidden>
+        <div class="step-head">
+          <h2 class="step-title"><span class="step-n">⇩</span>Import a code list</h2>
+          <button class="btn btn-sm btn-ghost" id="btnImportClose">Close</button>
+        </div>
+        <p class="step-hint">Got a list from a friend or the community? Drop the file here or paste it below. Text, CSV and SHiFT Redeemer list files all work.</p>
+        <label class="dropzone" id="importDrop">
+          <input type="file" id="importFile" accept=".txt,.csv,.tsv,.json,text/plain,text/csv,application/json">
+          <span class="dz-ic" aria-hidden="true">⇩</span>
+          <b>Drop a file here, or click to choose one</b>
+          <small>.txt · .csv · .json <span id="importFileName" class="dz-file"></span></small>
+        </label>
+        <textarea id="importText" rows="3" placeholder="…or paste the list here"></textarea>
+        <div class="callout is-eridian" id="importPreview" hidden></div>
+        <label class="switch-row"><input type="checkbox" class="switch" id="importRedeem" checked><span><b>Redeem new codes straight away</b><small>Checks them with SHiFT and redeems them for your games and platforms.</small></span></label>
+        <div class="card-foot"><span class="foot-note">Nothing is added until you press Import.</span><button class="btn btn-ghost" id="btnImportCancel">Cancel</button><button class="btn btn-eridian" id="btnImportGo" disabled>Import</button></div>
+      </section>
+
+      <section class="panel step" id="exportPanel" hidden>
+        <div class="step-head">
+          <h2 class="step-title"><span class="step-n">⇧</span>Export a code list</h2>
+          <button class="btn btn-sm btn-ghost" id="btnExportClose">Close</button>
+        </div>
+        <p class="step-hint">Share codes with friends or keep a backup. Exports never include your account, your sign-in or which rewards you've had.</p>
+        <div class="field-row">
+          <div class="field"><span class="label">Which codes</span><div class="seg" id="exWhich"><button data-v="working" class="on">Still working</button><button data-v="queue">In my queue</button><button data-v="all">Everything</button></div></div>
+          <div class="field"><span class="label">Format</span><div class="seg" id="exFormat"><button data-v="txt" class="on">Text</button><button data-v="csv">CSV</button><button data-v="json">List file</button></div></div>
+        </div>
+        <p class="hint" id="exHint"></p>
+        <pre class="ex-preview" id="exPreview"></pre>
+        <div class="card-foot"><span class="foot-note" id="exCount"></span><button class="btn" id="btnExCopy">Copy</button><button class="btn btn-eridian" id="btnExDownload">Download</button></div>
       </section>
 
       <div class="toolbar panel">
@@ -288,8 +322,9 @@
           <label class="field inline"><span class="label">Max codes to check per run <small>(0 = no limit)</small></span><input type="number" min="0" max="5000" data-setting="maxChecksPerRun"></label>
         </section>
         <section class="panel step" id="setData">
-          <div class="step-head"><h2 class="step-title"><span class="step-n">4</span>Your data</h2><button class="btn btn-sm btn-ghost" data-help="where is my data">?</button></div>
+          <div class="step-head"><h2 class="step-title"><span class="step-n">4</span>Data &amp; display</h2><button class="btn btn-sm btn-ghost" data-help="where is my data">?</button></div>
           <p class="step-hint">Codes, results and settings are saved on this computer only.</p>
+          <label class="switch-row"><input type="checkbox" class="switch" id="reduceMotion"><span><b>Reduce animations</b><small>Turns off the menu transitions and effects on this computer.</small></span></label>
           <p class="hint" id="dataDir"></p>
           <div class="card-foot"><span class="foot-note" id="versionLine"></span><a class="btn btn-sm btn-ghost" href="/api/export" download="shift-redeemer-export.json">Export JSON</a><button class="btn btn-sm" id="btnOpenData">Open data folder</button></div>
         </section>

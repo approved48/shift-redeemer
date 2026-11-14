@@ -293,6 +293,15 @@ const routes = {
     if (body.redeem) background(engine.run({ codes }));
     return { codes };
   },
+  'POST /api/codes/import': ({ body }) => {
+    const text = String(body.text || '');
+    if (!text.trim()) throw bad('The list is empty');
+    const res = engine.importList(text, String(body.filename || ''), { dryRun: body.dryRun === true });
+    if (!res.found) throw bad('No SHiFT codes found in that list (format: XXXXX-XXXXX-XXXXX-XXXXX-XXXXX)');
+    if (!body.dryRun && body.redeem) background(engine.run({ codes: res.codes }));
+    return res;
+  },
+  'GET /api/codes/export': ({ query }) => engine.exportList(query.get('format') || 'txt', query.get('which') || 'working', rt.VERSION),
   'POST /api/codes/ignore': ({ body }) => {
     for (const code of extractCodes((body.codes || []).join(' '))) if (store.db.codes[code]) store.db.codes[code].ignored = !!body.ignored;
     engine.changed();

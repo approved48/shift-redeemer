@@ -2,6 +2,7 @@
 
 import { initHelp } from './help.js';
 import { initReport } from './report.js';
+import { initLists } from './lists.js';
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -55,6 +56,64 @@ const ICON = {
 function callout(tone, icon, title, body, actions = '') {
   return `<div class="callout is-${tone}"><span class="co-ic" aria-hidden="true">${icon}</span><div class="co-body">${title ? `<b class="co-title">${title}</b>` : ''}${body}</div>${actions ? `<div class="co-actions">${actions}</div>` : ''}</div>`;
 }
+
+// ------------------------------------------------------------------ motion
+
+const MOTION_KEY = 'sr.reduceMotion';
+try {
+  if (localStorage.getItem(MOTION_KEY) === '1') document.documentElement.classList.add('reduce-motion');
+} catch {
+  /* storage unavailable */
+}
+const reducedMotion = () => document.documentElement.classList.contains('reduce-motion') || matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/** Quick staggered entrance for the visible blocks of a page, like a game menu panel sliding in. */
+function cascade(root) {
+  if (reducedMotion() || !root) return;
+  const els = [...root.querySelectorAll('.hero, .panel, .statbar, .callout, .stat-tile, .rp-title, .code, .source')].filter((el) => el.offsetParent !== null).slice(0, 18);
+  els.forEach((el, i) => {
+    el.classList.remove('in');
+    el.style.setProperty('--i', i);
+    void el.offsetWidth;
+    el.classList.add('in');
+    el.addEventListener('animationend', () => el.classList.remove('in'), { once: true });
+  });
+}
+
+/** Slide the active-tab highlight to the current tab. */
+function moveInk() {
+  const ink = $('#tabInk');
+  const a = $('#tabs a.active');
+  if (!ink || !a) return;
+  ink.style.width = `${a.offsetWidth - 8}px`;
+  ink.style.transform = `translateX(${a.offsetLeft + 4}px) skewX(-14deg)`;
+  ink.classList.add('on');
+}
+addEventListener('resize', moveInk);
+
+const prevNums = new Map();
+/** Count a number up (or down) to its new value. */
+function countTo(el, key, to) {
+  const from = prevNums.get(key);
+  prevNums.set(key, to);
+  if (from === undefined || from === to || reducedMotion()) {
+    el.textContent = Number(to || 0).toLocaleString();
+    return;
+  }
+  const t0 = performance.now();
+  const d = 420;
+  const step = (t) => {
+    const p = Math.min(1, (t - t0) / d);
+    el.textContent = Math.round(from + (to - from) * (1 - (1 - p) ** 3)).toLocaleString();
+    if (p < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+  el.classList.remove('bump');
+  void el.offsetWidth;
+  el.classList.add('bump');
+}
+let lastPick = null;
+let lastPhase = null;
 
 // ------------------------------------------------------------------ api
 
@@ -255,6 +314,8 @@ function showTab() {
   $$('#tabs a').forEach((a) => a.classList.toggle('active', a.dataset.tab === valid));
   if (valid === 'rewards' && typeof report !== 'undefined') report.refresh(S.catalog.platforms);
   window.scrollTo({ top: 0 });
+  moveInk();
+  cascade($(`#tab-${valid}`));
 }
 window.addEventListener('hashchange', showTab);
 
@@ -315,7 +376,7 @@ function titlePicksHTML() {
     .map((t) => {
       const on = all || st.titles.selected.includes(t.id);
       const n = codeCountFor(t.id);
-      return `<label class="pick ${on ? 'on' : ''} ${all ? 'locked' : ''}" style="--c:${t.color}">
+      return `<label class="pick ${on ? 'on' : ''} ${all ? 'locked' : ''} ${lastPick === t.id ? 'just' : ''}" style="--c:${t.color}">
         <input type="checkbox" data-pick="titles" value="${esc(t.id)}" ${on ? 'checked' : ''} ${all ? 'disabled' : ''}>
         <span class="tick">${ICON.check}</span>
         <span class="big">${esc(t.short)}</span>
@@ -334,7 +395,7 @@ function platPicksHTML() {
   return S.catalog.platforms
     .map((p) => {
       const on = all ? !known || p.linked : st.platforms.selected.includes(p.id);
-      return `<label class="pick ${on ? 'on' : ''} ${all ? 'locked' : ''} ${all && known && !p.linked ? 'dim' : ''}" style="--c:${C.eridian}">
+      return `<label class="pick ${on ? 'on' : ''} ${all ? 'locked' : ''} ${all && known && !p.linked ? 'dim' : ''} ${lastPick === p.id ? 'just' : ''}" style="--c:${C.eridian}">
         <input type="checkbox" data-pick="platforms" value="${esc(p.id)}" ${on ? 'checked' : ''} ${all ? 'disabled' : ''}>
         <span class="tick">${ICON.check}</span>
         <span class="big">${esc(p.glyph)}</span>
@@ -430,9 +491,10 @@ function renderRun() {
   else if (live) current = `${esc(e.current || '…')}${e.total ? ` · ${e.done}/${e.total} · ${pct}%` : ''}`;
   else if (paused) current = `SHiFT needs a game launched · ${lr.pause.waiting} code${lr.pause.waiting === 1 ? '' : 's'} waiting`;
   else current = `${S.stats.queue ?? 0} code${S.stats.queue === 1 ? '' : 's'} in the queue`;
+  const phaseChanged = phase;
   const warmPct = e.assist?.step === 'warmup' && e.assist.endsAt ? 100 - Math.round(((e.assist.endsAt - Date.now()) / (Number(S.settings?.gameAssist?.warmupSeconds || 75) * 1000)) * 100) : null;
   $('#runCard').innerHTML = `
-    <div class="cmd-line"><span class="cmd-dot ${dot}"></span><span class="cmd-phase ${live ? 'live' : ''} ${paused ? 'warn' : ''}">${phase}</span><span class="cmd-current">${current}</span></div>
+    <div class="cmd-line"><span class="cmd-dot ${dot}"></span><span class="cmd-phase ${live ? 'live' : ''} ${paused ? 'warn' : ''} ${phase !== lastPhase && lastPhase !== null ? 'flick' : ''}">${phase}</span><span class="cmd-current">${current}</span></div>
     <div class="bar ${live ? 'live' : ''} ${e.assist ? 'assist' : ''}"><i style="width:${live ? Math.max(warmPct ?? pct, 2) : 0}%"></i></div>
     <div class="cmd-meta">
       <span>Last search <b>${e.lastCollect ? `${ago(e.lastCollect.at)} · ${e.lastCollect.added} new` : 'never'}</b></span>
@@ -441,6 +503,7 @@ function renderRun() {
       <span>Game assist <b>${{ auto: 'automatic', ask: 'asks first', off: 'off' }[S.settings?.gameAssist?.mode] || 'off'}</b></span>
       ${e.message && !e.assist ? `<span class="cmd-msg">${esc(e.message)}</span>` : ''}
     </div>`;
+  lastPhase = phaseChanged;
   clearInterval(assistTick);
   if (live && e.assist && ['starting', 'warmup'].includes(e.assist.step)) assistTick = setInterval(renderRun, 1000);
   renderBanners();
@@ -497,7 +560,8 @@ function renderStats() {
     ['Dead', (s.expired || 0) + (s.invalid || 0) + (s.unavailable || 0) + (s.stale || 0), C.red, 'Expired or invalid codes'],
     ['Known', s.total, C.ink, `${s.filtered || 0} not for your games or platforms`],
   ];
-  $('#stats').innerHTML = cells.map(([l, n, c, tip]) => `<div class="sb-cell" style="--c:${c}" title="${esc(tip)}"><b>${n ?? 0}</b><span>${l}</span></div>`).join('');
+  if (!$('#stats').children.length) $('#stats').innerHTML = cells.map(([l, n, c, tip]) => `<div class="sb-cell" style="--c:${c}" title="${esc(tip)}"><b data-k="${l}"></b><span>${l}</span></div>`).join('');
+  cells.forEach(([l, n]) => countTo($(`#stats b[data-k="${l}"]`), `stat:${l}`, n ?? 0));
 }
 
 function renderDashboard() {
@@ -547,6 +611,7 @@ function appendLog(e) {
   const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
   $('.log-empty', el)?.remove();
   el.insertAdjacentHTML('beforeend', logLine(e));
+  el.lastElementChild?.classList.add('new');
   while (el.children.length > 400) el.firstElementChild.remove();
   if (atBottom) el.scrollTop = el.scrollHeight;
 }
@@ -725,7 +790,7 @@ function renderCodes() {
   const list = filteredCodes();
   $('#codeList').innerHTML = list.length
     ? list.slice(0, S.shown).map(codeRow).join('')
-    : `<div class="empty">${S.codes.length ? 'No codes match these filters.' : 'No codes yet. Press <b>Find codes</b> on the dashboard, or paste some with <b>+ Add codes</b>.'}</div>`;
+    : `<div class="empty">${S.codes.length ? 'No codes match these filters.' : 'No codes yet. Press <b>Find codes</b> on the dashboard, paste some with <b>+ Paste codes</b>, or import a list.'}</div>`;
   $('#btnMore').hidden = list.length <= S.shown;
   $('#btnMore').textContent = `Show more (${list.length - S.shown} left)`;
 }
@@ -948,8 +1013,8 @@ $('#btnMore').addEventListener('click', () => {
   renderCodes();
 });
 $('#btnAddCodes').addEventListener('click', () => {
-  $('#pastePanel').hidden = false;
-  $('#pasteText').focus();
+  lists.openPaste();
+  setTimeout(() => $('#pasteText').focus(), 60);
 });
 $('#btnPasteClose').addEventListener('click', () => ($('#pastePanel').hidden = true));
 $('#pasteText').addEventListener('input', (e) => {
@@ -975,7 +1040,9 @@ document.addEventListener('change', async (e) => {
     const kind = el.dataset.pick;
     const sel = new Set(S.settings[kind].selected);
     el.checked ? sel.add(el.value) : sel.delete(el.value);
+    lastPick = el.value;
     setSetting(`${kind}.selected`, [...sel]);
+    lastPick = null;
   } else if (el.dataset.source) {
     api('PUT', '/api/settings', { sources: { [el.dataset.source]: { enabled: el.checked } } }).then((st) => applyState(st));
   } else if (el.classList.contains('js-assist-auto')) {
@@ -1118,9 +1185,10 @@ function goTo(tab, elId) {
 function runAction(a, arg) {
   if (a === 'setup') openWizard(0);
   else if (a === 'paste') {
-    $('#pastePanel').hidden = false;
+    lists.openPaste();
     setTimeout(() => $('#pasteText').focus(), 120);
-  } else if (a === 'data') api('POST', '/api/app/open-data').catch((e) => toast(e.message, 'err'));
+  } else if (a === 'import') lists.openImport();
+  else if (a === 'export') lists.openExport(); else if (a === 'data') api('POST', '/api/app/open-data').catch((e) => toast(e.message, 'err'));
   else if (a === 'toast') toast(arg, 'ok');
 }
 
@@ -1143,6 +1211,25 @@ function getDiagnostics() {
   return redact(lines.join('\n'));
 }
 
+const lists = initLists({
+  api,
+  toast,
+  isLoggedIn: () => !!S.account.loggedIn,
+  onImported: () => {
+    S.filter.status = 'all';
+    loadCodes();
+  },
+});
+$('#reduceMotion').checked = document.documentElement.classList.contains('reduce-motion');
+$('#reduceMotion').addEventListener('change', (e) => {
+  document.documentElement.classList.toggle('reduce-motion', e.target.checked);
+  try {
+    localStorage.setItem(MOTION_KEY, e.target.checked ? '1' : '0');
+  } catch {
+    /* storage unavailable */
+  }
+  toast(e.target.checked ? 'Animations reduced' : 'Animations on', 'ok');
+});
 const report = initReport({ api, toast, isVisible: () => location.hash === '#rewards' });
 const help = initHelp({ goTo, runAction, getDiagnostics, repoUrl: 'https://github.com/approved48/shift-redeemer' });
 

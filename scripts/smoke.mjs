@@ -52,7 +52,7 @@ try {
   // 2. serves the embedded UI
   const html = await fetch(`${base}/`).then((r) => r.text());
   assert.match(html, /SHiFT Redeemer/);
-  for (const f of ['/app.js', '/help.js', '/report.js', '/styles.css', '/icon.svg']) assert.equal((await fetch(base + f)).status, 200, `${f} missing`);
+  for (const f of ['/app.js', '/help.js', '/report.js', '/lists.js', '/styles.css', '/icon.svg']) assert.equal((await fetch(base + f)).status, 200, `${f} missing`);
   const st = await api('GET', '/api/state');
   assert.equal(st.app.packaged, true, 'not running in packaged mode');
   console.log('✔ UI served from embedded assets');
@@ -73,6 +73,11 @@ try {
   const rep = await api('GET', '/api/report');
   assert.ok(rep.totals.rewards >= 1 && rep.months.length === 12, 'rewards report missing the redemption');
   console.log(`✔ rewards report counts it (${rep.totals.rewards} reward(s))`);
+  const imp = await api('POST', '/api/codes/import', { text: 'code,reward\nEEEEE-EEEEE-EEEEE-EEEEE-EEEE1,Test', filename: 'friend.csv' });
+  const exp = await api('GET', '/api/codes/export?format=json&which=all');
+  assert.ok(imp.found === 1 && JSON.parse(exp.content).codes.some((c) => c.code === 'EEEEE-EEEEE-EEEEE-EEEEE-EEEE1'), 'import/export round trip failed');
+  assert.ok(!/vault@hunter/.test(exp.content), 'export leaked the account email');
+  console.log('✔ code list import and export work');
 
   // 3b. "Keep me signed in" uses the OS password store (Credential Manager / Keychain)
   const login = (extra = {}) =>

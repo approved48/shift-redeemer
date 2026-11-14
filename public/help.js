@@ -40,8 +40,20 @@ const FAQ = [
   { cat: 'Redeeming', q: 'Why does a code say "already had"?', a: ['SHiFT says that reward is already on your account, usually because you redeemed it yourself on the website or in a game. Nothing more to do.'] },
   { cat: 'Redeeming', q: 'Why is a code "Not targeted"?', a: ['SHiFT says the code only works for games or platforms you haven\'t picked. Change your choices on <b>Games &amp; Platforms</b> and it will be redeemed on the next run.'], go: { tab: 'targets', el: 'stepTitles', label: 'Open Games & Platforms' } },
   { cat: 'Redeeming', q: 'Why are some codes "Likely expired"?', a: ['The site that listed the code says its expiry date has passed, so the app skips it to save time. To try them anyway, turn off <b>Skip expired codes</b>.'], go: { tab: 'targets', el: 'stepFiltering', label: 'Show me' } },
-  { cat: 'Redeeming', q: 'Can I add a code I found myself?', a: ['Yes. On <b>Codes</b>, select <b>+ Add codes</b> and paste anything that contains codes, such as a tweet, a message or a whole guide. The codes are picked out automatically.'], go: { tab: 'codes', el: 'btnAddCodes', label: 'Show me', action: 'paste' } },
+  { cat: 'Redeeming', q: 'Can I add a code I found myself?', a: ['Yes. On <b>Codes</b>, select <b>+ Paste codes</b> and paste anything that contains codes, such as a tweet, a message or a whole guide. The codes are picked out automatically.'], go: { tab: 'codes', el: 'btnAddCodes', label: 'Show me', action: 'paste' } },
   { cat: 'Redeeming', q: 'Can I check a code again?', a: ['On <b>Codes</b>, the ↻ button next to a code forgets its results, so it\'s checked again on the next run.'] },
+
+  // ---- Sharing code lists
+  { cat: 'Sharing code lists', q: 'How do I import a list of codes from a friend?', a: [
+    'On <b>Codes</b>, select <b>Import list</b>, then drop the file onto the box (or click it to choose the file). You can also paste the list as text.',
+    'You\'ll see how many codes were found and how many are new before anything is added. Leave <b>Redeem new codes straight away</b> on to redeem them in one go.'], go: { tab: 'codes', el: 'btnImportOpen', label: 'Show me', action: 'import' } },
+  { cat: 'Sharing code lists', q: 'Which files can I import?', a: [
+    '<ul><li><b>Text</b>: any text with codes in it, one per line or mixed with other words.</li><li><b>CSV</b> (from Excel or Google Sheets) with a <b>code</b> column. Reward, game, platform and expiry columns are picked up too.</li><li><b>SHiFT Redeemer list files</b> exported by a friend.</li><li>The community code feed\'s JSON format.</li></ul>',
+    'Tip: you can drag a file anywhere onto the Codes page to start an import.'] },
+  { cat: 'Sharing code lists', q: 'How do I share or back up my codes?', a: [
+    'On <b>Codes</b>, select <b>Export list</b>. Choose which codes (still working, in your queue, or everything) and a format, then <b>Download</b> or <b>Copy</b>.',
+    '<ul><li><b>Text</b>: one code per line. The easiest to paste into a chat.</li><li><b>CSV</b>: opens in a spreadsheet, with rewards and expiry dates.</li><li><b>List file</b>: best for another SHiFT Redeemer user. Everything is kept, including which codes are dead.</li></ul>'], go: { tab: 'codes', el: 'btnExportOpen', label: 'Show me', action: 'export' } },
+  { cat: 'Sharing code lists', q: 'Does an export include my account or which rewards I\'ve had?', a: ['No. Exports only contain the codes and public facts about them: the reward, games, expiry date and whether the code still works. Your email, sign-in and redemption history are never included.'] },
 
   // ---- Game launch assist
   { cat: 'Game launch assist', q: 'Why is redeeming paused and asking for a game?', a: [
@@ -80,6 +92,7 @@ const FAQ = [
   { cat: 'Auto-pilot & the app', q: 'Does it keep running when I close the window?', a: [
     'Only if auto-pilot is on. Then it keeps working quietly in the background. Turn on <b>Start with my computer</b> to have it start when you sign in.',
     'With auto-pilot off, closing the window quits the app.'], go: { tab: 'settings', el: 'setAutopilot', label: 'Show me' } },
+  { cat: 'Auto-pilot & the app', q: 'Can I turn off the animations?', a: ['Yes. In <b>Settings → Data &amp; display</b>, turn on <b>Reduce animations</b>. They\'re also turned off automatically if your computer is set to reduce motion.'], go: { tab: 'settings', el: 'setData', label: 'Show me' } },
   { cat: 'Auto-pilot & the app', q: 'How do I quit completely?', a: ['Select the <b>⏻</b> button at the top right.'] },
   { cat: 'Auto-pilot & the app', q: 'How do I update the app?', a: ['When a new version is out, a banner appears on the dashboard. Download it and install it over this one. Your codes and settings are kept.'] },
   { cat: 'Auto-pilot & the app', q: 'Where is my data stored?', a: ['On this computer only, in the app\'s data folder. <b>Settings → Your data</b> shows where it is, and can open it or export everything as a file.'], go: { tab: 'settings', el: 'setData', label: 'Show me' } },
@@ -117,7 +130,10 @@ const SETTINGS = [
   { ic: '🖥️', name: 'Platforms', desc: 'Games & Platforms · step 2', tab: 'targets', el: 'stepPlatforms', k: 'platforms steam epic playstation xbox switch' },
   { ic: '🧹', name: 'Smart filtering', desc: 'Games & Platforms · step 3', tab: 'targets', el: 'stepFiltering', k: 'hints expired skip filter trust' },
   { ic: '📊', name: 'Rewards report', desc: 'Rewards', tab: 'rewards', el: 'rpTotals', k: 'rewards report keys golden diamond skeleton items summary totals export csv history' },
-  { ic: '➕', name: 'Add codes', desc: 'Codes', tab: 'codes', el: 'btnAddCodes', action: 'paste', k: 'add paste code manual found' },
+  { ic: '➕', name: 'Paste codes', desc: 'Codes', tab: 'codes', el: 'btnAddCodes', action: 'paste', k: 'add paste code manual found' },
+  { ic: '📥', name: 'Import a code list', desc: 'Codes · import', tab: 'codes', el: 'btnImportOpen', action: 'import', k: 'import list file friend community csv txt json drop share load' },
+  { ic: '📤', name: 'Export a code list', desc: 'Codes · export', tab: 'codes', el: 'btnExportOpen', action: 'export', k: 'export list file share friend backup download copy csv txt json save' },
+  { ic: '✨', name: 'Reduce animations', desc: 'Settings · step 4', tab: 'settings', el: 'setData', k: 'animation animations motion effects transitions reduce turn off' },
   { ic: '📡', name: 'Built-in sources', desc: 'Sources · step 1', tab: 'sources', el: 'stepBuiltin', k: 'sources feed reddit steam ozbargain mentalmars' },
   { ic: '🌐', name: 'Your sources', desc: 'Sources · step 2', tab: 'sources', el: 'stepCustom', k: 'custom website page url follow links' },
   { ic: '⏱️', name: 'Auto-pilot', desc: 'Settings · step 1', tab: 'settings', el: 'setAutopilot', k: 'auto pilot automatic timer schedule background' },
@@ -161,7 +177,7 @@ const TOPICS = [
   ['Where is my data', 'where is my data'], ['Start over', 'start over'], ['Password safety', 'password safe'], ['Privacy', 'send my data'],
   ['Official?', 'official gearbox'], ['Nothing redeemed', 'nothing gets redeemed'], ['Too many requests', 'too many requests'], ['Retry', 'retry'],
   ['Windows warning', 'windows protected'], ['macOS warning', 'macos opened'], ['Run results', 'results of a run'], ['How long', 'how long run'],
-  ['Rewards report', 'rewards report counted'], ['Export rewards', 'rewards report export csv'], ['Setup again', 'run setup again'], ['Supported games', 'which games supported'], ['Which game launches', 'which game launch'], ['Still paused', 'still paused'],
+  ['Import a list', 'import list friend'], ['Share codes', 'share back up codes'], ['File types', 'which files import'], ['Export privacy', 'export include account'], ['Animations', 'turn off animations'], ['Rewards report', 'rewards report counted'], ['Export rewards', 'rewards report export csv'], ['Setup again', 'run setup again'], ['Supported games', 'which games supported'], ['Which game launches', 'which game launch'], ['Still paused', 'still paused'],
 ];
 
 const TILES = [
@@ -174,6 +190,7 @@ const TILES = [
   { ic: '📊', t: 'Rewards report', d: 'Keys and items unlocked, game by game.', s: 'rewards report counted', q: 'How is the rewards report counted?' },
   { ic: '🔒', t: 'Password safety', d: 'Where your sign-in is kept, and how to remove it.', s: 'password safe', q: 'Is my password safe?' },
   { ic: '➕', t: 'Add your own codes', d: 'Paste codes you found anywhere.', s: 'add a code', q: 'Can I add a code I found myself?' },
+  { ic: '🤝', t: 'Share code lists', d: 'Import a friend\'s list, or export yours.', s: 'import list friend', q: 'How do I import a list of codes from a friend?' },
   { ic: '🛠️', t: 'Something not working?', d: 'Quick fixes for the most common problems.', tab: 'trouble', feature: true },
 ];
 
