@@ -37,7 +37,7 @@ fs.mkdirSync(RELEASE, { recursive: true });
 step(`Bundling app v${VERSION}`);
 const bundle = path.join(BUILD, 'app.cjs');
 await esbuild.build({
-  entryPoints: [path.join(ROOT, 'server.js')],
+  entryPoints: [path.join(ROOT, 'main.js')],
   bundle: true,
   platform: 'node',
   format: 'cjs',

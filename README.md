@@ -104,12 +104,14 @@ The workflow builds every platform, tests the apps and the Windows installer (si
 
 | Path | Role |
 | --- | --- |
+| `main.js` | Packaged-app entry: starts the app, or acts as the Windows update helper |
 | `server.js` | Local HTTP server and API, single-instance handling, app window lifecycle |
 | `lib/shift.js` | SHiFT website client (sign-in, code check, redemption) |
 | `lib/engine.js` | Queue, targeting, redemption runs, auto-pilot scheduler |
 | `lib/sources.js` | Code discovery |
 | `lib/runtime.js` | Packaged-app behaviour (data folder, app window, start with computer) |
 | `lib/updater.js` | In-app updates: check GitHub releases, download and verify, install and restart |
+| `lib/apply-update.js` | Windows update helper (a copy of the app) that installs the update and restarts it |
 | `lib/codelists.js` | Import and export of shareable code lists |
 | `lib/rewards.js` | Reward parsing (keys per game, cosmetic types) and the rewards report |
 | `lib/llm.js` | Instructions for AI assistants to find codes |

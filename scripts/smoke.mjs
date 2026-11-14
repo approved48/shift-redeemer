@@ -165,9 +165,14 @@ try {
   for (let i = 0; i < 120 && exited === null; i++) await sleep(500);
   assert.equal(exited, 0, 'app did not quit to install the update');
   let back = null;
-  for (let i = 0; i < 180 && !(back && back.pid !== oldPid); i++) {
+  const quickPing = () => fetch(`${base}/api/ping`, { signal: AbortSignal.timeout(1500) }).then((r) => r.json()).catch(() => null);
+  for (const until = Date.now() + 150_000; Date.now() < until && !(back && back.pid !== oldPid); ) {
     await sleep(1000);
-    back = await fetch(`${base}/api/ping`).then((r) => r.json()).catch(() => null);
+    back = await quickPing();
+  }
+  if (!(back && back.pid !== oldPid)) {
+    const log = path.join(os.tmpdir(), 'shift-redeemer-update', 'update.log');
+    if (fs.existsSync(log)) console.error(`--- update.log ---\n${fs.readFileSync(log, 'utf8')}`);
   }
   assert.ok(back && back.pid !== oldPid, 'app did not restart after installing the update');
   assert.equal(back.afterUpdate, 'background');
@@ -179,9 +184,9 @@ try {
   await api('POST', '/api/app/quit');
   for (let i = 0; i < 40; i++) {
     await sleep(250);
-    if (!(await fetch(`${base}/api/ping`).catch(() => null))) break;
+    if (!(await quickPing())) break;
   }
-  assert.equal(await fetch(`${base}/api/ping`).catch(() => null), null, 'app did not quit');
+  assert.equal(await quickPing(), null, 'app did not quit');
   console.log('✔ quit cleanly');
   console.log('\nSMOKE TEST PASSED');
 } catch (e) {

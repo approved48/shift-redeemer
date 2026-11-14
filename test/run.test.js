@@ -588,11 +588,23 @@ test('updater: picks the right download, verifies it, and writes a safe helper',
     srv.close();
   }
 
-  // Paths with quotes and spaces can't break out of the helper scripts.
-  const win = u.helperScript({ kind: 'windows-installer', file: "C:\\Temp\\it's\\Setup.exe", target: 'C:\\Users\\O\'Neil\\SHiFT Redeemer.exe', pid: 42, relaunchArgs: ['--after-update=window'] });
-  assert.match(win, /Start-Process -FilePath 'C:\\Temp\\it''s\\Setup.exe' -ArgumentList '\/VERYSILENT'/);
-  assert.match(win, /Start-Process -FilePath 'C:\\Users\\O''Neil\\SHiFT Redeemer.exe' -ArgumentList '--after-update=window'/);
-  assert.match(win, /Wait-Process -Id 42/);
+  // The Windows helper (a copy of the app run with --apply-update) replaces the app and restarts it.
+  const { run, encodeJob } = await import('../lib/apply-update.js');
+  const wdir = fs.mkdtempSync(path.join(os.tmpdir(), 'apply-'));
+  const target = path.join(wdir, "it's the app.sh");
+  const marker = path.join(wdir, 'started');
+  fs.writeFileSync(target, '#!/bin/sh\necho old > "$0.ran"\n', { mode: 0o755 });
+  const newFile = path.join(wdir, 'new.sh');
+  fs.writeFileSync(newFile, `#!/bin/sh\necho "$1" > '${marker}'\n`, { mode: 0o755 });
+  const out = await run(encodeJob({ kind: 'windows-portable', file: newFile, target, pid: 999999, relaunchArgs: ['--after-update=window'] }));
+  assert.equal(out.ok, true);
+  for (let i = 0; i < 40 && !fs.existsSync(marker); i++) await new Promise((r) => setTimeout(r, 50));
+  assert.equal(fs.readFileSync(marker, 'utf8').trim(), '--after-update=window', 'the new version was started with the hand-over flag');
+  assert.ok(!fs.existsSync(newFile), 'the download is cleaned up');
+  assert.match(fs.readFileSync(path.join(wdir, 'update.log'), 'utf8'), /replaced the app/);
+  fs.rmSync(wdir, { recursive: true, force: true });
+
+  // Paths with quotes and spaces can't break out of the macOS / Linux helper scripts.
   const mac = u.helperScript({ kind: 'macos', file: "/tmp/a'b.dmg", target: '/Applications/SHiFT Redeemer.app', pid: 7 });
   assert.match(mac, /'\/tmp\/a'\\''b\.dmg'/);
   assert.match(mac, /APP='\/Applications\/SHiFT Redeemer.app'/);
