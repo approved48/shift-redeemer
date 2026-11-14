@@ -13,6 +13,23 @@ import { renderGuide } from './glossary.js';
 // go: { tab, el, label } adds a "Show me" button that jumps to the setting;
 // go: { guide: gameId } opens Help → Rewards guide (for that game, or all games with '').
 
+// ---- Best practice: how to get the most out of SHiFT Redeemer. Shown as cards on the Best practice
+// tab, and searchable like any other question.
+export const TIPS = [
+  { ic: '🔗', t: 'Link every platform before your first run', d: 'SHiFT only delivers rewards to platforms linked to your SHiFT account. Link each one you play on (Steam, Epic, PlayStation, Xbox, Switch) on the SHiFT website first, or those rewards are skipped.', go: { tab: 'account', el: 'stepLinks', label: 'Link platforms' } },
+  { ic: '🔑', t: 'Turn on “Keep me signed in”', d: 'SHiFT sessions expire. With this on, the app signs itself back in, so auto-pilot never stalls. Your password goes into Windows Credential Manager or the macOS Keychain.', go: { tab: 'account', el: 'stepConnect', label: 'Show me' } },
+  { ic: '🎮', t: 'Leave every game selected', d: 'Many codes work in several games at once. Redeeming for a game you don’t play costs nothing, and the reward waits on your account if you start playing it later.', go: { tab: 'targets', el: 'stepTitles', label: 'Games & platforms' } },
+  { ic: '🐢', t: 'Let the first run finish, and keep the default pace', d: 'The first run checks hundreds of codes, a few seconds each, because SHiFT limits how fast you can ask. Lowering the delay mostly gets you paused. If SHiFT says “too many requests”, the app waits and carries on by itself.', go: { tab: 'settings', el: 'setPace', label: 'Pace settings' } },
+  { ic: '🕹️', t: 'Auto-launch on when you’re away, off while you play', d: 'SHiFT sometimes wants a game launched before it accepts more codes. Let the app handle it when you’re not at the computer. Switch Auto-launch games off on the dashboard while you’re playing, so it never starts a game on you.', go: { tab: 'dashboard', el: 'cmdBar', label: 'Show the switch' } },
+  { ic: '📬', t: 'Claim your rewards in the game', d: 'Keys and cosmetics land in each game’s in-game mail the next time you play online on that platform. Claim them there. Rewards don’t move between platforms.', go: { guide: '', label: 'Rewards guide' } },
+  { ic: '⏱️', t: 'Use auto-pilot and “Start with my computer”', d: 'New codes come out most weeks and some expire within days. Auto-pilot checks every few hours in the background, so you never miss one.', go: { tab: 'settings', el: 'setAutopilot', label: 'Auto-pilot settings' } },
+  { ic: '💻', t: 'Run it on one computer per SHiFT account', d: 'Two copies redeeming for the same account double the requests and trip SHiFT’s limits. Pick one computer for auto-pilot.' },
+  { ic: '⬆️', t: 'Keep updates on', d: 'Code websites and SHiFT change now and then, and updates keep the app working with them. Turn on Install updates automatically and you never have to think about it.', go: { tab: 'settings', el: 'setUpdates', label: 'Updates' } },
+  { ic: '📊', t: 'Check “to go” on the Rewards page', d: 'Each game shows what’s on your account and what’s still to go. If a game’s “to go” number never shrinks, the usual cause is a platform that isn’t linked.', go: { tab: 'rewards', el: 'rpTitles', label: 'Rewards' } },
+  { ic: '🤖', t: 'Have a backup when sources go quiet', d: 'Import a friend’s list, or ask an AI to search for you. SHiFT checks every code before anything is redeemed, so a wrong one does no harm.', go: { tab: 'sources', el: 'stepAi', label: 'Ask an AI' } },
+  { ic: '🔒', t: 'Never share your password or browser session', d: 'Nobody needs them to share codes with you. Code list exports never include your account, sign-in or history.' },
+];
+
 // ---- Keys & cosmetics (explanations based on the Borderlands Wiki, written for this app)
 const REWARDS_FAQ = [
   { cat: 'Keys & cosmetics', q: 'What does a Golden Key do?', a: [
@@ -122,7 +139,7 @@ const FAQ = [
   { cat: 'Games & platforms', q: 'What does "Trust source hints" do?', a: ['Some sites say a code is only for a certain game or platform. With this on, codes that are clearly not for your choices are skipped, which saves requests and avoids SHiFT\'s limits.'], go: { tab: 'targets', el: 'stepFiltering', label: 'Show me' } },
 
   // ---- Codes & sources
-  { cat: 'Codes & sources', q: 'Where do codes come from?', a: ['A community feed of known codes, the MentalMars code lists, official announcements on Steam, Reddit, Steam Community guides, OzBargain, and the code guides on Eurogamer, PCGamesN and Game8. You can turn any of them off, add your own, or ask an AI to search for you.'], go: { tab: 'sources', el: 'stepBuiltin', label: 'Show me' } },
+  { cat: 'Codes & sources', q: 'Where do codes come from?', a: ['A community feed of known codes, the MentalMars code lists, official announcements on Steam, Reddit, Steam Community guides, OzBargain, and the code guides on Eurogamer, PCGamesN, Game8, esports.net, Fossbytes and GIGA. You can turn any of them off, add your own, or ask an AI to search for you.'], go: { tab: 'sources', el: 'stepBuiltin', label: 'Show me' } },
   { cat: 'Codes & sources', q: 'How do I ask an AI to find codes?', a: [
     '<ol><li>On <b>Sources</b>, under <b>Ask an AI to find codes</b>, select <b>Download instructions</b> (or <b>Copy instructions</b>).</li><li>Give them to an AI assistant that can search the web, such as ChatGPT, Claude, Gemini or Grok. Attach the file or paste the text.</li><li>Copy its whole reply, then on <b>Codes</b> select <b>Import list</b> and paste it.</li></ol>',
     'The instructions are made for your games and platforms and tell the AI exactly which file format to answer with. It\'s a handy backup if code websites change or go quiet.'], go: { tab: 'sources', el: 'stepAi', label: 'Show me' } },
@@ -172,7 +189,13 @@ const FAQ = [
   { cat: 'Troubleshooting', q: 'macOS says the app can\'t be opened', a: ['Right-click the app and choose <b>Open</b>, then <b>Open</b> again. If that doesn\'t work, go to <b>System Settings → Privacy &amp; Security</b> and select <b>Open Anyway</b>.'] },
   { cat: 'Troubleshooting', q: 'I closed the window but the app is still running', a: ['That\'s auto-pilot keeping things going in the background. Open the app again from your Start menu, desktop or Applications folder, then use <b>⏻</b> to quit completely.'] },
   { cat: 'Troubleshooting', q: 'The app window doesn\'t open', a: ['The app opens in its own Edge or Chrome window. If it\'s already running, opening it again brings that window back. If nothing appears, restart your computer and try again.'] },
-].concat(REWARDS_FAQ).map((f, i) => ({ ...f, id: `q${i}` }));
+]
+  .concat(REWARDS_FAQ)
+  .concat(TIPS.map((t) => ({ cat: 'Best practice', q: t.t, a: [t.d], go: t.go })))
+  .concat([{ cat: 'Getting started', q: 'I’m new. Where do I start?', a: [
+    'Follow the <b>Getting started</b> checklist at the top of the dashboard: connect your SHiFT account, link your platforms, pick your games, then press <b>Find &amp; redeem</b>. Each step has a button that takes you there, and it ticks itself off as you go.',
+    'Then read <b>Help → Best practice</b> for the dozen habits that get the most out of the app.'], go: { tab: 'dashboard', el: 'startList', label: 'Show the checklist' } }])
+  .map((f, i) => ({ ...f, id: `q${i}` }));
 
 const SETTINGS = [
   { ic: '🔑', name: 'Sign in', desc: 'Account · step 1', tab: 'account', el: 'stepConnect', k: 'sign in login email password connect account' },
@@ -228,6 +251,8 @@ const SYNONYMS = {
   ai: 'ai', llm: 'ai', chatgpt: 'ai', claude: 'ai', gemini: 'ai', grok: 'ai', gpt: 'ai', prompt: 'ai', assistant: 'ai',
   menu: 'menu', hamburger: 'menu', tabs: 'menu', missing: 'menu',
   playing: 'play', gaming: 'play',
+  new: 'start', beginner: 'start', begin: 'start', first: 'start', started: 'start',
+  best: 'best practice', practice: 'best practice', tips: 'best practice', tip: 'best practice', recommended: 'best practice', advice: 'best practice',
 };
 const STOP = new Set(['the', 'a', 'an', 'to', 'of', 'and', 'or', 'in', 'on', 'is', 'it', 'my', 'i', 'do', 'how', 'can', 'what', 'why', 'for', 'with', 'does', 'be', 'are', 'me', 'this', 'that', 'when']);
 
@@ -241,7 +266,7 @@ const TOPICS = [
   ['Where is my data', 'where is my data'], ['Start over', 'start over'], ['Password safety', 'password safe'], ['Privacy', 'send my data'],
   ['Official?', 'official gearbox'], ['Nothing redeemed', 'nothing gets redeemed'], ['Too many requests', 'too many requests'], ['Retry', 'retry'],
   ['Windows warning', 'windows protected'], ['macOS warning', 'macos opened'], ['Run results', 'results of a run'], ['How long', 'how long run'],
-  ['Golden Keys', 'what does a golden key do'], ['Diamond Keys', 'what does a diamond key do'], ['Skeleton Keys', 'what does a skeleton key do'], ['Cosmetics', 'what are cosmetics'], ['Ask an AI', 'ask an ai to find codes'], ['Playing while it runs', 'play borderlands while it runs'], ['Where are the tabs?', 'where did the menu tabs go'],
+['New here?', 'new where do i start'], ['Best practice', 'best way set up'], ['Golden Keys', 'what does a golden key do'], ['Diamond Keys', 'what does a diamond key do'], ['Skeleton Keys', 'what does a skeleton key do'], ['Cosmetics', 'what are cosmetics'], ['Ask an AI', 'ask an ai to find codes'], ['Playing while it runs', 'play borderlands while it runs'], ['Where are the tabs?', 'where did the menu tabs go'],
   ['Import a list', 'import list friend'], ['Share codes', 'share back up codes'], ['File types', 'which files import'], ['Export privacy', 'export include account'], ['Animations', 'turn off animations'], ['Rewards report', 'rewards report counted'], ['Already redeemed', 'on your account mean already redeemed'], ['Export rewards', 'rewards report export csv'], ['Setup again', 'run setup again'], ['Supported games', 'which games supported'], ['Which game launches', 'which game launch'], ['Auto-launch switch', 'turn automatic game launching on off quickly'], ['Game tiles', 'game tiles dashboard'], ['Still paused', 'still paused'],
 ];
 
@@ -253,12 +278,13 @@ const TILES = [
   { ic: '🎮', t: 'Games & platforms', d: 'Choose where rewards go, and link your platforms.', s: 'choose games', q: 'How do I choose which games get rewards?' },
   { ic: '⏱️', t: 'Auto-pilot', d: 'Keep redeeming new codes without lifting a finger.', s: 'auto-pilot', q: 'How does auto-pilot work?' },
   { ic: '📊', t: 'Rewards report', d: 'Keys and items unlocked, game by game.', s: 'rewards report counted', q: 'How is the rewards report counted?' },
+  { ic: '⭐', t: 'Best practice', d: 'A dozen habits that get the most out of the app.', tab: 'tips', feature: true },
   { ic: '🗝️', t: 'Keys & cosmetics explained', d: 'What Golden, Diamond and Skeleton Keys do in each game.', tab: 'guide' },
   { ic: '🤖', t: 'Ask an AI for codes', d: 'Instructions for ChatGPT, Claude, Gemini or Grok.', s: 'ask an ai to find codes', q: 'How do I ask an AI to find codes?' },
   { ic: '🔒', t: 'Password safety', d: 'Where your sign-in is kept, and how to remove it.', s: 'password safe', q: 'Is my password safe?' },
   { ic: '➕', t: 'Add your own codes', d: 'Paste codes you found anywhere.', s: 'add a code', q: 'Can I add a code I found myself?' },
   { ic: '🤝', t: 'Share code lists', d: 'Import a friend\'s list, or export yours.', s: 'import list friend', q: 'How do I import a list of codes from a friend?' },
-  { ic: '🛠️', t: 'Something not working?', d: 'Quick fixes for the most common problems.', tab: 'trouble', feature: true },
+  { ic: '🛠️', t: 'Something not working?', d: 'Quick fixes for the most common problems.', tab: 'trouble' },
 ];
 
 // ------------------------------------------------------------------ search helpers
@@ -292,7 +318,7 @@ function highlight(html, ts) {
 
 // ------------------------------------------------------------------ module
 
-export function initHelp({ goTo, runAction, getDiagnostics, repoUrl, getRewardCounts }) {
+export function initHelp({ goTo, runAction, getDiagnostics, repoUrl, getRewardCounts, renderChecklist }) {
   const overlay = $('#helpOverlay');
   const search = $('#helpSearch');
   const results = $('#helpResults');
@@ -327,7 +353,8 @@ export function initHelp({ goTo, runAction, getDiagnostics, repoUrl, getRewardCo
   }
 
   $('[data-pane="about"]', overlay).innerHTML = `
-    <p class="lead">SHiFT Redeemer finds SHiFT codes and redeems them on your account for the games and platforms you choose. Pick a topic, or search above.</p>
+    <p class="lead">SHiFT Redeemer finds SHiFT codes and redeems them on your account for the games and platforms you choose. New here? Start with the checklist below, then skim <button class="link-btn" data-help-tab="tips">Best practice</button>.</p>
+    <div class="help-checklist" id="helpChecklist"></div>
     <div class="tile-grid">${TILES.map(
       (t) => `<button class="tile ${t.feature ? 'feature' : ''}" ${t.tab ? `data-tile-tab="${t.tab}"` : `data-tile-s="${esc(t.s)}" data-tile-q="${esc(t.q)}"`}><span class="tile-ic" aria-hidden="true">${t.ic}</span><div><b>${esc(t.t)}</b><span>${esc(t.d)}</span></div><span class="tile-go" aria-hidden="true">›</span></button>`,
     ).join('')}</div>
@@ -348,7 +375,13 @@ export function initHelp({ goTo, runAction, getDiagnostics, repoUrl, getRewardCo
       <button class="btn btn-sm" data-help-tab="trouble">Troubleshooting</button>
       <button class="btn btn-sm btn-ghost" data-help-action="setup">Run setup again</button>
     </div>`;
-  renderList($('[data-pane="faq"]', overlay), (f) => f.cat !== 'Troubleshooting');
+  renderList($('[data-pane="faq"]', overlay), (f) => f.cat !== 'Troubleshooting' && f.cat !== 'Best practice');
+  $('[data-pane="tips"]', overlay).innerHTML = `
+    <p class="lead">The habits that get the most out of SHiFT Redeemer, roughly in the order you’ll need them.</p>
+    <ol class="tips">${TIPS.map((t, i) => {
+      const f = FAQ.find((x) => x.q === t.t);
+      return `<li class="tip-card"><span class="tip-n">${i + 1}</span><span class="tile-ic" aria-hidden="true">${t.ic}</span><div><b>${esc(t.t)}</b><p>${esc(t.d)}</p>${t.go ? `<button class="btn btn-xs btn-ghost" data-faq-go="${f.id}">${esc(t.go.label || 'Show me')} ›</button>` : ''}</div></li>`;
+    }).join('')}</ol>`;
   const trouble = $('[data-pane="trouble"]', overlay);
   trouble.innerHTML = '<p class="lead">Quick fixes for the most common problems. Still stuck? See <button class="link-btn" data-help-tab="support">Support</button>.</p><div></div>';
   renderList(trouble.lastElementChild, (f) => f.cat === 'Troubleshooting');
@@ -369,6 +402,12 @@ export function initHelp({ goTo, runAction, getDiagnostics, repoUrl, getRewardCo
     panes.forEach((p) => (p.hidden = p.dataset.pane !== tab));
     $('#helpScroll').scrollTop = 0;
     if (tab === 'guide') drawGuide(true);
+    if (tab === 'tips')
+      try {
+        localStorage.setItem('sr.tipsSeen', '1');
+      } catch {
+        /* storage unavailable */
+      }
   }
 
   // ---- Rewards guide (interactive, with your own counts from the rewards report)
@@ -481,6 +520,7 @@ export function initHelp({ goTo, runAction, getDiagnostics, repoUrl, getRewardCo
     lastFocus = document.activeElement;
     overlay.hidden = false;
     setTab('about');
+    renderChecklist?.($('#helpChecklist'));
     search.value = query;
     runSearch();
     startChips();
@@ -754,5 +794,14 @@ export function initHelp({ goTo, runAction, getDiagnostics, repoUrl, getRewardCo
   }
 
   renderPins();
-  return { open, close, openGuide, isOpen: () => !overlay.hidden };
+  function openTab(tab) {
+    open();
+    setTab(tab);
+  }
+  document.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-help-open]');
+    if (b) openTab(b.dataset.helpOpen);
+  });
+
+  return { open, close, openGuide, openTab, isOpen: () => !overlay.hidden };
 }

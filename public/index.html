@@ -61,6 +61,7 @@
         </div>
       </div>
 
+      <section class="panel start-list" id="startList" hidden aria-label="Getting started"></section>
       <div class="statbar" id="stats"></div>
       <div class="game-strip" id="gameStrip" aria-label="Rewards by game" hidden></div>
       <div id="dashBanners"></div>
@@ -184,7 +185,7 @@
       <div class="rp-titles" id="rpTitles"></div>
       <section class="panel" id="rpCosmeticsCard">
         <div class="card-head">
-          <div><h2 class="card-title">Cosmetics collected</h2><p class="card-sub" id="rpCosSub"></p></div>
+          <div><h2 class="card-title"><span class="rp-scope-slot" id="rpCosScope"></span>Cosmetics collected</h2><p class="card-sub" id="rpCosSub"></p></div>
           <button class="btn btn-sm btn-ghost" data-help-guide="">What are these?</button>
         </div>
         <div class="seg seg-wrap" id="rpCosFilter" aria-label="Cosmetic type"></div>
@@ -193,8 +194,7 @@
       </section>
       <section class="panel" id="rpHistoryCard">
         <div class="card-head">
-          <h2 class="card-title">Reward history</h2>
-          <div class="row gap" id="rpHistoryFilter"></div>
+          <h2 class="card-title"><span class="rp-scope-slot" id="rpHistScope"></span>Reward history</h2>
         </div>
         <div class="history" id="rpHistory"></div>
         <div class="center"><button class="btn btn-sm" id="rpMore" hidden>Show more</button></div>
@@ -455,6 +455,7 @@
             <h2 class="step-title">You're all set</h2>
             <dl class="summary" id="wzSummary"></dl>
             <p class="lead">Press <b>Find &amp; redeem</b> to grab everything that's out there right now. The first run checks a lot of codes, so give it a few minutes.</p>
+            <p class="hint">The <b>Getting started</b> checklist on the dashboard shows what's left to do, and <button type="button" class="link-btn" data-help-open="tips">Help → Best practice</button> has a dozen tips for getting the most out of the app.</p>
           </section>
         </div>
         <div class="pop-foot">
@@ -478,6 +479,7 @@
         <div class="help-chips" id="helpChips" aria-label="Quick answers"></div>
         <div class="seg help-tabs" id="helpTabs" role="tablist" aria-label="Help topics">
           <button role="tab" data-tab="about" aria-selected="true">Start here</button>
+          <button role="tab" data-tab="tips" aria-selected="false">Best practice</button>
           <button role="tab" data-tab="guide" aria-selected="false">Rewards guide</button>
           <button role="tab" data-tab="faq" aria-selected="false">Questions</button>
           <button role="tab" data-tab="trouble" aria-selected="false">Troubleshooting</button>
@@ -488,6 +490,7 @@
         <div class="pop-scroll" id="helpScroll">
           <section id="helpResults" aria-live="polite" hidden></section>
           <section class="help-pane" data-pane="about"></section>
+          <section class="help-pane" data-pane="tips" hidden></section>
           <section class="help-pane" data-pane="guide" hidden></section>
           <section class="help-pane" data-pane="faq" hidden></section>
           <section class="help-pane" data-pane="trouble" hidden></section>
