@@ -53,7 +53,7 @@ async function api(method, path, body) {
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  if (!res.ok) throw Object.assign(new Error(data.error || `HTTP ${res.status}`), { status: res.status, data });
   return data;
 }
 
@@ -301,15 +301,33 @@ function renderOnboarding() {
       .join('')}</div></section>`;
 }
 
+function savedLine(a) {
+  if (!a.saved) return '<span class="saved-line">Password not saved — you\'ll sign in again when SHiFT\'s session expires.</span>';
+  return a.saved.secure
+    ? `<span class="saved-line ok">🔒 Password saved securely in ${esc(a.saved.storeName)} for auto-pilot</span>`
+    : `<span class="saved-line bad">⚠ Password saved WITHOUT encryption on this computer</span>`;
+}
+
+function renderRememberHint() {
+  const st = S.account.secureStore;
+  const el = $('#rememberHint');
+  if (!el || !st) return;
+  el.className = st.available ? '' : 'warn';
+  el.textContent = st.available
+    ? `(saved securely in ${st.name})`
+    : `(⚠ ${st.name} isn't available here — you'll be asked before anything is saved)`;
+}
+
 function renderAccount() {
   const a = S.account;
   const pill = $('#acctPill');
   pill.className = `acct-pill ${a.loggedIn ? 'on' : 'off'}`;
   $('.txt', pill).textContent = a.loggedIn ? a.email || 'SHiFT connected' : 'Not connected';
+  renderRememberHint();
   $('#acctStatus').innerHTML = a.loggedIn
     ? `<span class="badge-big on">Connected</span>
-       <div class="who"><b>${esc(a.email || 'SHiFT account')}</b><span class="muted">Session verified ${ago(a.checkedAt)}${a.hasSavedCredentials ? ' · credentials saved for auto sign-in' : ''}</span></div>
-       <div class="row gap"><button class="btn" data-act="acct-check">Re-check</button><button class="btn btn-ghost" data-act="acct-logout">Disconnect</button></div>`
+       <div class="who"><b>${esc(a.email || 'SHiFT account')}</b><span class="muted">Session verified ${ago(a.checkedAt)}</span>${savedLine(a)}</div>
+       <div class="row gap"><button class="btn" data-act="acct-check">Re-check</button>${a.saved ? '<button class="btn btn-ghost" data-act="acct-forget">Forget saved password</button>' : ''}<button class="btn btn-ghost" data-act="acct-logout">Sign out</button></div>`
     : `<span class="badge-big">Not connected</span>
        <div class="who"><b>Connect your SHiFT account</b><span class="muted">${a.error ? esc(a.error) : 'Sign in with your SHiFT email and password below. Nothing is redeemed until you do.'}</span></div>
        ${a.cookieNames?.length ? '<div class="row gap"><button class="btn" data-act="acct-check">Re-check</button></div>' : ''}`;
@@ -339,6 +357,8 @@ function renderRun() {
 
 function renderBanners() {
   const out = [];
+  if (S.account.saved && !S.account.saved.secure)
+    out.push(`<div class="banner danger"><div><b>Your SHiFT password is saved without encryption</b><p>It's stored as readable text on this computer because secure storage wasn't available. Forget it if other people or programs could access this computer.</p></div><button class="btn" data-act="acct-forget">Forget password</button></div>`);
   if (S.app?.update)
     out.push(`<div class="banner"><div><b>Update available: version ${esc(S.app.update.version)}</b><p>You have ${esc(S.app.version)}. Download and run the new version — your codes and settings are kept.</p></div><a class="btn btn-primary" href="${esc(S.app.update.url)}" target="_blank" rel="noopener">Download</a></div>`);
   if (!S.account.loggedIn && S.engine.lastRun)
@@ -633,6 +653,9 @@ document.addEventListener('click', async (ev) => {
   if (a === 'acct-check') {
     await act(() => api('POST', '/api/account/check')).catch(() => {});
     loadState();
+  } else if (a === 'acct-forget') {
+    await act(() => api('POST', '/api/account/forget'), 'Saved password removed').catch(() => {});
+    loadState();
   } else if (a === 'acct-logout') {
     await act(() => api('POST', '/api/account/logout'), 'Disconnected').catch(() => {});
     loadState();
@@ -771,18 +794,49 @@ $('#cookieForm').addEventListener('submit', async (e) => {
     btn.disabled = false;
   }
 });
+function askPlaintextConsent(err) {
+  const d = err.data || {};
+  const store = d.storeName || 'secure password storage';
+  $('#pmReason').textContent = `${store[0].toUpperCase()}${store.slice(1)} couldn't be used on this computer${d.reason ? ` (${d.reason})` : ''}.`;
+  $('#pmPath').textContent = S.app?.dataDir ? `${S.app.dataDir}${S.app.platform === 'win32' ? '\\' : '/'}session.json` : 'session.json in the app\'s data folder';
+  $('#plainModal').hidden = false;
+  $('#pmNo').focus();
+  return new Promise((resolve) => {
+    const done = (v) => {
+      $('#plainModal').hidden = true;
+      $('#pmYes').onclick = $('#pmNo').onclick = null;
+      resolve(v);
+    };
+    $('#pmYes').onclick = () => done(true);
+    $('#pmNo').onclick = () => done(false);
+  });
+}
+
 $('#loginForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const f = e.target;
   const btn = $('button', f);
   btn.disabled = true;
   btn.textContent = 'Signing in…';
+  const body = { email: f.email.value, password: f.password.value, remember: f.remember.checked };
   try {
-    await act(() => api('POST', '/api/account/login', { email: f.email.value, password: f.password.value, remember: f.remember.checked }), 'Signed in to SHiFT');
+    try {
+      await api('POST', '/api/account/login', body);
+      toast('Signed in to SHiFT', 'ok');
+    } catch (err) {
+      if (err.data?.code !== 'SECURE_STORE_UNAVAILABLE') throw err;
+      if (await askPlaintextConsent(err)) {
+        await api('POST', '/api/account/login', { ...body, allowPlaintext: true });
+        toast('Signed in — password saved without encryption', 'err');
+      } else {
+        f.remember.checked = false;
+        toast('Signed in. Your password was not saved.', 'ok');
+      }
+    }
     f.password.value = '';
     loadState();
-  } catch {
-    /* toasted */
+  } catch (err) {
+    toast(err.message, 'err');
   } finally {
     btn.disabled = false;
     btn.textContent = 'Sign in';

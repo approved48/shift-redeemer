@@ -64,6 +64,9 @@ jobs:
           echo "APP_VERSION=$V" >> "$GITHUB_ENV"
           echo "Building version $V"
 
+      - name: Check secure password storage (Credential Manager / Keychain)
+        run: npm run secrets-check
+
       - name: Build app
         run: npm run build
 

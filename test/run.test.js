@@ -76,7 +76,7 @@ test('offer parser assigns forms to their headings', async () => {
 test('login rejects bad credentials, accepts good ones, cookie persists', async () => {
   const { engine, store } = makeEngine();
   await assert.rejects(engine.login('vault@hunter.test', 'nope'));
-  await engine.login('vault@hunter.test', 'hunter2', false);
+  await engine.login('vault@hunter.test', 'hunter2');
   assert.ok(store.session.cookies.si);
   assert.equal(store.session.credentials, undefined);
   // new client from persisted cookie
@@ -84,7 +84,7 @@ test('login rejects bad credentials, accepts good ones, cookie persists', async 
   assert.equal((await again.engine.refreshAccount()).loggedIn, true);
   // cookie import path
   const imp = makeEngine();
-  imp.engine.logout();
+  await imp.engine.logout();
   assert.equal((await imp.engine.useCookies({ si: store.session.cookies.si })).loggedIn, true);
 });
 
@@ -139,4 +139,52 @@ test('"launch a game" blocks the platform and stops the run', async () => {
   mock.setLaunchAfter(Infinity);
   const s2 = await engine.run();
   assert.equal(s2.redeemed, 3, JSON.stringify(s2)); // E/steam, C BL3/steam, C BL2/steam (D/steam done already)
+});
+
+test('remember me: secure store, plain-text only with consent, migration, auto sign-in', async () => {
+  const sessionFile = path.join(dir, 'session.json');
+  const read = () => JSON.parse(fs.readFileSync(sessionFile, 'utf8'));
+  const { loadSecret } = await import('../lib/secrets.js');
+
+  // 1. Secure store available → password goes to the vault, never to disk.
+  process.env.SHIFT_SECRETS = 'memory';
+  let { engine, store } = makeEngine();
+  await engine.login('vault@hunter.test', 'hunter2', { remember: true });
+  assert.deepEqual(read().credentials, { email: 'vault@hunter.test', store: 'memory' });
+  assert.ok(!fs.readFileSync(sessionFile, 'utf8').includes('hunter2'), 'password leaked to disk');
+  assert.equal(await loadSecret('vault@hunter.test'), 'hunter2');
+  assert.equal((await engine.credentialsInfo()).saved.secure, true);
+
+  // 2. Session expires → auto sign-in uses the vault.
+  store.saveSession({ cookies: {} });
+  ({ engine } = makeEngine());
+  assert.equal(await engine.ensureLogin(), true);
+
+  // 3. Sign-out removes the vault entry too.
+  await engine.logout();
+  assert.equal(await loadSecret('vault@hunter.test'), null);
+  assert.equal(read().credentials, undefined);
+
+  // 4. No secure store → refuse to write plain text unless the user agrees.
+  process.env.SHIFT_SECRETS = 'unavailable';
+  ({ engine } = makeEngine());
+  await assert.rejects(engine.login('vault@hunter.test', 'hunter2', { remember: true }), (e) => e.status === 409 && e.code === 'SECURE_STORE_UNAVAILABLE');
+  assert.equal(read().credentials, undefined);
+  assert.equal(engine.account.loggedIn, true, 'should still be signed in for this session');
+  await engine.login('vault@hunter.test', 'hunter2', { remember: true, allowPlaintext: true });
+  assert.deepEqual(read().credentials, { email: 'vault@hunter.test', store: 'plaintext', password: 'hunter2' });
+  assert.equal((await engine.credentialsInfo()).saved.secure, false);
+
+  // 5. Unticking "remember" forgets it.
+  await engine.login('vault@hunter.test', 'hunter2');
+  assert.equal(read().credentials, undefined);
+
+  // 6. A plain-text password from an older version moves into the vault once one is available.
+  ({ engine, store } = makeEngine());
+  store.saveSession({ credentials: { email: 'vault@hunter.test', password: 'hunter2' } });
+  process.env.SHIFT_SECRETS = 'memory';
+  await engine.migrateCredentials();
+  assert.deepEqual(read().credentials, { email: 'vault@hunter.test', store: 'memory' });
+  assert.equal(await loadSecret('vault@hunter.test'), 'hunter2');
+  delete process.env.SHIFT_SECRETS;
 });

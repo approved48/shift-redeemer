@@ -541,3 +541,15 @@ a.onboard-step:hover { background: var(--panel-3); color: var(--ink); }
 .onboard-step.done { opacity: 0.7; }
 @media (max-width: 900px) { .onboard-steps { grid-template-columns: minmax(0, 1fr); } }
 .tab-count:empty { display: none; }
+
+/* -------------------------------------------------------------- saved-password state & warning dialog */
+.saved-line { display: block; font-size: 13.5px; color: var(--muted); margin-top: 2px; }
+.saved-line.ok { color: var(--green); }
+.saved-line.bad { color: var(--red); font-weight: 700; }
+#rememberHint.warn { color: var(--orange); }
+.warn-card { text-align: left; max-width: 560px; border-left: 8px solid var(--red); }
+.warn-card p { margin: 0 0 12px; color: var(--ink-2); }
+.warn-card .risk { margin: 0 0 14px; padding-left: 20px; color: var(--ink); }
+.warn-card .risk li { margin-bottom: 4px; }
+.warn-card code { overflow-wrap: anywhere; }
+.modal-actions { justify-content: flex-end; margin-top: 6px; }

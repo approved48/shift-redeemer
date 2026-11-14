@@ -39,6 +39,7 @@ That's it. The app searches the web for codes, checks each one with SHiFT, and r
 - **"Launch a SHiFT-enabled game first."** Gearbox sometimes pauses redemptions until you start a game. The app tells you when this happens. Start any Borderlands game, wait at the main menu for a minute, then press **Redeem queue**.
 - **Missing a platform?** SHiFT only redeems for platforms linked to your account. Link them on the SHiFT website under *Gaming Platforms*.
 - **Your data stays on your computer.** The app only talks to SHiFT and the code websites it searches.
+- **"Keep me signed in"** saves your SHiFT password in your system's secure password storage: **Windows Credential Manager** or the **macOS Keychain** (on Linux, GNOME Keyring or KWallet). If that isn't available, the app asks first and clearly warns you before saving it unencrypted, and you can always choose not to save it. **Forget saved password** on the Account tab removes it.
 - **Updating:** when a new version is out, the app shows a banner. Install the new version over the old one; your codes and settings are kept.
 - **Uninstalling (Windows):** Settings → Apps → SHiFT Redeemer → Uninstall.
 

@@ -59,7 +59,7 @@ engine.on('state', (s) => {
   broadcast('state', s);
   if (!s.running) scheduleIdleExit();
 });
-engine.on('account', (a) => broadcast('account', a));
+engine.on('account', async () => broadcast('account', await accountView()));
 engine.on('codes', () => broadcast('codes', { stats: engine.stats() }));
 setInterval(() => broadcast('ping', Date.now()), 25_000).unref();
 
@@ -121,12 +121,12 @@ async function readJson(req) {
 
 const allowedHost = (h) => /^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/i.test(h || '') || (HOST !== '127.0.0.1' && HOST !== 'localhost');
 
-function fullState() {
+async function fullState() {
   const s = store.settings;
   const sourceStatus = store.db.sourceStatus;
   return {
     app,
-    account: { ...engine.account, hasSavedCredentials: !!store.session.credentials, cookieNames: Object.keys(shift.jar.cookies) },
+    account: await accountView(),
     engine: engine.publicState(),
     settings: s,
     stats: engine.stats(),
@@ -135,6 +135,10 @@ function fullState() {
     logs: engine.logs.slice(-200),
     baseUrl: BASE_URL,
   };
+}
+
+async function accountView() {
+  return { ...engine.account, cookieNames: Object.keys(shift.jar.cookies), ...(await engine.credentialsInfo()) };
 }
 
 function background(promise) {
@@ -176,7 +180,8 @@ const routes = {
 
   'POST /api/account/login': async ({ body }) => {
     if (!body.email || !body.password) throw bad('Email and password are required');
-    return { account: await engine.login(String(body.email).trim(), String(body.password), !!body.remember) };
+    await engine.login(String(body.email).trim(), String(body.password), { remember: !!body.remember, allowPlaintext: body.allowPlaintext === true });
+    return { account: await accountView() };
   },
   'POST /api/account/cookie': async ({ body }) => {
     const cookies = parseCookieInput(body.cookie);
@@ -185,23 +190,27 @@ const routes = {
     if (!account.loggedIn) throw bad('SHiFT did not accept that cookie — copy the "si" value again while signed in.');
     return { account };
   },
-  'POST /api/account/check': async () => ({ account: await engine.refreshAccount() }),
-  'POST /api/account/logout': () => {
-    engine.logout();
-    return { account: engine.account };
+  'POST /api/account/check': async () => {
+    await engine.refreshAccount();
+    return { account: await accountView() };
+  },
+  'POST /api/account/logout': async () => {
+    await engine.logout();
+    return { account: await accountView() };
+  },
+  'POST /api/account/forget': async () => {
+    await engine.forgetCredentials();
+    return { account: await accountView() };
   },
 
-  'PUT /api/settings': ({ body }) => {
+  'PUT /api/settings': async ({ body }) => {
     const allowed = ['titles', 'platforms', 'delaySeconds', 'skipExpired', 'useSourceHints', 'maxChecksPerRun', 'autoRun', 'sources'];
     const patch = {};
     for (const k of allowed) if (k in body) patch[k] = body[k];
     if (patch.titles?.selected && !Array.isArray(patch.titles.selected)) delete patch.titles.selected;
     if (patch.platforms?.selected && !Array.isArray(patch.platforms.selected)) delete patch.platforms.selected;
     store.updateSettings(patch);
-    if ('rememberCredentials' in body && !body.rememberCredentials) {
-      store.saveSession({ credentials: undefined });
-      store.updateSettings({ rememberCredentials: false });
-    }
+    if ('rememberCredentials' in body && !body.rememberCredentials) await engine.forgetCredentials();
     if ('autoRun' in patch) {
       engine.schedule();
       scheduleIdleExit();
@@ -337,7 +346,7 @@ const server = http.createServer(async (req, res) => {
     const body = req.method === 'GET' || req.method === 'DELETE' ? {} : await readJson(req);
     send(res, 200, await handler({ body, query: url.searchParams }));
   } catch (e) {
-    send(res, e.status || 500, { error: e.message });
+    send(res, e.status || 500, { error: e.message, code: e.code, ...(e.extra || {}) });
   }
 });
 
@@ -399,6 +408,7 @@ async function start() {
   scheduleIdleExit();
 
   app.autostart = await rt.getAutostart().catch(() => false);
+  await engine.migrateCredentials().catch((e) => rt.out(`Could not migrate saved password: ${e.message}`));
   if (store.session.cookies && Object.keys(store.session.cookies).length) await engine.refreshAccount().catch(() => {});
   engine.schedule();
 

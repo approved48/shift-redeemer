@@ -191,7 +191,7 @@
           <form id="loginForm" class="stack-form">
             <label><span>Email</span><input name="email" type="email" autocomplete="username" required></label>
             <label><span>Password</span><input name="password" type="password" autocomplete="current-password" required></label>
-            <label class="check"><input type="checkbox" name="remember"> <span>Keep me signed in for auto-pilot <small>(saves your password on this computer only)</small></span></label>
+            <label class="check"><input type="checkbox" name="remember"> <span>Keep me signed in for auto-pilot <small id="rememberHint"></small></span></label>
             <button class="btn btn-primary btn-lg" type="submit">Sign in</button>
           </form>
           <p class="hint">No SHiFT account yet? <a href="https://shift.gearboxsoftware.com/home" target="_blank" rel="noopener">Create one free</a>, then link your gaming platforms (Steam, Epic, PlayStation, Xbox…) there.</p>
@@ -211,7 +211,7 @@
               <button class="btn btn-primary" type="submit">Connect session</button>
             </form>
           </details>
-          <p class="hint">Your sign-in is stored only on this computer and is used only to talk to SHiFT.</p>
+          <p class="hint">Your sign-in stays on this computer and is only used to talk to SHiFT. A saved password goes into your system's secure password storage (Windows Credential Manager or the macOS Keychain).</p>
         </section>
       </div>
     </section>
@@ -256,6 +256,23 @@
 
   <footer class="foot">Unofficial fan tool · not affiliated with Gearbox Software · free &amp; non-commercial</footer>
   <div class="toasts" id="toasts" aria-live="polite"></div>
+  <div class="overlay" id="plainModal" hidden>
+    <div class="panel overlay-card warn-card" role="alertdialog" aria-modal="true" aria-labelledby="pmTitle" aria-describedby="pmReason">
+      <h2 id="pmTitle">⚠ Save your password without encryption?</h2>
+      <p id="pmReason"></p>
+      <p><b>If you continue, your SHiFT password will be saved as readable text</b> in <code id="pmPath"></code>. That means:</p>
+      <ul class="risk">
+        <li>Anyone who can use this computer account can open the file and read it.</li>
+        <li>Any program running as you, including malware, can read it.</li>
+        <li>Backups or cloud-synced folders may copy it somewhere else.</li>
+      </ul>
+      <p class="muted">If you continue, make sure your SHiFT password isn't used for anything else. Or don't save it: you're still signed in now, and you'll just need to sign in again when SHiFT's session expires (auto-pilot waits until you do).</p>
+      <div class="row gap modal-actions">
+        <button class="btn" id="pmNo">Don't save my password</button>
+        <button class="btn btn-danger" id="pmYes">Save it anyway (not encrypted)</button>
+      </div>
+    </div>
+  </div>
   <div class="overlay" id="overlay" hidden>
     <div class="panel overlay-card">
       <h2 id="overlayTitle">SHiFT Redeemer has stopped</h2>
