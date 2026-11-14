@@ -110,7 +110,7 @@ The workflow builds every platform, tests the apps and the Windows installer (si
 | `lib/codelists.js` | Import and export of shareable code lists |
 | `lib/rewards.js` | Reward parsing (keys per game, cosmetic types) and the rewards report |
 | `lib/llm.js` | Instructions for AI assistants to find codes |
-| `public/` | UI (no build step): `app.js`, `help.js`, `report.js`, `lists.js`, `glossary.js` (rewards guide and tooltips) |
+| `public/` | UI (no build step): `app.js`, `help.js`, `report.js`, `lists.js`, `glossary.js` (rewards guide and tooltips), `titleart.js` (original per-game banners on the Rewards page) |
 | `scripts/build.mjs` | Packages the single-file app for the current OS |
 | `packaging/windows/installer.iss` | Windows installer (Inno Setup, per-user, no admin prompt) |
 

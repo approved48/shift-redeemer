@@ -1,6 +1,7 @@
 // Rewards report: totals, keys by month (stacked columns), per-title cards, cosmetics and history.
 
 import { KINDS } from './glossary.js';
+import { coverHTML, accentOf } from './titleart.js';
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -178,8 +179,9 @@ export function initReport({ api, toast, isVisible }) {
         const keys = SERIES.filter((s) => t.keys[s.id] > 0);
         const plats = Object.entries(t.platforms).map(([p, n]) => `<span class="chip">${esc(PLATFORM_NAMES[p] || p)} ${fmt(n)}</span>`).join('');
         const items = t.items.slice(-3).reverse();
-        return `<section class="rp-title ${R.title === t.id ? 'on' : ''}" style="--c:${t.color}">
-          <div class="rp-head"><span class="rp-short">${esc(t.short)}</span><span class="rp-name">${esc(t.name)}</span></div>
+        return `<section class="rp-title t-${esc(t.id)} ${R.title === t.id ? 'on' : ''}" style="--c:${accentOf(t.id, t.color)}">
+          ${coverHTML(t)}
+          <div class="rp-body">
           <div class="rp-keys">${
             keys.length
               ? keys.map((s) => `<div class="rp-key" data-tip-key="${s.id}" data-tip-game="${esc(t.id)}" tabindex="0"><i class="sw" style="--c:${s.color}"></i><b>${fmt(t.keys[s.id])}</b><span>${s.name}</span></div>`).join('')
@@ -193,6 +195,7 @@ export function initReport({ api, toast, isVisible }) {
           </dl>
           ${items.length ? `<ul class="rp-items">${items.map((i) => `<li title="${esc(i.name)}"><span class="kic" data-tip-kind="${esc(i.kinds?.[0] || 'other')}">${(KINDS[i.kinds?.[0]] || KINDS.other).ic}</span>${esc(i.name)}</li>`).join('')}${t.items.length > 3 ? `<li class="more"><button class="link-btn" data-rp-cos="${esc(t.id)}">+${t.items.length - 3} more</button></li>` : ''}</ul>` : ''}
           <div class="rp-foot"><div class="chips">${plats}</div><button class="btn btn-sm btn-ghost" data-rp-title="${esc(t.id)}">${R.title === t.id ? 'Show all' : 'History'}</button></div>
+          </div>
         </section>`;
       })
       .join('');
