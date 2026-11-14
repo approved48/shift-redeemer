@@ -33,6 +33,7 @@
         <a href="#settings" data-tab="settings">Settings</a>
       </nav>
       <a class="acct-pill" id="acctPill" href="#account"><span class="dot"></span><span class="txt">Checking…</span></a>
+      <button class="quit-btn" id="btnQuit" title="Quit SHiFT Redeemer" aria-label="Quit SHiFT Redeemer"><svg viewBox="0 0 24 24"><path d="M12 3v9"/><path d="M6.3 6.8a8 8 0 1 0 11.4 0"/></svg></button>
     </div>
   </header>
 
@@ -54,6 +55,7 @@
         <div class="run-card" id="runCard"></div>
       </div>
 
+      <div id="onboarding"></div>
       <div id="dashBanners"></div>
       <div class="stats" id="stats"></div>
 
@@ -180,32 +182,36 @@
     <section class="tab" id="tab-account" hidden>
       <div class="page-head">
         <h1 class="page-title">SHiFT account</h1>
-        <p class="page-sub">Connect the account rewards should go to. Your session is stored only in this app's <code>data</code> folder on your PC.</p>
+        <p class="page-sub">Sign in to the SHiFT account your rewards should go to.</p>
       </div>
       <section class="panel acct-status" id="acctStatus"></section>
       <div class="grid-2">
         <section class="panel">
-          <header class="sec-head"><span class="sec-num">A</span><div><h2>Use your browser session</h2><p class="muted">Recommended if you're already signed in on Chrome — no password needed.</p></div></header>
-          <ol class="steps">
-            <li><span>In Chrome, open <a href="https://shift.gearboxsoftware.com/rewards" target="_blank" rel="noopener">shift.gearboxsoftware.com/rewards</a> while signed in.</span></li>
-            <li><span>Press <kbd>F12</kbd> → <b>Application</b> tab → <b>Cookies</b> → <code>https://shift.gearboxsoftware.com</code>.</span></li>
-            <li><span>Click the cookie named <code>si</code> and copy its <b>Value</b>.</span></li>
-            <li><span>Paste it below.</span></li>
-          </ol>
-          <form id="cookieForm" class="stack-form">
-            <label><span>Value of the <code>si</code> cookie</span><input name="cookie" autocomplete="off" spellcheck="false" placeholder="e.g. 2fa8c1…"></label>
-            <button class="btn btn-primary" type="submit">Connect session</button>
-          </form>
-          <p class="hint">Tip: you can also paste a whole <code>Cookie:</code> header copied from the Network tab.</p>
-        </section>
-        <section class="panel">
-          <header class="sec-head"><span class="sec-num">B</span><div><h2>Sign in with email</h2><p class="muted">Same credentials as the SHiFT website.</p></div></header>
+          <header class="sec-head"><span class="sec-num">1</span><div><h2>Sign in to SHiFT</h2><p class="muted">Use the same email and password as the <a href="https://shift.gearboxsoftware.com" target="_blank" rel="noopener">SHiFT website</a>.</p></div></header>
           <form id="loginForm" class="stack-form">
             <label><span>Email</span><input name="email" type="email" autocomplete="username" required></label>
             <label><span>Password</span><input name="password" type="password" autocomplete="current-password" required></label>
-            <label class="check"><input type="checkbox" name="remember"> <span>Remember on this PC so auto-run can sign back in <small>(stored unencrypted in <code>data/session.json</code>)</small></span></label>
-            <button class="btn btn-primary" type="submit">Sign in</button>
+            <label class="check"><input type="checkbox" name="remember"> <span>Keep me signed in for auto-pilot <small>(saves your password on this computer only)</small></span></label>
+            <button class="btn btn-primary btn-lg" type="submit">Sign in</button>
           </form>
+          <p class="hint">No SHiFT account yet? <a href="https://shift.gearboxsoftware.com/home" target="_blank" rel="noopener">Create one free</a>, then link your gaming platforms (Steam, Epic, PlayStation, Xbox…) there.</p>
+        </section>
+        <section class="panel">
+          <header class="sec-head"><span class="sec-num">?</span><div><h2>Sign-in not working?</h2><p class="muted">If SHiFT asks for extra verification, you can borrow the session from a browser where you're already signed in.</p></div></header>
+          <details class="adv">
+            <summary>Advanced: use my browser session instead</summary>
+            <ol class="steps">
+              <li><span>In Chrome or Edge, open <a href="https://shift.gearboxsoftware.com/rewards" target="_blank" rel="noopener">shift.gearboxsoftware.com/rewards</a> while signed in.</span></li>
+              <li><span>Press <kbd>F12</kbd> → <b>Application</b> tab → <b>Cookies</b> → <code>https://shift.gearboxsoftware.com</code>.</span></li>
+              <li><span>Click the cookie named <code>si</code> and copy its <b>Value</b>.</span></li>
+              <li><span>Paste it below.</span></li>
+            </ol>
+            <form id="cookieForm" class="stack-form">
+              <label><span>Value of the <code>si</code> cookie</span><input name="cookie" autocomplete="off" spellcheck="false" placeholder="e.g. 2fa8c1…"></label>
+              <button class="btn btn-primary" type="submit">Connect session</button>
+            </form>
+          </details>
+          <p class="hint">Your sign-in is stored only on this computer and is used only to talk to SHiFT.</p>
         </section>
       </div>
     </section>
@@ -231,14 +237,17 @@
             </select>
           </label>
           <label class="switch-row"><input type="checkbox" class="switch" data-setting="autoRun.collectFirst"><span><b>Search sources first</b><small>Look for new codes before each automatic run.</small></span></label>
+          <label class="switch-row" id="autostartRow"><input type="checkbox" class="switch" id="autostart"><span><b>Start with my computer</b><small>Open quietly in the background when you sign in to your computer, so auto-pilot keeps working.</small></span></label>
           <p class="hint" id="nextRun"></p>
+          <p class="hint">While auto-pilot is on, closing the window keeps SHiFT Redeemer running in the background. Use the <b>⏻</b> button at the top to quit completely.</p>
         </section>
         <section class="panel">
-          <header class="sec-head"><span class="sec-num">03</span><div><h2>Your data</h2><p class="muted">Codes, results and settings live in the app's <code>data</code> folder.</p></div></header>
-          <div class="row gap"><a class="btn" href="/api/export" download="shift-redeemer-export.json">Export JSON</a></div>
+          <header class="sec-head"><span class="sec-num">03</span><div><h2>Your data</h2><p class="muted">Codes, results and settings are saved on this computer.</p></div></header>
+          <div class="row gap"><a class="btn" href="/api/export" download="shift-redeemer-export.json">Export JSON</a><button class="btn" id="btnOpenData">Open data folder</button></div>
+          <p class="hint" id="dataDir"></p>
         </section>
         <section class="panel">
-          <header class="sec-head"><span class="sec-num">04</span><div><h2>About</h2></div></header>
+          <header class="sec-head"><span class="sec-num">04</span><div><h2>About</h2><p class="muted" id="versionLine"></p></div></header>
           <p class="muted">A free, non-commercial helper that automates what you'd otherwise do by hand on the SHiFT rewards page. Not affiliated with, endorsed by, or sponsored by Gearbox Software, 2K or Take-Two. Borderlands and SHiFT are trademarks of their respective owners.</p>
         </section>
       </div>
@@ -247,6 +256,12 @@
 
   <footer class="foot">Unofficial fan tool · not affiliated with Gearbox Software · free &amp; non-commercial</footer>
   <div class="toasts" id="toasts" aria-live="polite"></div>
+  <div class="overlay" id="overlay" hidden>
+    <div class="panel overlay-card">
+      <h2 id="overlayTitle">SHiFT Redeemer has stopped</h2>
+      <p class="muted" id="overlayText">You can close this window. Open SHiFT Redeemer again from your Start menu, desktop or Applications folder.</p>
+    </div>
+  </div>
   <script type="module" src="/app.js"></script>
 </body>
 </html>

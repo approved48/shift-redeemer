@@ -1,0 +1,130 @@
+name: Build apps
+
+# Every push: test, then build + smoke-test the Windows, macOS and Linux apps (downloadable
+# from the run's "Artifacts" section).
+# Publishing a release: push a tag like v1.2.0, or run this workflow manually (Actions tab →
+# Build apps → Run workflow) and type the version. The finished apps are attached to a
+# GitHub Release that anyone can download.
+
+on:
+  push:
+    branches: ['**']
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g. 1.2.0). Leave empty to just build.'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+env:
+  NODE_VERSION: '22'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - run: npm test
+
+  build:
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: windows-latest, target: windows }
+          - { os: macos-latest, target: macos }
+          - { os: ubuntu-latest, target: linux }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+
+      - name: Work out version
+        shell: bash
+        run: |
+          V="${{ inputs.version }}"
+          if [[ -z "$V" && "$GITHUB_REF" == refs/tags/v* ]]; then V="${GITHUB_REF#refs/tags/v}"; fi
+          if [[ -z "$V" ]]; then V="$(node -p "require('./package.json').version")"; fi
+          V="${V#v}"
+          echo "APP_VERSION=$V" >> "$GITHUB_ENV"
+          echo "Building version $V"
+
+      - name: Build app
+        run: npm run build
+
+      - name: Smoke-test the built app
+        run: npm run smoke
+
+      - name: Build Windows installer
+        if: matrix.target == 'windows'
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { choco install innosetup --no-progress -y | Out-Null }
+          & $iscc "/DAppVersion=$env:APP_VERSION" packaging\windows\installer.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Test Windows installer (silent install, launch, uninstall)
+        if: matrix.target == 'windows'
+        shell: pwsh
+        run: |
+          $setup = Get-ChildItem dist\release\SHiFT-Redeemer-Setup-*.exe | Select-Object -First 1
+          Start-Process $setup.FullName -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -Wait
+          $exe = "$env:LOCALAPPDATA\Programs\SHiFT Redeemer\SHiFT Redeemer.exe"
+          if (-not (Test-Path $exe)) { throw "Installed app not found at $exe" }
+          if (-not (Test-Path "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\SHiFT Redeemer.lnk")) { throw "Start menu shortcut missing" }
+          node scripts/smoke.mjs "$exe"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $un = "$env:LOCALAPPDATA\Programs\SHiFT Redeemer\unins000.exe"
+          Start-Process $un -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -Wait
+          Start-Sleep -Seconds 3
+          if (Test-Path $exe) { throw "Uninstall left the app behind" }
+          Write-Host "Installer test passed"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SHiFT-Redeemer-${{ matrix.target }}
+          path: dist/release/*
+          if-no-files-found: error
+
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.version != '')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: release
+          merge-multiple: true
+      - name: Work out tag
+        shell: bash
+        run: |
+          V="${{ inputs.version }}"
+          if [[ -z "$V" ]]; then V="${GITHUB_REF#refs/tags/v}"; fi
+          V="${V#v}"
+          echo "TAG=v$V" >> "$GITHUB_ENV"
+          sed "s/{{VERSION}}/$V/g" packaging/RELEASE_NOTES.md > release-notes.md
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.TAG }}
+          name: SHiFT Redeemer ${{ env.TAG }}
+          target_commitish: ${{ github.sha }}
+          body_path: release-notes.md
+          files: release/*
+          fail_on_unmatched_files: true

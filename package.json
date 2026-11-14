@@ -1,13 +1,22 @@
 {
   "name": "shift-redeemer",
   "version": "1.0.0",
-  "description": "Local web app that finds SHiFT codes and redeems them for your Borderlands titles and platforms.",
+  "description": "Find SHiFT codes and redeem them automatically for your Borderlands games and platforms.",
   "type": "module",
   "private": true,
-  "engines": { "node": ">=18.17" },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "start": "node server.js",
     "test": "node --test test/run.test.js",
-    "mock": "node test/mock-shift.js"
+    "mock": "node test/mock-shift.js",
+    "build": "node scripts/build.mjs",
+    "smoke": "node scripts/smoke.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2",
+    "postject": "^1.0.0-alpha.6",
+    "rcedit": "^5.0.2"
   }
 }

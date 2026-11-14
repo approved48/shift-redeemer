@@ -5,6 +5,7 @@ const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
 const S = {
+  app: {},
   account: {},
   engine: {},
   settings: null,
@@ -145,6 +146,7 @@ async function flushSettings() {
 // ------------------------------------------------------------------ state
 
 function applyState(st, { keepSettings = false } = {}) {
+  S.app = st.app || {};
   S.account = st.account;
   S.engine = st.engine;
   if (!keepSettings) S.settings = st.settings;
@@ -176,6 +178,14 @@ async function loadCodes() {
   }, 120);
 }
 
+let offlineTimer;
+let quitting = false;
+function showOverlay(title, text) {
+  $('#overlayTitle').textContent = title;
+  $('#overlayText').textContent = text;
+  $('#overlay').hidden = false;
+}
+
 function connect() {
   const es = new EventSource('/api/events');
   es.addEventListener('log', (e) => {
@@ -198,10 +208,25 @@ function connect() {
     renderStats();
     loadCodes();
   });
-  es.addEventListener('hello', () => loadState().catch(() => {}));
+  es.addEventListener('app', (e) => {
+    S.app = JSON.parse(e.data);
+    renderBanners();
+    renderAppInfo();
+  });
+  es.addEventListener('hello', () => {
+    clearTimeout(offlineTimer);
+    if (!quitting) $('#overlay').hidden = true;
+    loadState().catch(() => {});
+  });
   es.onerror = () => {
     $('#acctPill .txt').textContent = 'App offline';
     $('#acctPill').className = 'acct-pill off';
+    if (quitting) return;
+    clearTimeout(offlineTimer);
+    offlineTimer = setTimeout(
+      () => showOverlay('SHiFT Redeemer isn’t running', 'Open SHiFT Redeemer again from your Start menu, desktop or Applications folder. This window reconnects automatically.'),
+      4000,
+    );
   };
 }
 
@@ -212,6 +237,13 @@ function showTab() {
   const valid = $$('.tab').some((t) => t.id === `tab-${tab}`) ? tab : 'dashboard';
   $$('.tab').forEach((t) => (t.hidden = t.id !== `tab-${valid}`));
   $$('#tabs a').forEach((a) => a.classList.toggle('active', a.dataset.tab === valid));
+  if (valid === 'targets') {
+    try {
+      localStorage.setItem('sr.targetsSeen', '1');
+    } catch {
+      /* storage unavailable */
+    }
+  }
   window.scrollTo({ top: 0 });
 }
 window.addEventListener('hashchange', showTab);
@@ -228,6 +260,45 @@ function renderAll() {
   renderSettingsBound();
   renderCodes();
   renderLog();
+  renderAppInfo();
+}
+
+function renderAppInfo() {
+  const a = S.app || {};
+  $('#autostartRow').hidden = !a.autostartSupported;
+  $('#autostart').checked = !!a.autostart;
+  $('#versionLine').textContent = `Version ${a.version || '?'}${a.update ? ` · update ${a.update.version} available` : ''}`;
+  $('#dataDir').textContent = a.dataDir ? `Saved in: ${a.dataDir}` : '';
+}
+
+function renderOnboarding() {
+  const loggedIn = !!S.account.loggedIn;
+  const ran = !!S.engine.lastRun;
+  let picked = false;
+  try {
+    picked = localStorage.getItem('sr.targetsSeen') === '1';
+  } catch {
+    /* storage unavailable */
+  }
+  picked = picked || ran;
+  if (loggedIn && ran) {
+    $('#onboarding').innerHTML = '';
+    return;
+  }
+  const steps = [
+    { done: loggedIn, href: '#account', t: 'Sign in to SHiFT', d: 'Use your SHiFT email and password so rewards land on your account.' },
+    { done: picked, href: '#targets', t: 'Pick games & platforms', d: 'All of them, or just the ones you play. You can change this any time.' },
+    { done: ran, href: null, t: 'Press Find & redeem', d: 'Codes are found and redeemed for you. Watch the live feed below.' },
+  ];
+  const next = steps.findIndex((x) => !x.done);
+  $('#onboarding').innerHTML = `<section class="panel onboard"><h2>Get started in 3 steps</h2><p>Takes about a minute. After that it's one button — or none, with auto-pilot.</p>
+    <div class="onboard-steps">${steps
+      .map((x, i) => {
+        const cls = `onboard-step ${x.done ? 'done' : ''} ${i === next ? 'next' : ''}`;
+        const inner = `<b>${x.t}</b><span>${x.d}</span>`;
+        return x.href ? `<a class="${cls}" href="${x.href}">${inner}</a>` : `<div class="${cls}">${inner}</div>`;
+      })
+      .join('')}</div></section>`;
 }
 
 function renderAccount() {
@@ -240,7 +311,7 @@ function renderAccount() {
        <div class="who"><b>${esc(a.email || 'SHiFT account')}</b><span class="muted">Session verified ${ago(a.checkedAt)}${a.hasSavedCredentials ? ' · credentials saved for auto sign-in' : ''}</span></div>
        <div class="row gap"><button class="btn" data-act="acct-check">Re-check</button><button class="btn btn-ghost" data-act="acct-logout">Disconnect</button></div>`
     : `<span class="badge-big">Not connected</span>
-       <div class="who"><b>Connect your SHiFT account</b><span class="muted">${a.error ? esc(a.error) : 'Use option A or B below. Nothing is redeemed until you connect.'}</span></div>
+       <div class="who"><b>Connect your SHiFT account</b><span class="muted">${a.error ? esc(a.error) : 'Sign in with your SHiFT email and password below. Nothing is redeemed until you do.'}</span></div>
        ${a.cookieNames?.length ? '<div class="row gap"><button class="btn" data-act="acct-check">Re-check</button></div>' : ''}`;
 }
 
@@ -268,7 +339,9 @@ function renderRun() {
 
 function renderBanners() {
   const out = [];
-  if (!S.account.loggedIn)
+  if (S.app?.update)
+    out.push(`<div class="banner"><div><b>Update available: version ${esc(S.app.update.version)}</b><p>You have ${esc(S.app.version)}. Download and run the new version — your codes and settings are kept.</p></div><a class="btn btn-primary" href="${esc(S.app.update.url)}" target="_blank" rel="noopener">Download</a></div>`);
+  if (!S.account.loggedIn && S.engine.lastRun)
     out.push(`<div class="banner danger"><div><b>Connect your SHiFT account</b><p>Codes can be found without an account, but redeeming needs you signed in.</p></div><a class="btn btn-primary" href="#account">Connect</a></div>`);
   const blocked = S.engine.blocked || [];
   const lr = S.engine.lastRun;
@@ -294,6 +367,7 @@ function renderStats() {
 
 function renderDashboard() {
   if (!S.settings) return;
+  renderOnboarding();
   renderStats();
   renderBanners();
   const st = S.settings;
@@ -586,6 +660,34 @@ $('#btnRedeem').addEventListener('click', () => {
   act(() => api('POST', '/api/run', {}));
 });
 $('#btnStop').addEventListener('click', () => act(() => api('POST', '/api/stop')));
+$('#btnQuit').addEventListener('click', async () => {
+  const msg = S.settings?.autoRun.enabled
+    ? 'Quit SHiFT Redeemer? Auto-pilot will stop until you open it again.'
+    : S.engine.running
+      ? 'Quit SHiFT Redeemer? The current run will stop.'
+      : 'Quit SHiFT Redeemer?';
+  if (!confirm(msg)) return;
+  quitting = true;
+  try {
+    await api('POST', '/api/app/quit');
+  } catch {
+    /* already gone */
+  }
+  showOverlay('SHiFT Redeemer has stopped', 'You can close this window. Open SHiFT Redeemer again from your Start menu, desktop or Applications folder.');
+  setTimeout(() => window.close(), 600);
+});
+$('#autostart').addEventListener('change', async (e) => {
+  try {
+    const r = await api('PUT', '/api/app/autostart', { enabled: e.target.checked });
+    S.app = r.app;
+    toast(r.app.autostart ? 'SHiFT Redeemer will start with your computer' : 'Removed from startup', 'ok');
+  } catch (err) {
+    e.target.checked = !e.target.checked;
+    toast(err.message, 'err');
+  }
+  renderAppInfo();
+});
+$('#btnOpenData').addEventListener('click', () => api('POST', '/api/app/open-data').catch((e) => toast(e.message, 'err')));
 $('#btnClearLog').addEventListener('click', () => {
   S.logs = [];
   renderLog();
