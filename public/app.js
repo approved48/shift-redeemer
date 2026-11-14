@@ -1,5 +1,7 @@
 // SHiFT Redeemer front-end (no build step, no framework).
 
+import { initHelp } from './help.js';
+
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -47,6 +49,11 @@ const ICON = {
   search: '<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>',
   ext: '<svg viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>',
 };
+
+/** One callout shape for every status message, note and banner. */
+function callout(tone, icon, title, body, actions = '') {
+  return `<div class="callout is-${tone}"><span class="co-ic" aria-hidden="true">${icon}</span><div class="co-body">${title ? `<b class="co-title">${title}</b>` : ''}${body}</div>${actions ? `<div class="co-actions">${actions}</div>` : ''}</div>`;
+}
 
 // ------------------------------------------------------------------ api
 
@@ -258,22 +265,22 @@ function connectHTML() {
     </div>
     <div data-cpane="login">
       <form class="stack-form" data-form="login">
-        <label><span>Email</span><input name="email" type="email" autocomplete="username" required></label>
-        <label><span>Password</span><input name="password" type="password" autocomplete="current-password" required></label>
+        <label class="field"><span class="label">Email</span><input name="email" type="email" autocomplete="username" required></label>
+        <label class="field"><span class="label">Password</span><input name="password" type="password" autocomplete="current-password" required></label>
         <label class="check"><input type="checkbox" name="remember" checked> <span>Keep me signed in for auto-pilot <small class="remember-hint"></small></span></label>
         <button class="btn btn-eridian" type="submit">Sign in</button>
       </form>
       <p class="hint alt">No SHiFT account? <a href="https://shift.gearboxsoftware.com/home" target="_blank" rel="noopener">Create one free</a>. If SHiFT asks for extra verification, use <button type="button" class="link-btn" data-ctab="cookie">Browser session</button> instead.</p>
     </div>
     <div data-cpane="cookie" hidden>
-      <p class="hint" style="margin:0 0 10px">Already signed in to SHiFT in Chrome or Edge? Borrow that session instead. No password needed.</p>
+      <p class="hint" style="margin:0 0 var(--s3)">Already signed in to SHiFT in Chrome or Edge? Borrow that session instead. No password needed.</p>
       <ol class="steps">
         <li><span>Open <a href="https://shift.gearboxsoftware.com/rewards" target="_blank" rel="noopener">shift.gearboxsoftware.com/rewards</a> in Chrome or Edge while signed in.</span></li>
         <li><span>Press <kbd>F12</kbd>, then go to <b>Application</b> → <b>Cookies</b> → <code>https://shift.gearboxsoftware.com</code>.</span></li>
         <li><span>Click the cookie named <code>si</code> and copy its <b>Value</b>, then paste it below.</span></li>
       </ol>
       <form class="stack-form" data-form="cookie">
-        <label><span>Value of the <code>si</code> cookie</span><input name="cookie" autocomplete="off" spellcheck="false" placeholder="e.g. 2fa8c1…"></label>
+        <label class="field"><span class="label">Value of the <code>si</code> cookie</span><input name="cookie" autocomplete="off" spellcheck="false" placeholder="e.g. 2fa8c1…"></label>
         <button class="btn btn-eridian" type="submit">Connect session</button>
       </form>
     </div>
@@ -287,9 +294,9 @@ function linksHTML() {
       <li><span>Click <b>Gaming Platforms</b> in the left-hand menu.</span></li>
       <li><span>Link every platform you play on: Steam, Epic Games, PlayStation, Xbox, Nintendo.</span></li>
     </ol>
-    <div class="row gap" style="margin-top:10px"><a class="btn" href="${SHIFT_ACCOUNT_URL}" target="_blank" rel="noopener">${ICON.ext} Open SHiFT Gaming Platforms</a></div>
+    <div class="row gap"><a class="btn btn-sm" href="${SHIFT_ACCOUNT_URL}" target="_blank" rel="noopener">${ICON.ext} Open SHiFT Gaming Platforms</a></div>
     <div class="links-detected">
-      <h3>Detected on your account</h3>
+      <h3 class="eyebrow">Detected on your account</h3>
       ${
         linked.length
           ? `<div class="chips">${linked.map((p) => `<span class="chip ok"><i style="--c:${C.green}"></i>${esc(p.name)}</span>`).join('')}</div>`
@@ -439,11 +446,11 @@ function renderRun() {
 function renderBanners() {
   const out = [];
   if (!S.account.loggedIn)
-    out.push(`<div class="banner eridian"><div><b>Connect your SHiFT account to start redeeming</b><p>Codes can be found without an account, but redeeming them needs you signed in.</p></div><div class="row gap"><button class="btn btn-eridian btn-xs" data-act="setup">Run setup</button><a class="btn btn-xs" href="#account">Account</a></div></div>`);
+    out.push(callout('eridian', '🔑', 'Connect your SHiFT account to start redeeming', 'Codes can be found without an account, but redeeming them needs you signed in.', '<button class="btn btn-sm btn-eridian" data-act="setup">Run setup</button><a class="btn btn-sm" href="#account">Account</a>'));
   if (S.account.saved && !S.account.saved.secure)
-    out.push(`<div class="banner danger"><div><b>Your SHiFT password is saved without encryption</b><p>It's stored as readable text on this computer because secure storage wasn't available.</p></div><button class="btn btn-xs" data-act="acct-forget">Forget password</button></div>`);
+    out.push(callout('danger', '⚠', 'Your SHiFT password is saved without encryption', "It's stored as readable text on this computer because secure storage wasn't available.", '<button class="btn btn-sm" data-act="acct-forget">Forget password</button>'));
   if (S.app?.update)
-    out.push(`<div class="banner eridian"><div><b>Update available: version ${esc(S.app.update.version)}</b><p>You have ${esc(S.app.version)}. Install the new version over this one; your codes and settings are kept.</p></div><a class="btn btn-eridian btn-xs" href="${esc(S.app.update.url)}" target="_blank" rel="noopener">Download</a></div>`);
+    out.push(callout('eridian', '⬆', `Update available: version ${esc(S.app.update.version)}`, `You have ${esc(S.app.version)}. Install the new version over this one; your codes and settings are kept.`, `<a class="btn btn-sm btn-eridian" href="${esc(S.app.update.url)}" target="_blank" rel="noopener">Download</a>`));
   const lr = S.engine.lastRun;
   if (!S.engine.running && lr?.pause) out.push(pauseBanner(lr.pause));
   $('#dashBanners').innerHTML = out.join('');
@@ -459,15 +466,15 @@ function pauseBanner(p) {
   let buttons = '';
   if (p.why === 'ask' || (p.why === 'off' && p.canLaunch)) {
     body = `SHiFT stopped accepting codes on ${esc(where)} until a SHiFT-enabled game is launched (${waiting}). SHiFT Redeemer can start <b>${esc(p.game)}</b> via ${esc(p.via)}, wait about a minute, close it and carry on.`;
-    buttons = `<button class="btn btn-eridian btn-xs" data-act="assist-resume">Launch ${esc(p.game)} &amp; resume</button><button class="btn btn-xs" data-act="redeem">I launched a game, resume</button>`;
+    buttons = `<button class="btn btn-sm btn-eridian" data-act="assist-resume">Launch ${esc(p.game)} &amp; resume</button><button class="btn btn-sm" data-act="redeem">I launched a game, resume</button>`;
   } else if (p.why === 'still-blocked') {
     body = `${esc(p.message)} (${waiting}).`;
-    buttons = `<button class="btn btn-eridian btn-xs" data-act="assist-resume">Launch again &amp; resume</button><button class="btn btn-xs" data-act="redeem">Resume</button>`;
+    buttons = `<button class="btn btn-sm btn-eridian" data-act="assist-resume">Launch again &amp; resume</button><button class="btn btn-sm" data-act="redeem">Resume</button>`;
   } else {
-    body = `SHiFT stopped accepting codes on ${esc(where)} until a SHiFT-enabled game is launched (${waiting}). ${esc(p.message)} Start any Borderlands game, wait at its main menu for a minute, then press Resume.`;
-    buttons = `<button class="btn btn-eridian btn-xs" data-act="redeem">Resume</button><a class="btn btn-ghost btn-xs" href="#settings">Game launch settings</a>`;
+    body = `SHiFT stopped accepting codes on ${esc(where)} until a SHiFT-enabled game is launched (${waiting}). ${esc(/[.!?]$/.test(p.message) ? p.message : `${p.message}.`)} Start any Borderlands game, wait at its main menu for a minute, then press Resume.`;
+    buttons = `<button class="btn btn-sm btn-eridian" data-act="redeem">Resume</button><button class="btn btn-sm btn-ghost" data-help="paused game">Why?</button>`;
   }
-  return `<div class="banner pause"><div><b>⏸ Redeeming paused: SHiFT needs a game launched</b><p>${body}${auto}</p></div><div class="row gap">${buttons}</div></div>`;
+  return callout('warn', '⏸', 'Redeeming paused: SHiFT needs a game launched', `${body}${auto}`, buttons);
 }
 
 function runResult(lr) {
@@ -562,10 +569,13 @@ function renderTargets() {
   const nT = tAll ? 'every' : st.titles.selected.length;
   const linked = S.catalog.platforms.filter((p) => p.linked).length;
   const nP = pAll ? linked || 'every linked' : st.platforms.selected.length;
-  $('#matrix').innerHTML = `<div class="eq">${nT === 'every' ? 'ALL' : nT} × ${pAll ? (linked ? linked : 'ALL') : nP}</div>
-    <p>Each valid code is redeemed for <b>${tAll ? 'every title it unlocks' : `${nT} selected title${nT === 1 ? '' : 's'}`}</b> on <b>${pAll ? 'every platform linked to your SHiFT account' : `${nP} selected platform${nP === 1 ? '' : 's'}`}</b>.
-    ${!tAll && !st.titles.selected.length ? '<br><span style="color:var(--red)">No titles selected: nothing will be redeemed.</span>' : ''}
-    ${!pAll && !st.platforms.selected.length ? '<br><span style="color:var(--red)">No platforms selected: nothing will be redeemed.</span>' : ''}</p>`;
+  const warn = [!tAll && !st.titles.selected.length ? 'No titles selected, so nothing will be redeemed.' : '', !pAll && !st.platforms.selected.length ? 'No platforms selected, so nothing will be redeemed.' : '']
+    .filter(Boolean)
+    .map((w) => `<br><span style="color:var(--red)">${w}</span>`)
+    .join('');
+  const m = $('#matrix');
+  m.className = `callout ${warn ? 'is-danger' : 'is-eridian'}`;
+  m.innerHTML = `<span class="eq">${nT === 'every' ? 'ALL' : nT} × ${pAll ? (linked ? linked : 'ALL') : nP}</span><div class="co-body"><b class="co-title">What will be redeemed</b>Each valid code is redeemed for <b>${tAll ? 'every title it unlocks' : `${nT} selected title${nT === 1 ? '' : 's'}`}</b> on <b>${pAll ? 'every platform linked to your SHiFT account' : `${nP} selected platform${nP === 1 ? '' : 's'}`}</b>.${warn}</div>`;
 }
 
 // --- sources
@@ -745,6 +755,7 @@ function renderWizard() {
     li.classList.toggle('done', i < WZ.step);
   });
   $('#wzBack').hidden = WZ.step === 0;
+  $('#wzKicker').textContent = `Setup · step ${WZ.step + 1} of ${WZ.last + 1}`;
   $('#wzSkip').textContent = WZ.step === WZ.last ? 'Close without running' : 'Skip setup';
 
   // Account step: show the connected state instead of the forms once signed in.
@@ -752,18 +763,18 @@ function renderWizard() {
   const showForms = !loggedIn || page1.dataset.change === '1';
   $('#wzConnected').hidden = !loggedIn;
   $('#wzConnected').innerHTML = loggedIn
-    ? `✓ Connected as <b>${esc(S.account.email || 'your SHiFT account')}</b>${S.account.saved?.secure ? ' · password saved securely' : ''}${showForms ? '' : ' <button type="button" class="link-btn" data-act="wz-change">Use a different account</button>'}`
+    ? `<span class="co-ic" aria-hidden="true">✓</span><div class="co-body"><b class="co-title">Connected</b>Signed in as <b>${esc(S.account.email || 'your SHiFT account')}</b>${S.account.saved?.secure ? ', password saved securely' : ''}.</div>${showForms ? '' : '<div class="co-actions"><button type="button" class="btn btn-sm btn-ghost" data-act="wz-change">Use a different account</button></div>'}`
     : '';
   $('.js-connect', page1).hidden = !showForms;
 
   const hint = $('#wzAutoHint');
   const needsSave = S.settings.autoRun.enabled && loggedIn && !S.account.saved;
   hint.hidden = !needsSave;
-  hint.textContent = needsSave ? 'Auto-pilot works best with “Keep me signed in”. Without it, auto-pilot pauses when SHiFT’s session expires until you sign in again.' : '';
+  hint.innerHTML = needsSave ? '<span class="co-ic" aria-hidden="true">!</span><div class="co-body"><b class="co-title">Tip</b>Auto-pilot works best with “Keep me signed in”. Without it, auto-pilot pauses when SHiFT’s session expires until you sign in again.</div>' : '';
 
   if (WZ.step === WZ.last) {
     const st = S.settings;
-    const row = (k, v, cls = '') => `<div><span class="k">${k}</span><span class="v ${cls}">${v}</span></div>`;
+    const row = (k, v, cls = '') => `<dt>${k}</dt><dd class="${cls}">${v}</dd>`;
     $('#wzSummary').innerHTML =
       row('SHiFT account', loggedIn ? esc(S.account.email || 'Connected') : 'Not connected yet. Do this on the Account tab.', loggedIn ? 'ok' : 'bad') +
       row('Titles', st.titles.mode === 'all' ? 'All titles' : st.titles.selected.map(titleLabel).join(', ') || 'None', st.titles.mode === 'select' && !st.titles.selected.length ? 'bad' : '') +
@@ -795,7 +806,7 @@ $('#wzBack').addEventListener('click', () => {
 $('#wzSkip').addEventListener('click', () => closeWizard({ toast: WZ.step !== WZ.last }));
 $('#wzClose').addEventListener('click', () => closeWizard({ toast: true }));
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && WZ.open && $('#plainModal').hidden) closeWizard({ toast: true });
+  if (e.key === 'Escape' && WZ.open && $('#plainModal').hidden && !help.isOpen()) closeWizard({ toast: true });
 });
 $('#btnSetupAgain').addEventListener('click', () => openWizard(0));
 
@@ -1084,6 +1095,52 @@ setInterval(() => {
   renderRun();
   renderSettingsBound();
 }, 30_000);
+
+// ------------------------------------------------------------------ help
+
+function goTo(tab, elId) {
+  if (location.hash !== `#${tab}`) location.hash = `#${tab}`;
+  else showTab();
+  if (!elId) return;
+  setTimeout(() => {
+    const el = document.getElementById(elId);
+    if (!el) return;
+    el.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'center' });
+    el.classList.remove('flash-target');
+    void el.offsetWidth;
+    el.classList.add('flash-target');
+  }, 80);
+}
+
+function runAction(a, arg) {
+  if (a === 'setup') openWizard(0);
+  else if (a === 'paste') {
+    $('#pastePanel').hidden = false;
+    setTimeout(() => $('#pasteText').focus(), 120);
+  } else if (a === 'data') api('POST', '/api/app/open-data').catch((e) => toast(e.message, 'err'));
+  else if (a === 'toast') toast(arg, 'ok');
+}
+
+function getDiagnostics() {
+  const st = S.settings || {};
+  const lr = S.engine.lastRun;
+  const redact = (t) => String(t).replace(/[\w.+-]+@[\w-]+\.[\w.-]+/g, '<email>');
+  const lines = [
+    `SHiFT Redeemer ${S.app?.version || '?'} · ${S.app?.platform || navigator.platform} · ${S.app?.packaged ? 'installed app' : 'from source'}`,
+    `Signed in: ${S.account.loggedIn ? 'yes' : 'no'} · password saved: ${S.account.saved ? (S.account.saved.secure ? `securely (${S.account.saved.storeName})` : 'plain text') : 'no'} · secure storage: ${S.account.secureStore?.available ? 'available' : `unavailable (${S.account.secureStore?.reason || '?'})`}`,
+    `Titles: ${st.titles?.mode === 'all' ? 'all' : (st.titles?.selected || []).join(', ')} · Platforms: ${st.platforms?.mode === 'all' ? 'all linked' : (st.platforms?.selected || []).join(', ')} · Linked: ${S.catalog.platforms.filter((p) => p.linked).map((p) => p.id).join(', ') || 'none seen'}`,
+    `Auto-pilot: ${st.autoRun?.enabled ? `on, every ${st.autoRun.intervalMinutes} min` : 'off'} · Game assist: ${st.gameAssist?.mode} (Steam ${S.games.steam?.found ? `found, installed: ${(S.games.steam.installed || []).join(', ') || 'none'}` : 'not found'}) · Delay: ${st.delaySeconds}s`,
+    `Codes: ${S.stats.total || 0} known, ${S.stats.queue || 0} queued, ${S.stats.successes || 0} redeemed`,
+    lr ? `Last run: ${new Date(lr.finishedAt || lr.at).toISOString()} · checked ${lr.checked}, redeemed ${lr.redeemed}, already ${lr.already}, dead ${lr.dead}, errors ${lr.errors}, launches ${lr.assists || 0}${lr.stopped ? `, stopped: ${lr.stopped}` : ''}${lr.pause ? `, paused (${lr.pause.why}): ${lr.pause.message}` : ''}` : 'Last run: never',
+    'Sources: ' + S.sources.map((x) => `${x.id}=${x.enabled ? (x.status ? (x.status.ok ? `ok(${x.status.found})` : 'error') : 'unused') : 'off'}`).join(' '),
+    '',
+    'Recent activity:',
+    ...S.logs.slice(-40).map((e) => `${new Date(e.t).toISOString().slice(11, 19)} ${e.level.padEnd(5)} ${e.msg}`),
+  ];
+  return redact(lines.join('\n'));
+}
+
+const help = initHelp({ goTo, runAction, getDiagnostics, repoUrl: 'https://github.com/approved48/shift-redeemer' });
 
 // ------------------------------------------------------------------ start
 

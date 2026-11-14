@@ -52,7 +52,7 @@ try {
   // 2. serves the embedded UI
   const html = await fetch(`${base}/`).then((r) => r.text());
   assert.match(html, /SHiFT Redeemer/);
-  for (const f of ['/app.js', '/styles.css', '/icon.svg']) assert.equal((await fetch(base + f)).status, 200, `${f} missing`);
+  for (const f of ['/app.js', '/help.js', '/styles.css', '/icon.svg']) assert.equal((await fetch(base + f)).status, 200, `${f} missing`);
   const st = await api('GET', '/api/state');
   assert.equal(st.app.packaged, true, 'not running in packaged mode');
   console.log('✔ UI served from embedded assets');

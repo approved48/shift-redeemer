@@ -34,6 +34,8 @@ The first time you open it, a short **setup wizard** walks you through everythin
 
 You can run the wizard again any time from **Settings**.
 
+**Need help?** Press **?** (or the **Help** button) any time. You can search questions and settings, browse quick answers and topics, or jump straight to a setting with **show me**. Pin answers you want to keep handy, and use **Support → Copy diagnostics** when reporting a problem.
+
 That's it. The app searches the web for codes, checks each one with SHiFT, and redeems it for every game and platform you picked. It remembers what it has already done, so nothing is redeemed twice.
 
 **Want it fully automatic?** In **Settings**, turn on **Auto-pilot** and **Start with my computer**. SHiFT Redeemer then runs quietly in the background and redeems new codes every few hours.
