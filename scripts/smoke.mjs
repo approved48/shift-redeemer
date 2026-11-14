@@ -79,6 +79,13 @@ try {
   const st = await api('GET', '/api/state');
   assert.equal(st.app.packaged, true, 'not running in packaged mode');
   console.log('✔ UI served from embedded assets');
+  let starter = 0;
+  for (let i = 0; i < 20 && !starter; i++) {
+    starter = (await api('GET', '/api/state')).stats.total;
+    if (!starter) await sleep(250);
+  }
+  assert.ok(starter >= 100, `a new install should start with the starter list (has ${starter} codes)`);
+  console.log(`✔ new install starts with ${starter} starter codes`);
 
   // 3. sign in + redeem
   await api('POST', '/api/account/login', { email: 'vault@hunter.test', password: 'hunter2' });
@@ -176,8 +183,12 @@ try {
   }
   assert.ok(back && back.pid !== oldPid, 'app did not restart after installing the update');
   assert.equal(back.afterUpdate, 'background');
-  const after = await api('GET', '/api/state');
-  assert.ok(after.logs.some((l) => /Updated to SHiFT Redeemer/.test(l.msg)), 'restarted app did not report the update');
+  let reported = false;
+  for (let i = 0; i < 20 && !reported; i++) {
+    reported = (await api('GET', '/api/state')).logs.some((l) => /Updated to SHiFT Redeemer/.test(l.msg));
+    if (!reported) await sleep(250);
+  }
+  assert.ok(reported, 'restarted app did not report the update');
   console.log(`✔ update installed and the app restarted by itself (pid ${oldPid} → ${back.pid})`);
 
   // 6. quit from the UI

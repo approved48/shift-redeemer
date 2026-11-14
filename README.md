@@ -75,6 +75,8 @@ That's it. The app searches the web for codes, checks each one with SHiFT, and r
 | Eurogamer, PCGamesN, Game8 | Games-press code guides with rewards and expiry dates (Borderlands 4, plus Borderlands 3 on PCGamesN) |
 | esports.net, Fossbytes | Code lists for Borderlands 3 and Tiny Tina's Wonderlands |
 | GIGA (Germany) | A Borderlands 4 list updated several times a month; rewards are translated to English |
+| *Unsure* (off by default) | Lockercodes, Supercheats, Mobalytics, Icy Veins, GameStar: sites that block automated checks from our test setup. Turn one on to try it. |
+| Starter list | New installs start with codes that were working when the version was released, so the first run has something to redeem |
 | An AI assistant | Download instructions for ChatGPT, Claude, Gemini or Grok, then import its answer |
 | Your own | Add any web page, or paste codes you found anywhere (tweets, Discord, …) |
 

@@ -1,10 +1,10 @@
 ## What's new
-- **Getting started checklist.** New users see a live checklist on the dashboard: connect, link platforms, pick games, run. Each step has a button and ticks itself off.
-- **Best practice guide.** A new **Help → Best practice** tab with a dozen tips for getting the most out of the app, each linked to the right setting.
-- **Clearer Rewards page.** The game you're viewing is highlighted, and its tag now leads the *Cosmetics collected* and *Reward history* titles (✕ shows every game again).
-- **Three more code sources:** esports.net and Fossbytes (Borderlands 3 and Wonderlands) and GIGA (Borderlands 4, translated from German).
+- **New game cards.** Every game's banner is redrawn in the spirit of its cover: comic-book wordmarks, hot cover colours, halftone and ink, with a little gentle movement (the Pre-Sequel moon turns, the Wonderlands d20 rolls, BL3's paint drips). All original art.
+- **Starter code list.** New installs start with 232 codes that were working at release, so the first run has plenty to redeem.
+- **"Unsure" sources.** Five more code sites (Lockercodes, Supercheats, Mobalytics, Icy Veins, GameStar) in their own section, off by default: we couldn't verify them, but you can turn them on to try.
+- **Snappier page switching.** A quick light sweep and a directional punch-in when you change pages, and a soft glint on the progress bar.
 
-If you have 1.4.0, select **Update now** when the app offers it. Older versions: install this one over the old one once.
+If you have 1.4.0 or newer, select **Update now** when the app offers it.
 
 ## Download
 

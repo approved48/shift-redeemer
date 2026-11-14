@@ -140,6 +140,12 @@ const FAQ = [
 
   // ---- Codes & sources
   { cat: 'Codes & sources', q: 'Where do codes come from?', a: ['A community feed of known codes, the MentalMars code lists, official announcements on Steam, Reddit, Steam Community guides, OzBargain, and the code guides on Eurogamer, PCGamesN, Game8, esports.net, Fossbytes and GIGA. You can turn any of them off, add your own, or ask an AI to search for you.'], go: { tab: 'sources', el: 'stepBuiltin', label: 'Show me' } },
+  { cat: 'Codes & sources', q: 'What are the “Unsure” sources?', a: [
+    'Code sites we couldn\'t check when we added them, because they block automated visits from our test setup: Lockercodes, Supercheats, Mobalytics, Icy Veins and GameStar. They start switched off.',
+    'They may work fine from your computer. Turn one on under <b>Sources</b> and press its <b>Search</b> button. If it shows an error, that site is blocking apps too. Either way, SHiFT checks every code before anything is redeemed.'], go: { tab: 'sources', el: 'unsureSources', label: 'Show me' } },
+  { cat: 'Codes & sources', q: 'Why are there codes in my list before I searched?', a: [
+    'New installs start with a <b>starter list</b>: codes that were still working when this version came out. It means your first run has plenty to redeem straight away.',
+    'Any that have expired since are simply marked dead when SHiFT checks them. It\'s only added once, for brand-new installs, and never mixed into an existing list.'] },
   { cat: 'Codes & sources', q: 'How do I ask an AI to find codes?', a: [
     '<ol><li>On <b>Sources</b>, under <b>Ask an AI to find codes</b>, select <b>Download instructions</b> (or <b>Copy instructions</b>).</li><li>Give them to an AI assistant that can search the web, such as ChatGPT, Claude, Gemini or Grok. Attach the file or paste the text.</li><li>Copy its whole reply, then on <b>Codes</b> select <b>Import list</b> and paste it.</li></ol>',
     'The instructions are made for your games and platforms and tell the AI exactly which file format to answer with. It\'s a handy backup if code websites change or go quiet.'], go: { tab: 'sources', el: 'stepAi', label: 'Show me' } },
