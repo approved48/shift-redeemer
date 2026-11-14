@@ -147,7 +147,7 @@
         <div class="seg" id="statusFilter" role="tablist">
           <button data-v="all">All</button>
           <button data-v="queue">Queue</button>
-          <button data-v="done">Redeemed</button>
+          <button data-v="done">Done</button>
           <button data-v="dead">Dead</button>
           <button data-v="other">Not for you</button>
         </div>
@@ -368,6 +368,14 @@
         <section class="panel step" id="setData">
           <div class="step-head"><h2 class="step-title"><span class="step-n">4</span>Data &amp; display</h2><button class="btn btn-sm btn-ghost" data-help="where is my data">?</button></div>
           <p class="step-hint">Codes, results and settings are saved on this computer only.</p>
+          <label class="field inline" id="displaySizeRow"><span class="label">Display size</span>
+            <select id="displaySize">
+              <option value="auto">Automatic (fits your screen)</option>
+              <option value="0.9">90%</option><option value="1">100%</option><option value="1.15">115%</option><option value="1.3">130%</option><option value="1.5">150%</option>
+            </select>
+          </label>
+          <p class="hint" id="displaySizeHint">Automatic makes everything bigger on large, high-resolution and ultrawide screens, and adjusts when you resize the window or move it to another monitor.</p>
+          <label class="switch-row"><input type="checkbox" class="switch" data-setting="tour.enabled" id="tourEnabled"><span><b>Show the walkthrough</b><small>A short guided tour of the app. Turning this on starts it now.</small></span></label>
           <label class="switch-row"><input type="checkbox" class="switch" id="reduceMotion"><span><b>Reduce animations</b><small>Turns off the menu transitions and effects on this computer.</small></span></label>
           <p class="hint" id="dataDir"></p>
           <div class="card-foot"><span class="foot-note" id="versionLine"></span><a class="btn btn-sm btn-ghost" href="/api/export" download="shift-redeemer-export.json">Export JSON</a><button class="btn btn-sm" id="btnOpenData">Open data folder</button></div>
@@ -396,6 +404,7 @@
           <section class="wz-page" data-step="0">
             <h2 class="step-title">Welcome, Vault Hunter</h2>
             <p class="lead">SHiFT Redeemer finds SHiFT codes across the web and redeems them on your account automatically: Golden Keys, Diamond Keys, skins, the lot.</p>
+            <button type="button" class="wz-start" data-act="wz-start"><span class="wz-start-ic" aria-hidden="true">▶</span><span><b>Start setup</b><small>About two minutes. Start here.</small></span></button>
             <div class="tile-grid">
               <div class="tile"><span class="tile-ic" aria-hidden="true">🔎</span><div><b>Finds codes</b><span>Community feeds, official Steam news, Reddit, guides and deal sites.</span></div></div>
               <div class="tile"><span class="tile-ic" aria-hidden="true">🗝️</span><div><b>Redeems them for you</b><span>For every game and platform you choose, never the same one twice.</span></div></div>
@@ -435,7 +444,7 @@
           </section>
           <!-- 5 -->
           <section class="wz-page" data-step="4" hidden>
-            <h2 class="step-title">Auto-pilot</h2>
+            <h2 class="step-title">Auto-pilot <button type="button" class="q-btn" data-help="auto-pilot" title="Questions about auto-pilot" aria-label="Questions about auto-pilot">?</button></h2>
             <p class="lead">Let SHiFT Redeemer check for new codes every few hours and redeem them without you lifting a finger.</p>
             <label class="switch-row"><input type="checkbox" class="switch" data-setting="autoRun.enabled"><span><b>Run automatically</b><small>Search for new codes and redeem them on a timer.</small></span></label>
             <label class="field inline"><span class="label">Every</span>

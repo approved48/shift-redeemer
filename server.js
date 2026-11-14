@@ -169,8 +169,15 @@ const routes = {
   'GET /api/state': () => fullState(),
   'GET /api/report': ({ query }) => {
     const days = Number(query.get('days')) || 0;
-    const platform = query.get('platform') || null;
-    return buildReport(store.db, { since: days ? Date.now() - days * 86_400_000 : null, platform, wants: (titleId, service) => engine.wantsTitle(null, titleId) && engine.wantsService(service) });
+    let platform = query.get('platform') || null;
+    let titleIds = null;
+    // targets=1: only your current games and platforms (the dashboard tiles use this).
+    if (query.get('targets') === '1') {
+      const s = store.settings;
+      if (s.platforms.mode === 'select') platform = s.platforms.selected;
+      if (s.titles.mode === 'select') titleIds = s.titles.selected;
+    }
+    return buildReport(store.db, { since: days ? Date.now() - days * 86_400_000 : null, platform, titleIds, wants: (titleId, service) => engine.wantsTitle(null, titleId) && engine.wantsService(service) });
   },
   'GET /api/codes': () => ({ codes: Object.values(store.db.codes).map((c) => engine.codeView(c)), stats: engine.stats() }),
 
@@ -224,7 +231,7 @@ const routes = {
   },
 
   'PUT /api/settings': async ({ body }) => {
-    const allowed = ['titles', 'platforms', 'delaySeconds', 'skipExpired', 'useSourceHints', 'maxChecksPerRun', 'autoRun', 'sources', 'setupComplete', 'gameAssist', 'updates'];
+    const allowed = ['titles', 'platforms', 'delaySeconds', 'skipExpired', 'useSourceHints', 'maxChecksPerRun', 'autoRun', 'sources', 'setupComplete', 'gameAssist', 'updates', 'tour'];
     const patch = {};
     for (const k of allowed) if (k in body) patch[k] = body[k];
     if (patch.gameAssist) {

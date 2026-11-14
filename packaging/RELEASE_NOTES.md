@@ -1,21 +1,24 @@
 ## What's new
-- **New game cards.** Every game's banner is redrawn in the spirit of its cover: comic-book wordmarks, hot cover colours, halftone and ink, with a little gentle movement (the Pre-Sequel moon turns, the Wonderlands d20 rolls, BL3's paint drips). All original art.
-- **Starter code list.** New installs start with 232 codes that were working at release, so the first run has plenty to redeem.
-- **"Unsure" sources.** Five more code sites (Lockercodes, Supercheats, Mobalytics, Icy Veins, GameStar) in their own section, off by default: we couldn't verify them, but you can turn them on to try.
-- **Snappier page switching.** A quick light sweep and a directional punch-in when you change pages, and a soft glint on the progress bar.
+- **Getting started is clearer.** A big **Start setup** button, and a short **walkthrough** of the app after setup. Skip it and it stays off. Turn it back on any time in **Settings → Data & display**.
+- **Fits big screens.** A new **Display size** setting. **Automatic** scales the app up on large, high-resolution and ultrawide monitors and adjusts when you move the window to another screen. Or pick 90–150%.
+- **Easier game and platform picking.** Unticking one while "All" is on switches to **Pick** with everything else still ticked.
+- **Counts that agree.** Every dashboard number follows the games and platforms you picked, the per-game tiles match, and "Done" means the same thing everywhere.
+- **Auto-pilot answers.** Little **?** buttons next to auto-pilot open the right help, with new answers to the most common questions.
 
 If you have 1.4.0 or newer, select **Update now** when the app offers it.
 
 ## Download
 
-| Your computer | Download this |
-| --- | --- |
-| **Windows 10 / 11** | **`SHiFT-Redeemer-Setup-{{VERSION}}-Windows.exe`** |
-| Windows, without installing | `SHiFT-Redeemer-{{VERSION}}-Windows-Portable.exe` |
-| **Mac** (Apple Silicon or Intel) | **`SHiFT-Redeemer-{{VERSION}}-macOS.dmg`** |
-| Linux | `SHiFT-Redeemer-{{VERSION}}-Linux-x64.tar.gz` |
+> 👉 **On Windows? Download `SHiFT-Redeemer-Setup-{{VERSION}}-Windows.exe`** from **Assets** below, open it and click through. That's the right choice for almost everyone.
 
-Nothing else to install. Everything the app needs is included.
+| Your computer | Download this | Why |
+| --- | --- | --- |
+| **Windows 10 / 11** ⭐ | **`SHiFT-Redeemer-Setup-{{VERSION}}-Windows.exe`** | Installs like any app, no admin password, Start menu shortcut, updates itself |
+| Windows, can't install | `SHiFT-Redeemer-{{VERSION}}-Windows-Portable.exe` | One file, nothing installed: for work PCs or USB sticks |
+| **Mac** (Apple Silicon or Intel) | **`SHiFT-Redeemer-{{VERSION}}-macOS.dmg`** | Drag into Applications |
+| Linux | `SHiFT-Redeemer-{{VERSION}}-Linux-x64.tar.gz` | Extract and run |
+
+The files without a version number are the same downloads under a fixed name (used by the links in the README). The **Source code** files are for developers; you don't need them. Nothing else to install: everything the app needs is included.
 
 ## Install
 

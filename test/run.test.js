@@ -68,6 +68,56 @@ test('starter list: a new install starts with it, once, and never for existing u
   fs.rmSync(path.join(dir, 'db.json'), { force: true });
 });
 
+test('counts agree with the games and platforms you target', async () => {
+  const { buildReport } = await import('../lib/rewards.js');
+  fs.rmSync(path.join(dir, 'db.json'), { force: true });
+  const { store, engine } = makeEngine();
+  const now = Date.now();
+  const offers = [
+    { title: 'Borderlands 3', titleId: 'bl3', service: 'steam' },
+    { title: 'Borderlands 3', titleId: 'bl3', service: 'epic' },
+    { title: 'Borderlands 2', titleId: 'bl2', service: 'steam' },
+  ];
+  store.db.codes = {
+    'AAAAA-AAAAA-AAAAA-AAAAA-AAAA1': { code: 'AAAAA-AAAAA-AAAAA-AAAAA-AAAA1', games: [], platforms: [], sources: [], reward: '5 Golden Keys', check: { status: 'ok', offers } },
+  };
+  store.db.redemptions = {
+    'AAAAA-AAAAA-AAAAA-AAAAA-AAAA1|bl3|steam': { status: 'success', at: now, title: 'Borderlands 3', service: 'steam' },
+    'AAAAA-AAAAA-AAAAA-AAAAA-AAAA1|bl3|epic': { status: 'success', at: now, title: 'Borderlands 3', service: 'epic' },
+    'AAAAA-AAAAA-AAAAA-AAAAA-AAAA1|bl2|steam': { status: 'success', at: now, title: 'Borderlands 2', service: 'steam' },
+  };
+  store.updateSettings({ titles: { mode: 'all' }, platforms: { mode: 'all' } });
+  assert.equal(engine.stats().successes, 3);
+  assert.equal(engine.stats().redeemed, 1, 'done for every target');
+
+  // Only Steam: Rewards counts Steam only, and the code is still done (every Steam offer redeemed).
+  store.updateSettings({ platforms: { mode: 'select', selected: ['steam'] } });
+  let st = engine.stats();
+  assert.equal(st.successes, 2);
+  assert.equal(st.successesAll, 3);
+  assert.equal(st.redeemed, 1);
+  // The dashboard tiles' report (targets) agrees.
+  assert.equal(buildReport(store.db, { platform: ['steam'] }).totals.rewards, 2);
+
+  // Only BL3 on Steam and Epic.
+  store.updateSettings({ titles: { mode: 'select', selected: ['bl3'] }, platforms: { mode: 'select', selected: ['steam', 'epic'] } });
+  st = engine.stats();
+  assert.equal(st.successes, 2);
+  const rep = buildReport(store.db, { platform: ['steam', 'epic'], titleIds: ['bl3'] });
+  assert.equal(rep.totals.rewards, 2);
+  assert.deepEqual(rep.titles.map((t) => t.id), ['bl3']);
+
+  // Likely-expired codes are queued (not dead) when they're not being skipped, so no code counts twice.
+  store.db.codes['BBBBB-BBBBB-BBBBB-BBBBB-BBBB2'] = { code: 'BBBBB-BBBBB-BBBBB-BBBBB-BBBB2', games: [], platforms: [], sources: [], expires: 'Jan 1, 2020' };
+  store.updateSettings({ skipExpired: true });
+  assert.equal(engine.statusOf(store.db.codes['BBBBB-BBBBB-BBBBB-BBBBB-BBBB2']), 'stale');
+  assert.equal(engine.queue().length, 0);
+  store.updateSettings({ skipExpired: false });
+  assert.equal(engine.statusOf(store.db.codes['BBBBB-BBBBB-BBBBB-BBBBB-BBBB2']), 'new');
+  assert.equal(engine.queue().length, 1);
+  fs.rmSync(path.join(dir, 'db.json'), { force: true });
+});
+
 test('German code lists are translated (GIGA)', async () => {
   const { fromGerman } = await import('../lib/sources.js');
   const nov = new Date('2026-11-14T00:00:00Z');
@@ -576,6 +626,12 @@ test('updater: picks the right download, verifies it, and writes a safe helper',
   assert.equal(u.pickAsset(assets, 'macos').name, 'SHiFT-Redeemer-1.4.0-macOS.dmg');
   assert.equal(u.pickAsset(assets, 'linux').name, 'SHiFT-Redeemer-1.4.0-Linux-x64.tar.gz');
   assert.equal(u.pickAsset(assets, 'source'), null);
+  // The fixed-name copies for README download links are never picked by the updater.
+  const aliases = ['SHiFT-Redeemer-Setup-Windows.exe', 'SHiFT-Redeemer-Windows-Portable.exe', 'SHiFT-Redeemer-macOS.dmg', 'SHiFT-Redeemer-Linux-x64.tar.gz'].map((name) => ({ name }));
+  for (const k of ['windows-installer', 'windows-portable', 'macos', 'linux']) {
+    assert.equal(u.pickAsset(aliases, k), null, `${k} picked a fixed-name copy`);
+    assert.equal(u.pickAsset([...aliases, ...assets], k), u.pickAsset(assets, k));
+  }
   assert.equal(u.whatsNew("## What's new\n- **Faster** launches\n\n## Download\n| x |"), '- **Faster** launches');
 
   // A local "GitHub" serving a release and its file.

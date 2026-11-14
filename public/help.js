@@ -7,6 +7,7 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 import { renderGuide } from './glossary.js';
+import { pageRect, uiZoom, viewW, viewH } from './zoom.js';
 
 // ------------------------------------------------------------------ content
 
@@ -132,6 +133,7 @@ const FAQ = [
     'Codes you redeemed on the SHiFT website yourself aren\'t included.'], go: { tab: 'rewards', el: 'rpTotals', label: 'Open the report' } },
 
   // ---- Games & platforms
+  { cat: 'Games & platforms', q: 'I unticked a game and it switched to Pick. Why?', a: ['With <b>All titles</b> (or <b>All platforms</b>) on, every one is included. Unticking one means “all except this one”, so the app switches to <b>Pick</b> with everything else still ticked. Choose <b>All</b> again to include every one.'], go: { tab: 'targets', el: 'stepTitles', label: 'Show me' } },
   { cat: 'Games & platforms', q: 'How do I choose which games get rewards?', a: ['Open <b>Games &amp; Platforms</b>. Leave <b>All titles</b> on, or choose <b>Only the ones I pick</b> and select your games. Platforms work the same way.'], go: { tab: 'targets', el: 'stepTitles', label: 'Show me' } },
   { cat: 'Games & platforms', q: 'Why isn\'t my platform shown as linked?', a: [
     'Platforms are linked on the SHiFT website, under <b>Gaming Platforms</b>, not in this app.',
@@ -156,7 +158,17 @@ const FAQ = [
   { cat: 'Codes & sources', q: 'A source shows an error. Is something broken?', a: ['Usually not. Websites change or briefly block automated visits. The other sources keep working, and the failed one is tried again next time.'] },
 
   // ---- Auto-pilot & the app
-  { cat: 'Auto-pilot & the app', q: 'How does auto-pilot work?', a: ['Every few hours it searches for new codes and redeems them, as if you\'d pressed <b>Find &amp; redeem</b>. Turn it on in <b>Settings</b>.'], go: { tab: 'settings', el: 'setAutopilot', label: 'Show me' } },
+  { cat: 'Auto-pilot & the app', q: 'How does auto-pilot work?', a: ['Every few hours it searches for new codes and redeems them, as if you\'d pressed <b>Find &amp; redeem</b>. Turn it on in <b>Settings → Auto-pilot</b>.'], go: { tab: 'settings', el: 'setAutopilot', label: 'Show me' } },
+  { cat: 'Auto-pilot & the app', q: 'Does the app have to stay open for auto-pilot?', a: [
+    'It has to be running, but the window doesn\'t: with auto-pilot on, closing the window leaves it working quietly in the background. Your computer has to be on and awake.',
+    'Turn on <b>Start with my computer</b> too, and it starts by itself each time you sign in to your computer. The ⏻ button quits it completely.'], go: { tab: 'settings', el: 'setAutopilot', label: 'Show me' } },
+  { cat: 'Auto-pilot & the app', q: 'How often should auto-pilot run?', a: ['The default, every 3 hours, is plenty. New codes come out a few times a week, so running more often rarely finds more. Every 6 or 12 hours is fine too.'], go: { tab: 'settings', el: 'setAutopilot', label: 'Show me' } },
+  { cat: 'Auto-pilot & the app', q: 'Why didn\'t auto-pilot run?', a: ['<ul><li>The computer was asleep or off.</li><li>The app was quit with ⏻. Open it again, or turn on <b>Start with my computer</b>.</li><li>SHiFT signed you out. Turn on <b>Keep me signed in</b> so it can sign back in.</li><li>SHiFT wanted a game launched. See the dashboard, or turn on <b>Auto-launch games</b>.</li></ul>'], go: { tab: 'dashboard', el: 'cmdBar', label: 'Dashboard' } },
+  { cat: 'Auto-pilot & the app', q: 'Will auto-pilot start my games or slow my computer down?', a: ['It only starts a game if <b>Auto-launch games</b> is on and SHiFT asks for one. Otherwise it just reads a few web pages and talks to SHiFT every few hours, which uses next to no data or power.'] },
+  { cat: 'Auto-pilot & the app', q: 'Everything looks too small (or too big) on my screen', a: [
+    'Open <b>Settings → Data &amp; display → Display size</b>. <b>Automatic</b> makes everything bigger on large, high-resolution and ultrawide screens, and adjusts when you resize the window or move it to another monitor. Or pick a fixed size from 90% to 150%.',
+    'You can also press <kbd>Ctrl</kbd> + <kbd>+</kbd> or <kbd>Ctrl</kbd> + <kbd>−</kbd> in the app window.'], go: { tab: 'settings', el: 'displaySizeRow', label: 'Show me' } },
+  { cat: 'Auto-pilot & the app', q: 'How do I take the walkthrough again?', a: ['In <b>Settings → Data &amp; display</b>, turn on <b>Show the walkthrough</b>. It starts straight away. Skipping it turns it off again.'], go: { tab: 'settings', el: 'tourEnabled', label: 'Show me' } },
   { cat: 'Auto-pilot & the app', q: 'Does it keep running when I close the window?', a: [
     'Only if auto-pilot is on. Then it keeps working quietly in the background. Turn on <b>Start with my computer</b> to have it start when you sign in.',
     'With auto-pilot off, closing the window quits the app.'], go: { tab: 'settings', el: 'setAutopilot', label: 'Show me' } },
@@ -228,6 +240,8 @@ const SETTINGS = [
   { ic: '🧩', name: 'Game tiles', desc: 'Dashboard', tab: 'dashboard', el: 'gameStrip', k: 'game tiles per game dashboard keys added run progress' },
   { ic: '🟣', name: 'Epic launch link', desc: 'Settings · step 2', tab: 'settings', el: 'setAssist', k: 'epic launcher link shortcut' },
   { ic: '🐢', name: 'Pace', desc: 'Settings · step 3', tab: 'settings', el: 'setPace', k: 'delay pace rate limit slow requests' },
+  { ic: '🔍', name: 'Display size', desc: 'Settings · Data & display', tab: 'settings', el: 'displaySizeRow', k: 'display size scale scaling zoom bigger smaller tiny huge ultrawide 4k monitor screen resolution text' },
+  { ic: '🧭', name: 'Walkthrough', desc: 'Settings · Data & display', tab: 'settings', el: 'tourEnabled', k: 'walkthrough tour guide guided interface show me around' },
   { ic: '💾', name: 'Your data', desc: 'Settings · step 4', tab: 'settings', el: 'setData', k: 'data folder export backup files' },
   { ic: '⬆️', name: 'Updates', desc: 'Settings · step 5', tab: 'settings', el: 'setUpdates', k: 'update updates upgrade new version install download check automatic latest' },
   { ic: '🧭', name: 'Run setup again', desc: 'Settings', action: 'setup', k: 'setup wizard start again first time playing play while' },
@@ -243,7 +257,9 @@ const SYNONYMS = {
   key: 'codes', keys: 'codes', golden: 'codes', code: 'codes', shift: 'codes',
   status: 'statuses', statuses: 'statuses', meaning: 'mean', means: 'mean',
   expire: 'expired', expiry: 'expired', old: 'expired',
-  auto: 'auto-pilot', autopilot: 'auto-pilot', automatic: 'auto-pilot', schedule: 'auto-pilot', background: 'auto-pilot',
+  auto: 'auto-pilot', autopilot: 'auto-pilot', pilot: 'auto-pilot',
+  small: 'display', tiny: 'display', big: 'display', huge: 'display', scaling: 'display', scale: 'display', zoom: 'display', ultrawide: 'display', monitor: 'display', resolution: 'display', '4k': 'display',
+  tour: 'walkthrough', guide: 'walkthrough', untick: 'pick', uncheck: 'pick', unticked: 'pick', automatic: 'auto-pilot', schedule: 'auto-pilot', background: 'auto-pilot',
   close: 'quit', exit: 'quit', stop: 'quit',
   update: 'update', upgrade: 'update', version: 'update',
   safe: 'password', secure: 'password', keychain: 'password', credential: 'password', privacy: 'data', private: 'data',
@@ -272,7 +288,7 @@ const TOPICS = [
   ['Where is my data', 'where is my data'], ['Start over', 'start over'], ['Password safety', 'password safe'], ['Privacy', 'send my data'],
   ['Official?', 'official gearbox'], ['Nothing redeemed', 'nothing gets redeemed'], ['Too many requests', 'too many requests'], ['Retry', 'retry'],
   ['Windows warning', 'windows protected'], ['macOS warning', 'macos opened'], ['Run results', 'results of a run'], ['How long', 'how long run'],
-['New here?', 'new where do i start'], ['Best practice', 'best way set up'], ['Golden Keys', 'what does a golden key do'], ['Diamond Keys', 'what does a diamond key do'], ['Skeleton Keys', 'what does a skeleton key do'], ['Cosmetics', 'what are cosmetics'], ['Ask an AI', 'ask an ai to find codes'], ['Playing while it runs', 'play borderlands while it runs'], ['Where are the tabs?', 'where did the menu tabs go'],
+['New here?', 'new where do i start'], ['Auto-pilot basics', 'does the app have to stay open auto-pilot'], ['Too small?', 'too small screen display size'], ['Walkthrough', 'walkthrough again'], ['Best practice', 'best way set up'], ['Golden Keys', 'what does a golden key do'], ['Diamond Keys', 'what does a diamond key do'], ['Skeleton Keys', 'what does a skeleton key do'], ['Cosmetics', 'what are cosmetics'], ['Ask an AI', 'ask an ai to find codes'], ['Playing while it runs', 'play borderlands while it runs'], ['Where are the tabs?', 'where did the menu tabs go'],
   ['Import a list', 'import list friend'], ['Share codes', 'share back up codes'], ['File types', 'which files import'], ['Export privacy', 'export include account'], ['Animations', 'turn off animations'], ['Rewards report', 'rewards report counted'], ['Already redeemed', 'on your account mean already redeemed'], ['Export rewards', 'rewards report export csv'], ['Setup again', 'run setup again'], ['Supported games', 'which games supported'], ['Which game launches', 'which game launch'], ['Auto-launch switch', 'turn automatic game launching on off quickly'], ['Game tiles', 'game tiles dashboard'], ['Still paused', 'still paused'],
 ];
 
@@ -627,12 +643,14 @@ export function initHelp({ goTo, runAction, getDiagnostics, repoUrl, getRewardCo
     const h = pinPanel.offsetHeight;
     let x;
     let y;
+    const W = viewW();
+    const H = viewH();
     if (pos.edge === 'left' || pos.edge === 'right') {
-      x = pos.edge === 'left' ? m : innerWidth - w - m;
-      y = Math.min(innerHeight - h - m, Math.max(m, pos.t * (innerHeight - h)));
+      x = pos.edge === 'left' ? m : W - w - m;
+      y = Math.min(H - h - m, Math.max(m, pos.t * (H - h)));
     } else {
-      y = pos.edge === 'top' ? m : innerHeight - h - m;
-      x = Math.min(innerWidth - w - m, Math.max(m, pos.t * (innerWidth - w)));
+      y = pos.edge === 'top' ? m : H - h - m;
+      x = Math.min(W - w - m, Math.max(m, pos.t * (W - w)));
     }
     pinPanel.style.left = `${x}px`;
     pinPanel.style.top = `${y}px`;
@@ -671,23 +689,26 @@ export function initHelp({ goTo, runAction, getDiagnostics, repoUrl, getRewardCo
   $('#pinHead').addEventListener('pointerdown', (e) => {
     if (e.target.closest('button')) return;
     const head = $('#pinHead');
-    const r = pinPanel.getBoundingClientRect();
-    const dx = e.clientX - r.left;
-    const dy = e.clientY - r.top;
+    const z = uiZoom();
+    const r = pageRect(pinPanel);
+    const dx = e.clientX / z - r.left;
+    const dy = e.clientY / z - r.top;
     head.setPointerCapture(e.pointerId);
     const move = (ev) => {
-      pinPanel.style.left = `${ev.clientX - dx}px`;
-      pinPanel.style.top = `${ev.clientY - dy}px`;
+      pinPanel.style.left = `${ev.clientX / z - dx}px`;
+      pinPanel.style.top = `${ev.clientY / z - dy}px`;
     };
     const up = () => {
       head.removeEventListener('pointermove', move);
       head.removeEventListener('pointerup', up);
-      const b = pinPanel.getBoundingClientRect();
+      const b = pageRect(pinPanel);
+      const W = viewW();
+      const H = viewH();
       const cx = b.left + b.width / 2;
       const cy = b.top + b.height / 2;
-      const d = { left: cx, right: innerWidth - cx, top: cy, bottom: innerHeight - cy };
-      const edge = Object.keys(d).sort((a, z) => d[a] - d[z])[0];
-      const t = edge === 'left' || edge === 'right' ? b.top / Math.max(1, innerHeight - b.height) : b.left / Math.max(1, innerWidth - b.width);
+      const d = { left: cx, right: W - cx, top: cy, bottom: H - cy };
+      const edge = Object.keys(d).sort((a, q) => d[a] - d[q])[0];
+      const t = edge === 'left' || edge === 'right' ? b.top / Math.max(1, H - b.height) : b.left / Math.max(1, W - b.width);
       pos = { edge, t: Math.min(1, Math.max(0, t)) };
       try {
         localStorage.setItem(POS_KEY, JSON.stringify(pos));

@@ -2,6 +2,7 @@
 
 import { KINDS } from './glossary.js';
 import { coverHTML, accentOf } from './titleart.js';
+import { uiZoom } from './zoom.js';
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -141,8 +142,9 @@ export function initReport({ api, toast, isVisible }) {
       const total = totals[i];
       tip.innerHTML = `<b>${monthLabel(mo.month, true)}</b>${SERIES.map((s) => `<span class="tr"><i style="--c:${s.color}"></i>${s.name}<em>${fmt(mo[s.id])}</em></span>`).join('')}<span class="tr total">Total keys<em>${fmt(total)}</em></span>${mo.items ? `<span class="tr">Items<em>${fmt(mo.items)}</em></span>` : ''}`;
       tip.hidden = false;
+      const z = uiZoom();
       const bx = box.getBoundingClientRect();
-      const left = Math.min(bx.width - tip.offsetWidth - 4, Math.max(4, evX - bx.left + 12));
+      const left = Math.min(bx.width / z - tip.offsetWidth - 4, Math.max(4, (evX - bx.left) / z + 12));
       tip.style.left = `${left}px`;
       tip.style.top = '8px';
       $$('.seg', box).forEach((p) => p.classList.toggle('dim', Number(p.dataset.m) !== i));

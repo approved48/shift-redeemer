@@ -394,7 +394,7 @@ label code { text-transform: none; }
 .pick.on::before { opacity: 1; box-shadow: 0 0 8px var(--c, var(--eridian)); }
 .pick.on .tick { background: var(--eridian); border-color: var(--eridian-2); box-shadow: 0 0 6px var(--eridian); }
 .pick.on .tick svg { opacity: 1; }
-.pick.locked { cursor: default; }
+.pick.locked { cursor: pointer; }
 .pick.dim { opacity: 0.5; }
 .js-title-bulk { margin-top: var(--s3); }
 
@@ -1193,3 +1193,54 @@ html.reduce-motion .tip-card { animation: none; }
 @keyframes glint { 50% { opacity: 0.35; } }
 html.reduce-motion .tab-in, html.reduce-motion .tab-wipe::before, html.reduce-motion .tab-ink.kick, html.reduce-motion .bar.live > i::after { animation: none !important; }
 @media (prefers-reduced-motion: reduce) { .tab-wipe { display: none; } }
+
+/* very wide windows: use a bit more of the width (on top of the automatic display size) */
+@media (min-width: 2400px) { main, .topbar-inner { max-width: 1440px; } }
+@media (min-width: 3000px) { main, .topbar-inner { max-width: 1680px; } }
+
+/* ================================================================ v1.7: setup start, ? buttons, walkthrough */
+.wz-start {
+  display: flex; align-items: center; justify-content: center; gap: var(--s4); width: 100%; min-height: 84px; margin: var(--s2) 0 var(--s5);
+  padding: var(--s3) var(--s5); cursor: pointer; border: 0; color: #fff; clip-path: var(--cut);
+  background: linear-gradient(135deg, #8d4ae0, #5e22b3 55%, #3f1580); box-shadow: inset 0 0 0 2px #c9a2ff, 0 0 26px rgba(181, 124, 255, 0.55);
+  font: 400 30px/1 var(--stencil); letter-spacing: 0.03em; text-align: left; text-shadow: 0 2px 0 #1c0a3a;
+  animation: startPulse 2.4s ease-in-out infinite; transition: transform 0.15s var(--ease-snap), filter 0.15s;
+}
+.wz-start b { display: block; font-weight: 400; }
+.wz-start small { display: block; margin-top: 6px; font: 600 var(--fs-ctl)/1.2 var(--body); letter-spacing: 0.04em; color: #e6d4ff; text-shadow: none; }
+.wz-start-ic { display: grid; place-items: center; width: 52px; height: 52px; flex-shrink: 0; font-size: 22px; background: #ffd21f; color: #2a1150; clip-path: polygon(0 0, 100% 50%, 0 100%); padding-left: 6px; text-shadow: none; }
+.wz-start:hover { transform: translateY(-2px) scale(1.01); filter: brightness(1.1); }
+.wz-start:active { transform: scale(0.98); }
+.wz-start:focus-visible { outline: 3px solid #ffd21f; outline-offset: 3px; }
+@keyframes startPulse { 50% { box-shadow: inset 0 0 0 2px #e2c8ff, 0 0 40px rgba(181, 124, 255, 0.85); } }
+@media (max-width: 600px) { .wz-start { font-size: 24px; min-height: 72px; } .wz-start-ic { width: 40px; height: 40px; } }
+
+.q-btn {
+  display: inline-grid; place-items: center; width: 18px; height: 18px; padding: 0; margin-left: 4px; vertical-align: 1px; cursor: pointer;
+  font: 700 11px/1 var(--body); color: var(--eridian-2); background: rgba(181, 124, 255, 0.12); border: 1px solid rgba(181, 124, 255, 0.5); border-radius: 50%;
+  transition: background 0.15s, color 0.15s, transform 0.15s var(--ease-snap);
+}
+.q-btn:hover { background: var(--eridian); color: #1c0a3a; transform: scale(1.12); }
+.q-btn:focus-visible { outline: 2px solid var(--eridian); outline-offset: 2px; }
+.step-title .q-btn { transform: skewX(6deg); }
+.row.gap-xs { display: inline-flex; align-items: center; gap: var(--s2); }
+
+.tour-spot {
+  position: fixed; z-index: 60; pointer-events: none; border: 2px solid var(--eridian); border-radius: 4px;
+  box-shadow: 0 0 0 9999px rgba(8, 6, 5, 0.66), 0 0 24px rgba(181, 124, 255, 0.7), inset 0 0 14px rgba(181, 124, 255, 0.35);
+  transition: left 0.28s var(--ease-out), top 0.28s var(--ease-out), width 0.28s var(--ease-out), height 0.28s var(--ease-out);
+}
+.tour-card { position: fixed; z-index: 61; width: min(360px, calc(100vw - 24px)); padding: var(--s4); margin: 0; box-shadow: 0 18px 40px rgba(0, 0, 0, 0.7), inset 0 0 0 1px #8a5ad6; }
+.tour-card.in { animation: tourIn 0.24s var(--ease-snap) both; }
+@keyframes tourIn { from { opacity: 0; transform: translateY(8px) scale(0.97); } }
+.tour-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s2); margin-bottom: var(--s2); }
+.tour-title { margin: 0 0 var(--s1); font: 400 20px/1.15 var(--stencil); color: var(--ink); }
+.tour-card p { margin: 0 0 var(--s3); font-size: var(--fs-body); color: var(--ink-2); line-height: 1.5; }
+.tour-dots { display: flex; gap: 4px; margin-bottom: var(--s3); }
+.tour-dots i { width: 14px; height: 4px; background: #3a2f26; }
+.tour-dots i.done { background: #6d4aa0; }
+.tour-dots i.on { width: 24px; background: var(--eridian); box-shadow: 0 0 6px var(--eridian); }
+.tour-foot { display: flex; align-items: center; justify-content: space-between; gap: var(--s2); }
+.tour-nav { display: inline-flex; gap: var(--s2); }
+html.reduce-motion .wz-start, html.reduce-motion .tour-card.in { animation: none; }
+html.reduce-motion .tour-spot { transition: none; }

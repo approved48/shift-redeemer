@@ -123,6 +123,17 @@ jobs:
           V="${V#v}"
           echo "TAG=v$V" >> "$GITHUB_ENV"
           sed "s/{{VERSION}}/$V/g" packaging/RELEASE_NOTES.md > release-notes.md
+      - name: Add fixed-name copies for one-click download links
+        shell: bash
+        run: |
+          # releases/latest/download/<name> only works with a fixed file name, so the README can
+          # link straight to the newest version. The in-app updater ignores these copies.
+          V="${TAG#v}"
+          cp "release/SHiFT-Redeemer-Setup-$V-Windows.exe" release/SHiFT-Redeemer-Setup-Windows.exe
+          cp "release/SHiFT-Redeemer-$V-Windows-Portable.exe" release/SHiFT-Redeemer-Windows-Portable.exe
+          cp "release/SHiFT-Redeemer-$V-macOS.dmg" release/SHiFT-Redeemer-macOS.dmg
+          cp "release/SHiFT-Redeemer-$V-Linux-x64.tar.gz" release/SHiFT-Redeemer-Linux-x64.tar.gz
+          ls -la release
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.TAG }}
