@@ -6,9 +6,33 @@ const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+import { renderGuide } from './glossary.js';
+
 // ------------------------------------------------------------------ content
 
-// go: { tab, el, label } adds a "Show me" button that jumps to the setting.
+// go: { tab, el, label } adds a "Show me" button that jumps to the setting;
+// go: { guide: gameId } opens Help → Rewards guide (for that game, or all games with '').
+
+// ---- Keys & cosmetics (explanations based on the Borderlands Wiki, written for this app)
+const REWARDS_FAQ = [
+  { cat: 'Keys & cosmetics', q: 'What does a Golden Key do?', a: [
+    'It opens a <b>Golden Chest</b> once for a round of better-than-usual loot, scaled to the level of the character who opens it. Keys are used up and can\'t be traded.',
+    '<ul><li><b>Borderlands 4</b>: Golden Chests in The Launchpad, Carcadia, Belton\'s Bore and The Lockaway.</li><li><b>Borderlands 3</b>: aboard Sanctuary III. Can roll legendary gear.</li><li><b>The Pre-Sequel</b>: in Concordia. Purple and E-tech gear.</li><li><b>Borderlands 2</b>: in Sanctuary. Purple gear, E-tech and relics, never legendary. Shared by all your characters.</li><li><b>Borderlands GOTY Enhanced</b>: in Fyrestone and New Haven. Can roll legendary gear.</li></ul>',
+    'More detail on the <a href="https://borderlands.fandom.com/wiki/Golden_Key" target="_blank" rel="noopener">Borderlands Wiki</a>.'], go: { guide: '', label: 'Open the rewards guide' } },
+  { cat: 'Keys & cosmetics', q: 'What does a Diamond Key do?', a: [
+    'Diamond Keys are <b>Borderlands 3 only</b>. Each one unlocks the <b>Diamond Armory</b> aboard Sanctuary III once: a locked room of high-end gear, scaled to your level, including variants you can\'t get anywhere else.',
+    'Codes with Diamond Keys usually include Golden Keys too. In the rewards report, the Diamond Keys are only counted for Borderlands 3.'], go: { guide: 'bl3', label: 'Open the rewards guide' } },
+  { cat: 'Keys & cosmetics', q: 'What does a Skeleton Key do?', a: [
+    'It\'s <b>Tiny Tina\'s Wonderlands</b>\' version of the Golden Key. Each one opens the special loot chest in Brighthoof once, for high-rarity loot scaled to your level. Only Wonderlands uses Skeleton Keys.'], go: { guide: 'ttw', label: 'Open the rewards guide' } },
+  { cat: 'Keys & cosmetics', q: 'Where do my keys and rewards show up in the game?', a: [
+    'In the game\'s in-game mail, the next time you play online on that platform, signed in to the same SHiFT account. Claim them from the mail first.',
+    'Each platform gets its own copy and rewards don\'t move between platforms. If you play on two, SHiFT Redeemer redeems the code on both.'] },
+  { cat: 'Keys & cosmetics', q: 'What are cosmetics, and have I got any?', a: [
+    'Cosmetics change how things look, not how they play: character skins, heads, weapon skins and trinkets, ECHO themes, ECHO-4 drone skins, emotes, room decorations and vehicle skins. Many codes give one instead of keys.',
+    'The <b>Rewards</b> page lists every cosmetic the app has unlocked under <b>Cosmetics collected</b>, by type and game. Hover a type for a quick explanation.'], go: { tab: 'rewards', el: 'rpCosmeticsCard', label: 'Show my cosmetics' } },
+  { cat: 'Keys & cosmetics', q: 'Do keys and cosmetics expire once I have them?', a: ['No. Codes expire, but once SHiFT has given you the reward it stays in your mail until you claim it. Golden-type keys are only used up when you open a chest.'] },
+];
+
 const FAQ = [
   // ---- Getting started
   { cat: 'Getting started', q: 'What does SHiFT Redeemer do?', a: [
@@ -64,6 +88,12 @@ const FAQ = [
     'Choose <b>Automatically</b>, <b>Ask me</b> (one click on the dashboard) or <b>Off</b> in Settings.'], go: { tab: 'settings', el: 'setAssist', label: 'Show me' } },
   { cat: 'Game launch assist', q: 'Can the game run hidden?', a: ['No. SHiFT only counts a game that actually starts, and Steam doesn\'t allow invisible launches. You\'ll see the game open for about a minute, then close.'] },
   { cat: 'Game launch assist', q: 'Will it close a game I\'m playing?', a: ['No. It only ever closes a game it started itself. If you already have a Borderlands game open, it uses that and leaves it alone.'] },
+  { cat: 'Game launch assist', q: 'I play Borderlands while it runs. What should I choose?', a: [
+    'Choose <b>Ask me</b> (setup does this when you say you\'ll be playing). The app then never starts or closes a game by itself.',
+    'If a Borderlands game is already open when SHiFT asks, SHiFT sees it and redeeming simply carries on after a short wait. Otherwise the dashboard offers a one-click <b>Launch &amp; resume</b>.'], go: { tab: 'settings', el: 'setAssist', label: 'Show me' } },
+  { cat: 'Game launch assist', q: 'Why does the dashboard suggest turning automatic launching back on?', a: [
+    'With game launch assist set to <b>Ask me</b> or <b>Off</b>, the dashboard offers about once a week (or after redeeming was paused) to switch back to <b>Automatically</b>, for times you\'re not playing.',
+    'Select <b>Not now</b> to be asked again later, or <b>Don\'t ask again</b>. You can also turn the reminder off in Settings.'], go: { tab: 'settings', el: 'assistRemindRow', label: 'Show me' } },
   { cat: 'Game launch assist', q: 'Which game does it launch?', a: ['By default the quickest to start of the games you have installed (older games load fastest). You can pick a specific game in Settings.'], go: { tab: 'settings', el: 'setAssist', label: 'Show me' } },
   { cat: 'Game launch assist', q: 'Does it work with Epic Games?', a: ['Yes, with your game\'s Epic launch link. In the Epic launcher, create a desktop shortcut for the game, open the shortcut\'s properties, copy the URL and paste it into <b>Settings → Game launch assist</b>.'], go: { tab: 'settings', el: 'setAssist', label: 'Show me' } },
   { cat: 'Game launch assist', q: 'What about PlayStation, Xbox and Switch?', a: ['Console games can\'t be started from a computer. When SHiFT asks, start any Borderlands game on your console, wait at the main menu for a minute, then press <b>Resume</b> on the dashboard.'] },
@@ -71,6 +101,7 @@ const FAQ = [
   { cat: 'Redeeming', q: 'How is the rewards report counted?', a: [
     'The <b>Rewards</b> page adds up what this app has unlocked for you, game by game. Key counts come from each code\'s published reward description, such as "5 Golden Keys".',
     'When one code gives different rewards in different games (for example Diamond Keys in Borderlands 3 only), each game is only credited with its own share. Rewards you already had are listed separately and not counted again.',
+    'Wonderlands\' Skeleton Keys are its version of Golden Keys, so a code shared between games is counted as Skeleton Keys for Wonderlands and Golden Keys for the others.',
     'Codes you redeemed on the SHiFT website yourself aren\'t included.'], go: { tab: 'rewards', el: 'rpTotals', label: 'Open the report' } },
 
   // ---- Games & platforms
@@ -81,7 +112,11 @@ const FAQ = [
   { cat: 'Games & platforms', q: 'What does "Trust source hints" do?', a: ['Some sites say a code is only for a certain game or platform. With this on, codes that are clearly not for your choices are skipped, which saves requests and avoids SHiFT\'s limits.'], go: { tab: 'targets', el: 'stepFiltering', label: 'Show me' } },
 
   // ---- Codes & sources
-  { cat: 'Codes & sources', q: 'Where do codes come from?', a: ['A community feed of known codes, the MentalMars code lists, official announcements on Steam, Reddit, Steam Community guides and OzBargain. You can turn any of them off, or add your own.'], go: { tab: 'sources', el: 'stepBuiltin', label: 'Show me' } },
+  { cat: 'Codes & sources', q: 'Where do codes come from?', a: ['A community feed of known codes, the MentalMars code lists, official announcements on Steam, Reddit, Steam Community guides, OzBargain, and the code guides on Eurogamer, PCGamesN and Game8. You can turn any of them off, add your own, or ask an AI to search for you.'], go: { tab: 'sources', el: 'stepBuiltin', label: 'Show me' } },
+  { cat: 'Codes & sources', q: 'How do I ask an AI to find codes?', a: [
+    '<ol><li>On <b>Sources</b>, under <b>Ask an AI to find codes</b>, select <b>Download instructions</b> (or <b>Copy instructions</b>).</li><li>Give them to an AI assistant that can search the web, such as ChatGPT, Claude, Gemini or Grok. Attach the file or paste the text.</li><li>Copy its whole reply, then on <b>Codes</b> select <b>Import list</b> and paste it.</li></ol>',
+    'The instructions are made for your games and platforms and tell the AI exactly which file format to answer with. It\'s a handy backup if code websites change or go quiet.'], go: { tab: 'sources', el: 'stepAi', label: 'Show me' } },
+  { cat: 'Codes & sources', q: 'Can an AI give me fake or wrong codes?', a: ['It can, which is why the instructions tell it never to guess and to give the web page for every code. Either way, SHiFT checks each code before anything is redeemed, so a wrong or expired one is just marked invalid. Nothing bad happens to your account.'] },
   { cat: 'Codes & sources', q: 'Can I add my own website?', a: [
     'Yes. On <b>Sources</b>, add the page under <b>Your sources</b>.',
     'If the page links to other pages with codes (like a list of forum posts), fill in <b>Follow links matching</b> with part of those links. For example, <code>/node/</code> follows links that contain "/node/".'], go: { tab: 'sources', el: 'stepCustom', label: 'Show me' } },
@@ -93,6 +128,7 @@ const FAQ = [
     'Only if auto-pilot is on. Then it keeps working quietly in the background. Turn on <b>Start with my computer</b> to have it start when you sign in.',
     'With auto-pilot off, closing the window quits the app.'], go: { tab: 'settings', el: 'setAutopilot', label: 'Show me' } },
   { cat: 'Auto-pilot & the app', q: 'Can I turn off the animations?', a: ['Yes. In <b>Settings → Data &amp; display</b>, turn on <b>Reduce animations</b>. They\'re also turned off automatically if your computer is set to reduce motion.'], go: { tab: 'settings', el: 'setData', label: 'Show me' } },
+  { cat: 'Auto-pilot & the app', q: 'Where did the menu tabs go?', a: ['When the window is too narrow to fit every tab, they fold into the <b>☰ menu</b> button at the top left, next to the logo. It shows the page you\'re on; select it to see every page.'] },
   { cat: 'Auto-pilot & the app', q: 'How do I quit completely?', a: ['Select the <b>⏻</b> button at the top right.'] },
   { cat: 'Auto-pilot & the app', q: 'How do I update the app?', a: ['When a new version is out, a banner appears on the dashboard. Download it and install it over this one. Your codes and settings are kept.'] },
   { cat: 'Auto-pilot & the app', q: 'Where is my data stored?', a: ['On this computer only, in the app\'s data folder. <b>Settings → Your data</b> shows where it is, and can open it or export everything as a file.'], go: { tab: 'settings', el: 'setData', label: 'Show me' } },
@@ -120,7 +156,7 @@ const FAQ = [
   { cat: 'Troubleshooting', q: 'macOS says the app can\'t be opened', a: ['Right-click the app and choose <b>Open</b>, then <b>Open</b> again. If that doesn\'t work, go to <b>System Settings → Privacy &amp; Security</b> and select <b>Open Anyway</b>.'] },
   { cat: 'Troubleshooting', q: 'I closed the window but the app is still running', a: ['That\'s auto-pilot keeping things going in the background. Open the app again from your Start menu, desktop or Applications folder, then use <b>⏻</b> to quit completely.'] },
   { cat: 'Troubleshooting', q: 'The app window doesn\'t open', a: ['The app opens in its own Edge or Chrome window. If it\'s already running, opening it again brings that window back. If nothing appears, restart your computer and try again.'] },
-].map((f, i) => ({ ...f, id: `q${i}` }));
+].concat(REWARDS_FAQ).map((f, i) => ({ ...f, id: `q${i}` }));
 
 const SETTINGS = [
   { ic: '🔑', name: 'Sign in', desc: 'Account · step 1', tab: 'account', el: 'stepConnect', k: 'sign in login email password connect account' },
@@ -130,6 +166,10 @@ const SETTINGS = [
   { ic: '🖥️', name: 'Platforms', desc: 'Games & Platforms · step 2', tab: 'targets', el: 'stepPlatforms', k: 'platforms steam epic playstation xbox switch' },
   { ic: '🧹', name: 'Smart filtering', desc: 'Games & Platforms · step 3', tab: 'targets', el: 'stepFiltering', k: 'hints expired skip filter trust' },
   { ic: '📊', name: 'Rewards report', desc: 'Rewards', tab: 'rewards', el: 'rpTotals', k: 'rewards report keys golden diamond skeleton items summary totals export csv history' },
+  { ic: '🎭', name: 'Cosmetics collected', desc: 'Rewards', tab: 'rewards', el: 'rpCosmeticsCard', k: 'cosmetics cosmetic skins skin heads head trinkets emotes themes decorations items collected unlocked' },
+  { ic: '🗝️', name: 'Rewards guide', desc: 'Help · keys & cosmetics explained', guide: '', k: 'guide golden diamond skeleton key keys chest armory cosmetics explained wiki what does' },
+  { ic: '🤖', name: 'Ask an AI to find codes', desc: 'Sources · step 3', tab: 'sources', el: 'stepAi', k: 'ai llm chatgpt claude gemini grok instructions prompt assistant find search download' },
+  { ic: '🔔', name: 'Automatic launching reminder', desc: 'Settings · step 2', tab: 'settings', el: 'assistRemindRow', k: 'remind reminder suggest ask again automatic launching playing nudge' },
   { ic: '➕', name: 'Paste codes', desc: 'Codes', tab: 'codes', el: 'btnAddCodes', action: 'paste', k: 'add paste code manual found' },
   { ic: '📥', name: 'Import a code list', desc: 'Codes · import', tab: 'codes', el: 'btnImportOpen', action: 'import', k: 'import list file friend community csv txt json drop share load' },
   { ic: '📤', name: 'Export a code list', desc: 'Codes · export', tab: 'codes', el: 'btnExportOpen', action: 'export', k: 'export list file share friend backup download copy csv txt json save' },
@@ -142,7 +182,7 @@ const SETTINGS = [
   { ic: '🟣', name: 'Epic launch link', desc: 'Settings · step 2', tab: 'settings', el: 'setAssist', k: 'epic launcher link shortcut' },
   { ic: '🐢', name: 'Pace', desc: 'Settings · step 3', tab: 'settings', el: 'setPace', k: 'delay pace rate limit slow requests' },
   { ic: '💾', name: 'Your data', desc: 'Settings · step 4', tab: 'settings', el: 'setData', k: 'data folder export backup files' },
-  { ic: '🧭', name: 'Run setup again', desc: 'Settings', action: 'setup', k: 'setup wizard start again first time' },
+  { ic: '🧭', name: 'Run setup again', desc: 'Settings', action: 'setup', k: 'setup wizard start again first time playing play while' },
 ];
 
 const SYNONYMS = {
@@ -164,6 +204,11 @@ const SYNONYMS = {
   error: 'troubleshooting', broken: 'troubleshooting', problem: 'troubleshooting', fails: 'troubleshooting', failed: 'troubleshooting',
   windows: 'install', mac: 'install', macos: 'install', smartscreen: 'install', install: 'install',
   reset: 'start over', restart: 'start over', delete: 'start over',
+  cosmetics: 'cosmetic', skin: 'cosmetic', skins: 'cosmetic', head: 'cosmetic', heads: 'cosmetic', trinket: 'cosmetic', emote: 'cosmetic', theme: 'cosmetic', items: 'cosmetic',
+  diamond: 'diamond', skeleton: 'skeleton', chest: 'key', armory: 'diamond',
+  ai: 'ai', llm: 'ai', chatgpt: 'ai', claude: 'ai', gemini: 'ai', grok: 'ai', gpt: 'ai', prompt: 'ai', assistant: 'ai',
+  menu: 'menu', hamburger: 'menu', tabs: 'menu', missing: 'menu',
+  playing: 'play', gaming: 'play',
 };
 const STOP = new Set(['the', 'a', 'an', 'to', 'of', 'and', 'or', 'in', 'on', 'is', 'it', 'my', 'i', 'do', 'how', 'can', 'what', 'why', 'for', 'with', 'does', 'be', 'are', 'me', 'this', 'that', 'when']);
 
@@ -177,6 +222,7 @@ const TOPICS = [
   ['Where is my data', 'where is my data'], ['Start over', 'start over'], ['Password safety', 'password safe'], ['Privacy', 'send my data'],
   ['Official?', 'official gearbox'], ['Nothing redeemed', 'nothing gets redeemed'], ['Too many requests', 'too many requests'], ['Retry', 'retry'],
   ['Windows warning', 'windows protected'], ['macOS warning', 'macos opened'], ['Run results', 'results of a run'], ['How long', 'how long run'],
+  ['Golden Keys', 'what does a golden key do'], ['Diamond Keys', 'what does a diamond key do'], ['Skeleton Keys', 'what does a skeleton key do'], ['Cosmetics', 'what are cosmetics'], ['Ask an AI', 'ask an ai to find codes'], ['Playing while it runs', 'play borderlands while it runs'], ['Where are the tabs?', 'where did the menu tabs go'],
   ['Import a list', 'import list friend'], ['Share codes', 'share back up codes'], ['File types', 'which files import'], ['Export privacy', 'export include account'], ['Animations', 'turn off animations'], ['Rewards report', 'rewards report counted'], ['Export rewards', 'rewards report export csv'], ['Setup again', 'run setup again'], ['Supported games', 'which games supported'], ['Which game launches', 'which game launch'], ['Still paused', 'still paused'],
 ];
 
@@ -188,6 +234,8 @@ const TILES = [
   { ic: '🎮', t: 'Games & platforms', d: 'Choose where rewards go, and link your platforms.', s: 'choose games', q: 'How do I choose which games get rewards?' },
   { ic: '⏱️', t: 'Auto-pilot', d: 'Keep redeeming new codes without lifting a finger.', s: 'auto-pilot', q: 'How does auto-pilot work?' },
   { ic: '📊', t: 'Rewards report', d: 'Keys and items unlocked, game by game.', s: 'rewards report counted', q: 'How is the rewards report counted?' },
+  { ic: '🗝️', t: 'Keys & cosmetics explained', d: 'What Golden, Diamond and Skeleton Keys do in each game.', tab: 'guide' },
+  { ic: '🤖', t: 'Ask an AI for codes', d: 'Instructions for ChatGPT, Claude, Gemini or Grok.', s: 'ask an ai to find codes', q: 'How do I ask an AI to find codes?' },
   { ic: '🔒', t: 'Password safety', d: 'Where your sign-in is kept, and how to remove it.', s: 'password safe', q: 'Is my password safe?' },
   { ic: '➕', t: 'Add your own codes', d: 'Paste codes you found anywhere.', s: 'add a code', q: 'Can I add a code I found myself?' },
   { ic: '🤝', t: 'Share code lists', d: 'Import a friend\'s list, or export yours.', s: 'import list friend', q: 'How do I import a list of codes from a friend?' },
@@ -225,7 +273,7 @@ function highlight(html, ts) {
 
 // ------------------------------------------------------------------ module
 
-export function initHelp({ goTo, runAction, getDiagnostics, repoUrl }) {
+export function initHelp({ goTo, runAction, getDiagnostics, repoUrl, getRewardCounts }) {
   const overlay = $('#helpOverlay');
   const search = $('#helpSearch');
   const results = $('#helpResults');
@@ -301,6 +349,35 @@ export function initHelp({ goTo, runAction, getDiagnostics, repoUrl }) {
     $$('[role="tab"]', overlay).forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === tab)));
     panes.forEach((p) => (p.hidden = p.dataset.pane !== tab));
     $('#helpScroll').scrollTop = 0;
+    if (tab === 'guide') drawGuide(true);
+  }
+
+  // ---- Rewards guide (interactive, with your own counts from the rewards report)
+  const guide = { game: '', counts: null };
+  function drawGuide(refresh = false) {
+    const pane = $('[data-pane="guide"]', overlay);
+    renderGuide(pane, {
+      game: guide.game,
+      counts: guide.counts,
+      onGame: (g) => {
+        guide.game = g;
+        drawGuide();
+      },
+    });
+    if (refresh && getRewardCounts)
+      getRewardCounts()
+        .then((c) => {
+          guide.counts = c;
+          if (!pane.hidden) drawGuide();
+        })
+        .catch(() => {});
+  }
+  function openGuide(game = '') {
+    if (overlay.hidden) open();
+    guide.game = game;
+    search.value = '';
+    runSearch();
+    setTab('guide');
   }
 
   function runSearch() {
@@ -374,6 +451,7 @@ export function initHelp({ goTo, runAction, getDiagnostics, repoUrl }) {
   }
 
   function go(target) {
+    if (target.guide !== undefined) return openGuide(target.guide);
     close();
     if (target.action) runAction(target.action);
     if (target.tab) goTo(target.tab, target.el);
@@ -594,6 +672,7 @@ export function initHelp({ goTo, runAction, getDiagnostics, repoUrl }) {
       runSearch();
       return setTab(clear.dataset.clearTo);
     }
+    if (t.closest('[data-gd-close]')) return close();
     const action = t.closest('[data-help-action]');
     if (action) {
       const a = action.dataset.helpAction;
@@ -624,6 +703,8 @@ export function initHelp({ goTo, runAction, getDiagnostics, repoUrl }) {
   document.addEventListener('click', (e) => {
     const b = e.target.closest('[data-help]');
     if (b) open(b.dataset.help);
+    const g = e.target.closest('[data-help-guide]');
+    if (g) openGuide(g.dataset.helpGuide || '');
   });
   document.addEventListener('keydown', (e) => {
     const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName || '');
@@ -654,5 +735,5 @@ export function initHelp({ goTo, runAction, getDiagnostics, repoUrl }) {
   }
 
   renderPins();
-  return { open, close, isOpen: () => !overlay.hidden };
+  return { open, close, openGuide, isOpen: () => !overlay.hidden };
 }

@@ -30,13 +30,18 @@ The first time you open it, a short **setup wizard** walks you through everythin
 2. **Link your gaming platforms** on the SHiFT website, so rewards have somewhere to go.
 3. **Pick your games and platforms**, or leave everything selected.
 4. **Turn on auto-pilot** if you'd like it to keep going on its own.
-5. Press **Find & redeem**.
+5. Say whether you'll **play Borderlands while it runs**. If you will, the app never starts or closes a game by itself.
+6. Press **Find & redeem**.
 
 You can run the wizard again any time from **Settings**.
 
 **Share code lists.** On **Codes**, **Import list** takes a friend's or community list: drop in a text, CSV or SHiFT Redeemer list file, or paste it. You see how many codes are new before anything is added, and can redeem them straight away. **Export list** saves your working codes, your queue or everything as text, CSV or a list file to share or back up. Exports never include your account or which rewards you've had.
 
-**Your rewards report.** The **Rewards** tab adds up everything the app has unlocked for you: Golden, Diamond and Skeleton Keys and cosmetic items, per game and per platform. It includes a month-by-month chart, the full history, filters for time period and platform, and **Export CSV**. When one code gives different rewards in different games, each game is credited with its own share.
+**Your rewards report.** The **Rewards** tab adds up everything the app has unlocked for you: Golden, Diamond and Skeleton Keys and cosmetic items, per game and per platform. It includes a month-by-month chart, every cosmetic you've collected grouped by type (skins, heads, weapon skins, trinkets and more), the full history, filters for time period and platform, and **Export CSV**. When one code gives different rewards in different games, each game is credited with its own share.
+
+**What do the rewards actually do?** Help → **Rewards guide** explains what Golden, Diamond and Skeleton Keys open in each game and what each kind of cosmetic is, with links to the [Borderlands Wiki](https://borderlands.fandom.com) for more. Hover over any key or cosmetic in the app for a quick explanation.
+
+**Ask an AI to find codes.** If code websites change or go quiet, **Sources → Ask an AI to find codes** gives you an instruction sheet for ChatGPT, Claude, Gemini, Grok or any assistant that can search the web. It's made for your games and platforms and asks for a file SHiFT Redeemer can import. Paste the AI's whole reply into **Codes → Import list**. SHiFT checks every code before redeeming, so a wrong one does no harm.
 
 **Need help?** Press **?** (or the **Help** button) any time. You can search questions and settings, browse quick answers and topics, or jump straight to a setting with **show me**. Pin answers you want to keep handy, and use **Support → Copy diagnostics** when reporting a problem.
 
@@ -48,7 +53,7 @@ That's it. The app searches the web for codes, checks each one with SHiFT, and r
 
 ### Good to know
 
-- **"Launch a SHiFT-enabled game first."** Gearbox sometimes pauses redemptions until you start a game. **Game launch assist** handles this. The app finds a Borderlands game installed through Steam (or uses your Epic launch link), starts it, waits about a minute at the main menu so SHiFT registers it, closes it again and carries on redeeming. It only closes a game it started itself. Set it to *Automatically*, *Ask me* (one click: "Launch & resume") or *Off* in **Settings**. Games can't be started invisibly, so you'll see it open briefly. Console games can't be launched remotely; for those the dashboard says exactly what it's waiting for.
+- **"Launch a SHiFT-enabled game first."** Gearbox sometimes pauses redemptions until you start a game. **Game launch assist** handles this. If you play Borderlands while the app runs, choose *Ask me* (setup does this for you): the app then never starts or closes a game itself, and if your game is already open it just waits for SHiFT to notice and carries on. The app finds a Borderlands game installed through Steam (or uses your Epic launch link), starts it, waits about a minute at the main menu so SHiFT registers it, closes it again and carries on redeeming. It only closes a game it started itself. Set it to *Automatically*, *Ask me* (one click: "Launch & resume") or *Off* in **Settings**. Games can't be started invisibly, so you'll see it open briefly. Console games can't be launched remotely; for those the dashboard says exactly what it's waiting for.
 - **Missing a platform?** SHiFT only redeems for platforms linked to your account. Link them on the SHiFT website under *Gaming Platforms*.
 - **Your data stays on your computer.** The app only talks to SHiFT and the code websites it searches.
 - **"Keep me signed in"** saves your SHiFT password in your system's secure password storage: **Windows Credential Manager** or the **macOS Keychain** (on Linux, GNOME Keyring or KWallet). If that isn't available, the app asks first and clearly warns you before saving it unencrypted, and you can always choose not to save it. **Forget saved password** on the Account tab removes it.
@@ -65,6 +70,8 @@ That's it. The app searches the web for codes, checks each one with SHiFT, and r
 | Reddit | Recent "SHiFT code" posts in the Borderlands subreddits |
 | Steam Community guides | Popular "SHiFT codes" guides for each game |
 | OzBargain | Deals and posts that mention Borderlands SHiFT codes |
+| Eurogamer, PCGamesN, Game8 | Games-press code guides with rewards and expiry dates (Borderlands 4, plus Borderlands 3 on PCGamesN) |
+| An AI assistant | Download instructions for ChatGPT, Claude, Gemini or Grok, then import its answer |
 | Your own | Add any web page, or paste codes you found anywhere (tweets, Discord, …) |
 
 ---
@@ -101,8 +108,9 @@ The workflow builds every platform, tests the apps and the Windows installer (si
 | `lib/sources.js` | Code discovery |
 | `lib/runtime.js` | Packaged-app behaviour (data folder, app window, start with computer, update check) |
 | `lib/codelists.js` | Import and export of shareable code lists |
-| `lib/rewards.js` | Reward parsing and the rewards report |
-| `public/` | UI (no build step): `app.js`, `help.js`, `report.js`, `lists.js` |
+| `lib/rewards.js` | Reward parsing (keys per game, cosmetic types) and the rewards report |
+| `lib/llm.js` | Instructions for AI assistants to find codes |
+| `public/` | UI (no build step): `app.js`, `help.js`, `report.js`, `lists.js`, `glossary.js` (rewards guide and tooltips) |
 | `scripts/build.mjs` | Packages the single-file app for the current OS |
 | `packaging/windows/installer.iss` | Windows installer (Inno Setup, per-user, no admin prompt) |
 

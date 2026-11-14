@@ -25,6 +25,9 @@
         </svg>
         <span class="wordmark">SHiFT<span>Redeemer</span></span>
       </a>
+      <button class="nav-toggle" id="navToggle" aria-expanded="false" aria-controls="tabs" title="Menu">
+        <span class="burger" aria-hidden="true"><i></i><i></i><i></i></span><span class="nav-current" id="navCurrent">Dashboard</span>
+      </button>
       <nav class="tabs" id="tabs" aria-label="Sections">
         <span class="tab-ink" id="tabInk" aria-hidden="true"></span>
         <a href="#dashboard" data-tab="dashboard">Dashboard</a>
@@ -112,7 +115,8 @@
           <b>Drop a file here, or click to choose one</b>
           <small>.txt · .csv · .json <span id="importFileName" class="dz-file"></span></small>
         </label>
-        <textarea id="importText" rows="3" placeholder="…or paste the list here"></textarea>
+        <textarea id="importText" rows="3" placeholder="…or paste the list here (an AI assistant's reply works too)"></textarea>
+        <p class="hint">No list? <a href="#sources" data-goto="stepAi">Ask an AI to find codes</a> and import its answer here.</p>
         <div class="callout is-eridian" id="importPreview" hidden></div>
         <label class="switch-row"><input type="checkbox" class="switch" id="importRedeem" checked><span><b>Redeem new codes straight away</b><small>Checks them with SHiFT and redeems them for your games and platforms.</small></span></label>
         <div class="card-foot"><span class="foot-note">Nothing is added until you press Import.</span><button class="btn btn-ghost" id="btnImportCancel">Cancel</button><button class="btn btn-eridian" id="btnImportGo" disabled>Import</button></div>
@@ -175,6 +179,15 @@
         <div class="chart-table" id="rpChartTable" hidden></div>
       </section>
       <div class="rp-titles" id="rpTitles"></div>
+      <section class="panel" id="rpCosmeticsCard">
+        <div class="card-head">
+          <div><h2 class="card-title">Cosmetics collected</h2><p class="card-sub" id="rpCosSub"></p></div>
+          <button class="btn btn-sm btn-ghost" data-help-guide="">What are these?</button>
+        </div>
+        <div class="seg seg-wrap" id="rpCosFilter" aria-label="Cosmetic type"></div>
+        <div class="cos-grid" id="rpCosmetics"></div>
+        <div class="center"><button class="btn btn-sm" id="rpCosMore" hidden>Show more</button></div>
+      </section>
       <section class="panel" id="rpHistoryCard">
         <div class="card-head">
           <h2 class="card-title">Reward history</h2>
@@ -251,6 +264,18 @@
         </form>
         <div class="source-list" id="customSources"></div>
       </section>
+      <section class="panel step" id="stepAi">
+        <div class="step-head"><h2 class="step-title"><span class="step-n">3</span>Ask an AI to find codes <span class="tag-opt">Optional</span></h2><button class="btn btn-sm btn-ghost" data-help="ask an ai to find codes">?</button></div>
+        <p class="step-hint">A backup for when code websites change or go quiet. Download a ready-made instruction sheet, give it to an AI assistant that can search the web, then import the file it gives back.</p>
+        <ol class="ai-steps">
+          <li><b>Get the instructions.</b> They're made for your games and platforms, and ask for a file SHiFT Redeemer can import.</li>
+          <li><b>Give them to an AI with web search</b>, such as ChatGPT, Claude, Gemini or Grok. Paste the text, or attach the file.</li>
+          <li><b>Import its answer</b> on <a href="#codes" data-act="import">Codes → Import list</a>. Paste the whole reply; the codes are picked out for you.</li>
+        </ol>
+        <label class="switch-row"><input type="checkbox" class="switch" id="aiSkipKnown"><span><b>Include codes I already have</b><small>So the AI can skip them. Makes the instructions longer.</small></span></label>
+        <p class="hint">SHiFT checks every code before anything is redeemed, so a wrong or expired code from an AI does no harm.</p>
+        <div class="card-foot"><span class="foot-note" id="aiNote">Markdown file · works with any AI that can browse</span><button class="btn" id="btnAiCopy">Copy instructions</button><button class="btn btn-eridian" id="btnAiDownload">Download instructions</button></div>
+      </section>
     </section>
 
     <!-- ============================================================ ACCOUNT -->
@@ -310,6 +335,7 @@
             </label>
           </div>
           <label class="switch-row"><input type="checkbox" class="switch" data-setting="gameAssist.closeAfter"><span><b>Close the game afterwards</b><small>Only a game this app started. A game you opened yourself is never closed.</small></span></label>
+          <label class="switch-row" id="assistRemindRow"><input type="checkbox" class="switch" data-setting="gameAssist.dontAsk"><span><b>Don't suggest turning automatic launching back on</b><small>When this is set to Ask me or Off, the dashboard occasionally offers to switch back to Automatically. Turn this on to stop that.</small></span></label>
           <label class="field"><span class="label">Epic Games launch link <small>(optional)</small></span><input data-setting="gameAssist.epicLink" placeholder="com.epicgames.launcher://apps/…?action=launch&amp;silent=true" spellcheck="false"></label>
           <p class="hint">In the Epic launcher, right-click a Borderlands game → <b>Manage</b> → <b>Desktop shortcut</b>. Then right-click the shortcut → <b>Properties</b> and copy the URL.</p>
           <div class="assist-detect" id="assistDetect"></div>
@@ -343,7 +369,7 @@
         <span class="kicker" id="wzKicker">Setup</span>
         <h1 class="hero-title" id="wzTitle">First-time setup</h1>
         <ol class="wz-steps" id="wzSteps">
-          <li>Welcome</li><li>Account</li><li>Link platforms</li><li>Games</li><li>Auto-pilot</li><li>Done</li>
+          <li>Welcome</li><li>Account</li><li>Link platforms</li><li>Games</li><li>Auto-pilot</li><li>How you play</li><li>Done</li>
         </ol>
       </div>
       <div class="pop-card panel">
@@ -400,11 +426,20 @@
               </select>
             </label>
             <label class="switch-row js-autostart-row"><input type="checkbox" class="switch js-autostart"><span><b>Start with my computer</b><small>Runs quietly in the background after you sign in to your computer.</small></span></label>
-            <label class="switch-row"><input type="checkbox" class="switch js-assist-auto"><span><b>Launch a game when SHiFT asks</b><small id="wzAssistText">SHiFT sometimes pauses codes until a SHiFT-enabled game is launched. The app can open one briefly, then close it and carry on.</small></span></label>
             <div class="callout is-warn" id="wzAutoHint" hidden></div>
           </section>
           <!-- 6 -->
           <section class="wz-page" data-step="5" hidden>
+            <h2 class="step-title">Will you play Borderlands while this runs?</h2>
+            <p class="lead">Now and then SHiFT stops accepting codes until a SHiFT-enabled game has been started. SHiFT Redeemer can start one for about a minute and close it again, but that would get in your way if you're playing.</p>
+            <div class="choice-grid" role="radiogroup" aria-label="Will you play while SHiFT Redeemer runs?">
+              <button type="button" class="choice" role="radio" data-act="wz-play" data-v="yes"><span class="tile-ic" aria-hidden="true">🎮</span><span><b>Yes, I'll often be playing</b><small>It never starts or closes a game by itself. If you're already in a Borderlands game, SHiFT sees it and redeeming carries on. Otherwise you get a one-click <i>Launch &amp; resume</i>.</small></span></button>
+              <button type="button" class="choice" role="radio" data-act="wz-play" data-v="no"><span class="tile-ic" aria-hidden="true">💤</span><span><b>No, it mostly runs while I'm away</b><small>When SHiFT asks, it starts a game for about a minute, then closes it and carries on. It only ever closes a game it started.</small></span></button>
+            </div>
+            <p class="hint" id="wzAssistText"></p>
+          </section>
+          <!-- 7 -->
+          <section class="wz-page" data-step="6" hidden>
             <h2 class="step-title">You're all set</h2>
             <dl class="summary" id="wzSummary"></dl>
             <p class="lead">Press <b>Find &amp; redeem</b> to grab everything that's out there right now. The first run checks a lot of codes, so give it a few minutes.</p>
@@ -431,6 +466,7 @@
         <div class="help-chips" id="helpChips" aria-label="Quick answers"></div>
         <div class="seg help-tabs" id="helpTabs" role="tablist" aria-label="Help topics">
           <button role="tab" data-tab="about" aria-selected="true">Start here</button>
+          <button role="tab" data-tab="guide" aria-selected="false">Rewards guide</button>
           <button role="tab" data-tab="faq" aria-selected="false">Questions</button>
           <button role="tab" data-tab="trouble" aria-selected="false">Troubleshooting</button>
           <button role="tab" data-tab="support" aria-selected="false">Support</button>
@@ -440,6 +476,7 @@
         <div class="pop-scroll" id="helpScroll">
           <section id="helpResults" aria-live="polite" hidden></section>
           <section class="help-pane" data-pane="about"></section>
+          <section class="help-pane" data-pane="guide" hidden></section>
           <section class="help-pane" data-pane="faq" hidden></section>
           <section class="help-pane" data-pane="trouble" hidden></section>
           <section class="help-pane" data-pane="support" hidden></section>

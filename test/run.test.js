@@ -268,6 +268,21 @@ test('game launch assist: launches, waits, closes, resumes — or pauses with a 
   assert.equal(s.redeemed, 2, JSON.stringify(s));
   assert.equal(s.pause, null);
 
+  // 3b. "Ask me" while the user is already playing: nothing is started or closed, SHiFT sees the
+  // open game and the run simply carries on.
+  launched.length = 0;
+  closed.length = 0;
+  mock.setLaunchAfter(2);
+  ({ engine, store } = fresh());
+  store.updateSettings({ gameAssist: { mode: 'ask', playing: true } });
+  running = [{ pid: 777, name: 'Borderlands4.exe', titleId: 'bl4' }];
+  s = await engine.run();
+  assert.equal(s.redeemed, 4, JSON.stringify(s));
+  assert.equal(s.pause, null);
+  assert.deepEqual(launched, []);
+  assert.deepEqual(closed, []);
+  running = [];
+
   // 4. Consoles can't be launched remotely → paused with that explanation.
   mock.setLaunchAfter(0);
   ({ engine, store } = fresh());
@@ -368,4 +383,90 @@ test('rewards report: parses keys per title and aggregates', async () => {
   assert.equal(r.months.at(-1).golden, 105);
   assert.equal(buildReport(db, { platform: 'epic' }).totals.keys.golden, 50);
   assert.equal(buildReport(db, { since: now + 1000 }).totals.rewards, 0);
+});
+
+test('rewards v1.3: count styles, keys per game, cosmetics by type', async () => {
+  const { parseReward, classifyItem, buildReport } = await import('../lib/rewards.js');
+  const k = (t, id) => parseReward(t, id).keys;
+  assert.deepEqual(k('x3 Golden Keys (NEW)', 'bl4'), { golden: 3, diamond: 0, skeleton: 0 });
+  assert.deepEqual(k('Golden Key x5', 'bl4'), { golden: 5, diamond: 0, skeleton: 0 });
+  assert.deepEqual(k('3x Golden Keys', 'bl2'), { golden: 3, diamond: 0, skeleton: 0 });
+  assert.deepEqual(k('x50 Golden Keys and x20 Diamond Keys', 'bl3'), { golden: 50, diamond: 20, skeleton: 0 });
+  // one shared code, the right kind of key in each game
+  assert.deepEqual(k('3 Skeleton Keys', 'bl3'), { golden: 3, diamond: 0, skeleton: 0 });
+  assert.deepEqual(k('5 Golden Keys', 'ttw'), { golden: 0, diamond: 0, skeleton: 5 });
+  assert.deepEqual(k('5 Diamond Keys', 'bl4'), { golden: 0, diamond: 0, skeleton: 0 });
+  assert.equal(parseReward('x1 "You\'re So Vein" Vault Hunter skin (NEW)', 'bl4').item, '"You\'re So Vein" Vault Hunter skin');
+  assert.equal(parseReward('Break FreeCosmetic Pack', 'bl4').item, 'Break Free Cosmetic Pack');
+
+  const kinds = (s) => classifyItem(s).map((x) => `${x.kind}:${x.name}`);
+  assert.deepEqual(kinds('Antihero Head + Saurian Skull Trinket'), ['head:Antihero Head', 'trinket:Saurian Skull Trinket']);
+  assert.deepEqual(kinds('ECHO-4 Drone Skin: A Winter Borderland'), ['drone:ECHO-4 Drone Skin: A Winter Borderland']);
+  assert.deepEqual(kinds('Halloween Cosmetics'), ['pack:Halloween Cosmetics']);
+  assert.deepEqual(kinds('Vault Hunter Skin: Hype Squad'), ['skin:Vault Hunter Skin: Hype Squad']);
+  assert.deepEqual(kinds('Dragon Lord ECHO Theme'), ['echo:Dragon Lord ECHO Theme']);
+  assert.deepEqual(kinds('Gold Rush Weapon Skin'), ['weapon:Gold Rush Weapon Skin']);
+  assert.deepEqual(kinds('3 Golden Keys and a Skin'), ['skin:Skin']);
+
+  const now = Date.now();
+  const db = {
+    codes: { 'AAAAA-1': { reward: 'Antihero Head + Saurian Skull Trinket' }, 'BBBBB-2': { reward: 'Vault Hunter SkinHype Squad' } },
+    redemptions: {
+      'AAAAA-1|bl3|steam': { status: 'success', at: now, title: 'Borderlands 3', service: 'steam' },
+      'AAAAA-1|bl3|epic': { status: 'success', at: now, title: 'Borderlands 3', service: 'epic' },
+      'BBBBB-2|bl4|steam': { status: 'success', at: now - 1000, title: 'Borderlands 4', service: 'steam' },
+    },
+  };
+  const r = buildReport(db);
+  assert.deepEqual(r.totals.kinds, { head: 2, trinket: 2, skin: 1 });
+  assert.equal(r.cosmetics.length, 3, 'same cosmetic on two platforms is listed once');
+  assert.deepEqual(r.cosmetics.find((c) => c.kind === 'head').services.sort(), ['epic', 'steam']);
+  assert.ok(r.itemKinds.some((x) => x.id === 'drone'));
+});
+
+test('AI instructions: personalised, and the AI reply imports cleanly', async () => {
+  const { buildLlmInstructions } = await import('../lib/llm.js');
+  const { parseCodeList } = await import('../lib/codelists.js');
+  const doc = buildLlmInstructions({ titles: ['bl3', 'ttw'], platforms: ['steam'], known: ['KNOWN-11111-22222-33333-44444'], version: '9.9.9', today: new Date('2026-11-14T10:00:00Z') });
+  assert.match(doc.filename, /^shift-code-search-instructions-2026-11-14\.md$/);
+  assert.match(doc.content, /\*\*Games:\*\* Tiny Tina's Wonderlands, Borderlands 3\./);
+  assert.match(doc.content, /\*\*Platforms I play on:\*\* Steam\./);
+  assert.match(doc.content, /KNOWN-11111-22222-33333-44444/);
+  assert.match(doc.content, /shift-redeemer-code-list/);
+  assert.doesNotMatch(buildLlmInstructions({}).content, /Codes I already have/);
+
+  // A typical assistant reply: prose, a fenced JSON block (with our placeholder echoed back), more prose.
+  const reply = `Here are the codes I found:\n\n\`\`\`json\n${JSON.stringify({
+    format: 'shift-redeemer-code-list',
+    version: 1,
+    app: 'AI code search',
+    codes: [
+      { code: 'XXXXX-XXXXX-XXXXX-XXXXX-XXXXX', reward: '5 Golden Keys', games: ['Borderlands 4'], platforms: [], expires: 'YYYY-MM-DD', source: 'https://example.com' },
+      { code: 'T3BJ3-ABCDE-FGHJK-LMNPQ-RSTVW', reward: '3 Golden Keys', games: ['Borderlands 3', "Tiny Tina's Wonderlands"], platforms: ['Epic Games'], expires: '2026-12-01', source: 'https://news.example/codes' },
+      { code: 'w9w33-59ftx-5ztx5-9ttbb-3b5jf', reward: 'Skin', games: ['Borderlands 4'], source: 'javascript:alert(1)' },
+    ],
+  }, null, 2)}\n\`\`\`\n\nI found 2 codes on 2 websites. Save the code block as shift-codes.json.`;
+  const p = parseCodeList(reply);
+  assert.equal(p.kind, 'list');
+  assert.equal(p.app, 'AI code search');
+  assert.deepEqual(p.records.map((r) => r.code), ['T3BJ3-ABCDE-FGHJK-LMNPQ-RSTVW', 'W9W33-59FTX-5ZTX5-9TTBB-3B5JF']);
+  assert.deepEqual(p.records[0].games, ['bl3', 'ttw']);
+  assert.deepEqual(p.records[0].platforms, ['epic']);
+  assert.equal(p.records[0].url, 'https://news.example/codes');
+  assert.equal(p.records[1].url, undefined, 'non-http links are dropped');
+  // Raw JSON with no fence but some chatter in front also works.
+  const raw = `Sure! {"format":"shift-redeemer-code-list","codes":[{"code":"T3BJ3-ABCDE-FGHJK-LMNPQ-RSTVW"}]}`;
+  assert.deepEqual(parseCodeList(raw).records.map((r) => r.code), ['T3BJ3-ABCDE-FGHJK-LMNPQ-RSTVW']);
+
+  // End to end through the engine: the import is labelled after the AI and keeps each source link.
+  const { store, engine } = makeEngine();
+  const res = engine.importList(reply);
+  assert.equal(res.fresh, 2);
+  const c = store.db.codes['T3BJ3-ABCDE-FGHJK-LMNPQ-RSTVW'];
+  assert.equal(c.sources[0].name, 'Imported list (AI code search)');
+  assert.equal(c.sources[0].url, 'https://news.example/codes');
+  assert.match(engine.llmInstructions({ skipKnown: true }).content, /T3BJ3-ABCDE-FGHJK-LMNPQ-RSTVW/);
+  // A feed that puts the code in the expiry field doesn't show it as a date.
+  engine.ingest([{ code: 'ZFR3J-WZHBJ-BJBBB-3JBBB-F9R3W', reward: '3 Golden Keys', expires: 'ZFR3J-WZHBJ-BJBBB-3JBBB-F9R3W' }], { id: 'feed', name: 'Feed' });
+  assert.equal(store.db.codes['ZFR3J-WZHBJ-BJBBB-3JBBB-F9R3W'].expires, '');
 });

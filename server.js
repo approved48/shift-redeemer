@@ -222,6 +222,9 @@ const routes = {
         if (g.epicLink && !/^com\.epicgames\.launcher:\/\//i.test(g.epicLink)) throw bad('That isn\'t an Epic launch link. It should start with com.epicgames.launcher://');
       }
       if ('warmupSeconds' in g) g.warmupSeconds = Math.min(600, Math.max(20, Number(g.warmupSeconds) || 75));
+      if ('playing' in g) g.playing = !!g.playing;
+      if ('dontAsk' in g) g.dontAsk = !!g.dontAsk;
+      if ('askedAt' in g) g.askedAt = Math.min(Date.now(), Math.max(0, Number(g.askedAt) || 0));
     }
     if (patch.titles?.selected && !Array.isArray(patch.titles.selected)) delete patch.titles.selected;
     if (patch.platforms?.selected && !Array.isArray(patch.platforms.selected)) delete patch.platforms.selected;
@@ -301,6 +304,7 @@ const routes = {
     if (!body.dryRun && body.redeem) background(engine.run({ codes: res.codes }));
     return res;
   },
+  'GET /api/llm-instructions': ({ query }) => engine.llmInstructions({ skipKnown: query.get('skipKnown') === '1', version: rt.VERSION }),
   'GET /api/codes/export': ({ query }) => engine.exportList(query.get('format') || 'txt', query.get('which') || 'working', rt.VERSION),
   'POST /api/codes/ignore': ({ body }) => {
     for (const code of extractCodes((body.codes || []).join(' '))) if (store.db.codes[code]) store.db.codes[code].ignored = !!body.ignored;

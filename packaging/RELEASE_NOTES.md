@@ -1,3 +1,11 @@
+## What's new
+- **Rewards guide.** Help → *Rewards guide* explains what Golden, Diamond and Skeleton Keys do in each game, and what each type of cosmetic is, with links to the Borderlands Wiki. Hover any key or cosmetic in the app for a quick explanation.
+- **Cosmetics in your report.** The Rewards page now lists every skin, head, trinket and other cosmetic you've unlocked, grouped by type and game.
+- **Ask an AI to find codes.** Sources → *Ask an AI to find codes* gives you instructions for ChatGPT, Claude, Gemini or Grok. Import the answer on Codes → Import list.
+- **More code sources:** Eurogamer, PCGamesN and Game8.
+- **Playing while it runs?** Setup now asks. If you are, the app never starts or closes a game by itself, and carries on by itself when your game is already open. Now and then it offers to switch automatic launching back on.
+- **Menu for small windows.** When the window is narrow, the tabs fold into a ☰ menu instead of disappearing.
+
 ## Download
 
 | Your computer | Download this |
@@ -29,7 +37,8 @@ Nothing else to install. Everything the app needs is included.
 ## First run
 1. **Sign in** with your SHiFT email and password.
 2. **Pick your games and platforms**, or leave everything selected.
-3. Press **Find & redeem**.
+3. Tell setup whether you'll **play Borderlands while it runs**.
+4. Press **Find & redeem**.
 
 **Keep me signed in** stores your password in **Windows Credential Manager** or the **macOS Keychain**, never in a plain file. If secure storage isn't available, the app asks you first and warns you before saving anything unencrypted.
 
