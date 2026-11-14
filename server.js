@@ -15,6 +15,7 @@ import { Engine } from './lib/engine.js';
 import { extractCodes } from './lib/catalog.js';
 import * as rt from './lib/runtime.js';
 import { buildReport } from './lib/rewards.js';
+import * as updater from './lib/updater.js';
 
 const ROOT = rt.isPackaged ? path.dirname(process.execPath) : path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC = path.join(ROOT, 'public');
@@ -22,8 +23,12 @@ const BASE_PORT = Number(process.env.PORT) || 4777;
 const HOST = process.env.HOST || '127.0.0.1';
 const DATA_DIR = process.env.DATA_DIR || (rt.isPackaged ? rt.appDataDir() : path.join(ROOT, 'data'));
 const BASE_URL = process.env.SHIFT_BASE_URL || 'https://shift.gearboxsoftware.com';
-const BACKGROUND = process.argv.includes('--background');
-const NO_WINDOW = BACKGROUND || process.argv.includes('--no-open') || process.env.NO_OPEN === '1';
+// Started by the updater after installing a new version: "window" means the old window is still
+// open and will reconnect by itself (we open a new one only if it doesn't), "background" means no
+// window was open.
+const AFTER_UPDATE = (process.argv.find((a) => a.startsWith('--after-update')) || '').split('=')[1] || (process.argv.includes('--after-update') ? 'window' : null);
+const BACKGROUND = process.argv.includes('--background') || AFTER_UPDATE === 'background';
+const NO_WINDOW = BACKGROUND || !!AFTER_UPDATE || process.argv.includes('--no-open') || process.env.NO_OPEN === '1';
 // Packaged app quits a little while after its window is closed (unless auto-pilot is on).
 const CLOSE_WITH_WINDOW = rt.isPackaged ? process.env.STAY_OPEN !== '1' : process.env.CLOSE_WITH_WINDOW === '1';
 
@@ -45,7 +50,7 @@ const shift = new ShiftClient({
   onCookies: (cookies) => store.saveSession({ cookies }),
 });
 const engine = new Engine({ store, shift });
-const app = { version: rt.VERSION, packaged: rt.isPackaged, platform: process.platform, dataDir: DATA_DIR, autostart: false, autostartSupported: rt.autostartSupported, update: null };
+const app = { version: rt.VERSION, packaged: rt.isPackaged, platform: process.platform, dataDir: DATA_DIR, autostart: false, autostartSupported: rt.autostartSupported, update: null, updateCheckedAt: null, updateError: null, installKind: updater.installKind().kind, justUpdated: !!AFTER_UPDATE };
 let port = BASE_PORT;
 
 // ------------------------------------------------------------------ SSE
@@ -152,7 +157,15 @@ const bad = (msg, status = 400) => Object.assign(new Error(msg), { status });
 // ------------------------------------------------------------------ routes
 
 const routes = {
-  'GET /api/ping': () => ({ app: 'shift-redeemer', version: rt.VERSION }),
+  'GET /api/ping': () => ({ app: 'shift-redeemer', version: rt.VERSION, pid: process.pid, afterUpdate: AFTER_UPDATE }),
+  'POST /api/update/check': async () => {
+    await checkUpdate({ manual: true });
+    return { app };
+  },
+  'POST /api/update/install': () => {
+    installUpdate();
+    return { app };
+  },
   'GET /api/state': () => fullState(),
   'GET /api/report': ({ query }) => {
     const days = Number(query.get('days')) || 0;
@@ -211,7 +224,7 @@ const routes = {
   },
 
   'PUT /api/settings': async ({ body }) => {
-    const allowed = ['titles', 'platforms', 'delaySeconds', 'skipExpired', 'useSourceHints', 'maxChecksPerRun', 'autoRun', 'sources', 'setupComplete', 'gameAssist'];
+    const allowed = ['titles', 'platforms', 'delaySeconds', 'skipExpired', 'useSourceHints', 'maxChecksPerRun', 'autoRun', 'sources', 'setupComplete', 'gameAssist', 'updates'];
     const patch = {};
     for (const k of allowed) if (k in body) patch[k] = body[k];
     if (patch.gameAssist) {
@@ -454,13 +467,84 @@ async function start() {
   if (store.session.cookies && Object.keys(store.session.cookies).length) await engine.refreshAccount().catch(() => {});
   engine.schedule();
 
-  const updateCheck = async () => {
-    if (process.env.NO_UPDATE_CHECK === '1') return;
-    app.update = await rt.checkForUpdate();
-    if (app.update) broadcast('app', app);
-  };
-  updateCheck();
-  setInterval(updateCheck, 24 * 3600_000).unref();
+  if (AFTER_UPDATE) {
+    engine.log('ok', `Updated to SHiFT Redeemer ${rt.VERSION}`);
+    // The old window normally reconnects on its own; open one if it doesn't.
+    if (AFTER_UPDATE === 'window' && process.env.NO_OPEN !== '1') setTimeout(() => !clients.size && showWindow(), 8000);
+  }
+  const autoCheck = () => store.settings.updates?.autoCheck !== false && checkUpdate().catch(() => {});
+  setTimeout(autoCheck, 5000);
+  setInterval(autoCheck, 6 * 3600_000).unref();
+  // Auto-install waits until nothing is running.
+  setInterval(() => maybeAutoInstall(), 10 * 60_000).unref();
+}
+
+// ------------------------------------------------------------------ updates
+
+let lastProgress = 0;
+async function checkUpdate({ manual = false } = {}) {
+  if (process.env.NO_UPDATE_CHECK === '1' && !process.env.SHIFT_UPDATE_API && !manual) return;
+  if (['downloading', 'installing'].includes(app.update?.state)) return;
+  try {
+    const u = await updater.checkLatest();
+    app.update = u ? { ...u, state: 'available', progress: 0, error: null } : null;
+    app.updateError = null;
+  } catch (e) {
+    app.updateError = `Couldn't check for updates: ${e.message}`;
+    if (manual) {
+      app.updateCheckedAt = Date.now();
+      broadcast('app', app);
+      throw bad(app.updateError, 502);
+    }
+  }
+  app.updateCheckedAt = Date.now();
+  broadcast('app', app);
+  maybeAutoInstall();
+}
+
+function maybeAutoInstall() {
+  const u = app.update;
+  if (!store.settings.updates?.autoInstall || !u?.canInstall || u.state !== 'available' || engine.state.running) return;
+  engine.log('info', `Installing SHiFT Redeemer ${u.version} automatically (Settings → Updates)`);
+  try {
+    installUpdate();
+  } catch {
+    /* tried again later */
+  }
+}
+
+function installUpdate() {
+  const u = app.update;
+  if (!u) throw bad('There’s no update to install. Check for updates first.');
+  if (!u.canInstall) throw bad(u.reason || 'This update can’t be installed from inside the app.');
+  if (engine.state.running) throw bad('Wait for the current run to finish, or press Stop, then update.', 409);
+  if (['downloading', 'installing'].includes(u.state)) return;
+  Object.assign(u, { state: 'downloading', progress: 0, error: null });
+  broadcast('app', app);
+  engine.log('step', `Downloading SHiFT Redeemer ${u.version}…`);
+  (async () => {
+    try {
+      const { file } = await updater.download(u.asset, {
+        onProgress: (p) => {
+          u.progress = p;
+          if (Date.now() - lastProgress > 250 || p === 1) {
+            lastProgress = Date.now();
+            broadcast('app', app);
+          }
+        },
+      });
+      u.state = 'installing';
+      broadcast('app', app);
+      engine.log('step', `Installing SHiFT Redeemer ${u.version}. The app restarts by itself in a moment.`);
+      const { target } = updater.installKind();
+      updater.startHelper({ kind: u.kind, file, target, relaunchArgs: [`--after-update=${clients.size ? 'window' : 'background'}`] });
+      setTimeout(() => quit(), 800);
+    } catch (e) {
+      Object.assign(u, { state: 'error', error: e.message });
+      broadcast('app', app);
+      engine.log('error', `Update failed: ${e.message}`);
+    }
+  })();
 }
 
 start().catch((e) => {

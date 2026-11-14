@@ -219,7 +219,24 @@ async function flushSettings() {
 
 // ------------------------------------------------------------------ state
 
+let bootVersion = null;
 function applyState(st, { keepSettings = false } = {}) {
+  // Reconnected to a newer version after an update: reload to pick up its new screens.
+  if (bootVersion && st.app?.version && st.app.version !== bootVersion) {
+    location.reload();
+    return;
+  }
+  bootVersion = bootVersion || st.app?.version || null;
+  if (st.app?.justUpdated) {
+    let seen = null;
+    try {
+      seen = localStorage.getItem('sr.updatedTo');
+      localStorage.setItem('sr.updatedTo', st.app.version);
+    } catch {
+      /* storage unavailable */
+    }
+    if (seen !== st.app.version) setTimeout(() => toast(`Updated to version ${st.app.version}. See what's new under Help.`, 'ok'), 600);
+  }
   S.app = st.app || {};
   S.account = st.account;
   S.engine = st.engine;
@@ -304,6 +321,15 @@ function connect() {
     $('#acctPill').className = 'acct-pill off';
     if (quitting) return;
     clearTimeout(offlineTimer);
+    if (S.app?.update?.state === 'installing') {
+      showOverlay(`Updating to version ${S.app.update.version}…`, 'SHiFT Redeemer is installing the update and will restart by itself in a moment. This window reconnects automatically. There’s nothing you need to do.');
+      $('#overlay').classList.add('updating');
+      offlineTimer = setTimeout(
+        () => showOverlay('The update is taking longer than usual', 'If SHiFT Redeemer doesn’t come back in a minute, open it again from your Start menu, desktop or Applications folder. Your codes and settings are safe.'),
+        180_000,
+      );
+      return;
+    }
     offlineTimer = setTimeout(
       () => showOverlay('SHiFT Redeemer isn’t running', 'Open SHiFT Redeemer again from your Start menu, desktop or Applications folder. This window reconnects automatically.'),
       4000,
@@ -537,8 +563,57 @@ function renderAll() {
   renderWizard();
 }
 
+// ------------------------------------------------------------------ updates
+
+// Release notes are short Markdown lists; show them as simple HTML.
+function notesHTML(md) {
+  const inline = (t) => esc(t).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/\*(.+?)\*/g, '<i>$1</i>').replace(/`(.+?)`/g, '<code>$1</code>');
+  const items = String(md || '').split('\n').map((l) => l.trim()).filter(Boolean);
+  const li = items.filter((l) => /^[-*] /.test(l)).map((l) => `<li>${inline(l.slice(2))}</li>`);
+  return li.length ? `<ul class="list">${li.join('')}</ul>` : items.map((l) => `<p>${inline(l)}</p>`).join('');
+}
+
+function updateBanner(u) {
+  const page = `<a class="btn btn-sm btn-ghost" href="${esc(u.url)}" target="_blank" rel="noopener">Release page</a>`;
+  const notes = u.notes ? `<details class="update-notes"><summary>What’s new in ${esc(u.version)}</summary>${notesHTML(u.notes)}</details>` : '';
+  if (u.state === 'downloading') {
+    const pct = Math.round((u.progress || 0) * 100);
+    return callout('eridian', '⬇', `Downloading version ${esc(u.version)}… ${pct}%`, `<div class="bar live"><i style="width:${Math.max(pct, 2)}%"></i></div>Once it’s downloaded, SHiFT Redeemer installs it and restarts by itself.`);
+  }
+  if (u.state === 'installing') return callout('eridian', '⟳', `Installing version ${esc(u.version)}…`, 'SHiFT Redeemer restarts by itself in a moment. This window reconnects automatically.');
+  if (u.state === 'error')
+    return callout('danger', '⚠', 'The update didn’t install', `${esc(u.error || 'Something went wrong.')} Nothing was changed. Try again, or download it from the release page.`, `<button class="btn btn-sm btn-eridian" data-act="update-install">Try again</button>${page}`);
+  if (!u.canInstall) return callout('eridian', '⬆', `Update available: version ${esc(u.version)}`, `You have ${esc(S.app.version)}. ${esc(u.reason || '')}${notes}`, `<a class="btn btn-sm btn-eridian" href="${esc(u.url)}" target="_blank" rel="noopener">Download</a>`);
+  return callout(
+    'eridian',
+    '⬆',
+    `Update available: version ${esc(u.version)}`,
+    `You have ${esc(S.app.version)}. Updating takes about a minute: the app downloads it, restarts, and keeps your codes and settings.${notes}`,
+    `<button class="btn btn-sm btn-eridian" data-act="update-install" ${S.engine.running ? 'disabled title="Wait for the current run to finish, or press Stop"' : ''}>Update now</button>${page}`,
+  );
+}
+
+function renderUpdates() {
+  const a = S.app || {};
+  const u = a.update;
+  const box = $('#updateStatus');
+  if (!box) return;
+  let html;
+  if (!a.packaged) html = `<span class="chip"><i></i>From source</span> Version ${esc(a.version)}. Update with <code>git pull</code>.`;
+  else if (u?.state === 'downloading') html = `<span class="chip ok"><i style="--c:var(--eridian)"></i>Downloading</span> Version ${esc(u.version)}, ${Math.round((u.progress || 0) * 100)}%`;
+  else if (u?.state === 'installing') html = `<span class="chip ok"><i style="--c:var(--eridian)"></i>Installing</span> Version ${esc(u.version)}. Restarting in a moment…`;
+  else if (u?.state === 'error') html = `<span class="chip"><i style="--c:var(--red)"></i>Update failed</span> ${esc(u.error)}`;
+  else if (u) html = `<span class="chip ok"><i style="--c:var(--amber)"></i>Update available</span> Version ${esc(u.version)} is out (you have ${esc(a.version)}).${u.canInstall ? '' : ` ${esc(u.reason || '')}`}`;
+  else if (a.updateError) html = `<span class="chip"><i style="--c:var(--amber)"></i>Couldn't check</span> ${esc(a.updateError)}`;
+  else html = `<span class="chip ok"><i style="--c:var(--green)"></i>Up to date</span> You have the latest version, ${esc(a.version)}.`;
+  box.innerHTML = html;
+  $('#btnUpdateNow').hidden = !(u && u.canInstall && ['available', 'error'].includes(u.state));
+  $('#updateChecked').textContent = a.updateCheckedAt ? `Last checked ${ago(a.updateCheckedAt)}` : a.packaged ? 'Not checked yet' : '';
+}
+
 function renderAppInfo() {
   const a = S.app || {};
+  renderUpdates();
   $$('.js-autostart-row').forEach((r) => (r.hidden = !a.autostartSupported));
   $$('.js-autostart').forEach((c) => (c.checked = !!a.autostart));
   $('#versionLine').textContent = `Version ${a.version || '?'}${a.update ? ` · update ${a.update.version} available` : ''}`;
@@ -658,8 +733,7 @@ function renderBanners() {
     out.push(callout('eridian', '🔑', 'Connect your SHiFT account to start redeeming', 'Codes can be found without an account, but redeeming them needs you signed in.', '<button class="btn btn-sm btn-eridian" data-act="setup">Run setup</button><a class="btn btn-sm" href="#account">Account</a>'));
   if (S.account.saved && !S.account.saved.secure)
     out.push(callout('danger', '⚠', 'Your SHiFT password is saved without encryption', "It's stored as readable text on this computer because secure storage wasn't available.", '<button class="btn btn-sm" data-act="acct-forget">Forget password</button>'));
-  if (S.app?.update)
-    out.push(callout('eridian', '⬆', `Update available: version ${esc(S.app.update.version)}`, `You have ${esc(S.app.version)}. Install the new version over this one; your codes and settings are kept.`, `<a class="btn btn-sm btn-eridian" href="${esc(S.app.update.url)}" target="_blank" rel="noopener">Download</a>`));
+  if (S.app?.update) out.push(updateBanner(S.app.update));
   const lr = S.engine.lastRun;
   if (!S.engine.running && lr?.pause) out.push(pauseBanner(lr.pause));
   const nudge = assistNudge();
@@ -1128,6 +1202,19 @@ document.addEventListener('click', async (ev) => {
     loadState();
   } else if (a === 'redeem') {
     await act(() => api('POST', '/api/run', {})).catch(() => {});
+  } else if (a === 'update-check') {
+    try {
+      const r = await api('POST', '/api/update/check');
+      S.app = r.app;
+      renderAppInfo();
+      renderBanners();
+      toast(r.app.update ? `Version ${r.app.update.version} is available` : 'You have the latest version', 'ok');
+    } catch (e) {
+      toast(e.message, 'err');
+      loadState().catch(() => {});
+    }
+  } else if (a === 'update-install') {
+    await act(() => api('POST', '/api/update/install'), 'Downloading the update…').catch(() => {});
   } else if (a === 'assist-toggle') {
     const on = S.settings.gameAssist.mode !== 'auto';
     setSetting('gameAssist.askedAt', Date.now());

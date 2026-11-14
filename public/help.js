@@ -136,7 +136,13 @@ const FAQ = [
   { cat: 'Auto-pilot & the app', q: 'Can I turn off the animations?', a: ['Yes. In <b>Settings → Data &amp; display</b>, turn on <b>Reduce animations</b>. They\'re also turned off automatically if your computer is set to reduce motion.'], go: { tab: 'settings', el: 'setData', label: 'Show me' } },
   { cat: 'Auto-pilot & the app', q: 'Where did the menu tabs go?', a: ['When the window is too narrow to fit every tab, they fold into the <b>☰ menu</b> button at the top left, next to the logo. It shows the page you\'re on; select it to see every page.'] },
   { cat: 'Auto-pilot & the app', q: 'How do I quit completely?', a: ['Select the <b>⏻</b> button at the top right.'] },
-  { cat: 'Auto-pilot & the app', q: 'How do I update the app?', a: ['When a new version is out, a banner appears on the dashboard. Download it and install it over this one. Your codes and settings are kept.'] },
+  { cat: 'Auto-pilot & the app', q: 'How do I update the app?', a: [
+    'When a new version is out, a banner appears on the dashboard. Select <b>Update now</b>: the app downloads the update, checks it, restarts and keeps all your codes and settings. It takes about a minute. <b>What’s new</b> shows what changed.',
+    'You can also check yourself in <b>Settings → Updates</b>, and turn on <b>Install updates automatically</b> so it happens by itself when nothing is running (handy with auto-pilot).',
+    'Versions before 1.4.0 can’t update themselves. For those, download the new version once from the release page and install it over the old one.'], go: { tab: 'settings', el: 'setUpdates', label: 'Show me' } },
+  { cat: 'Auto-pilot & the app', q: 'Is updating from inside the app safe?', a: [
+    'Yes. Updates only come from this project’s GitHub releases, and every download is checked against the fingerprint (SHA-256) GitHub publishes for it before anything is installed. If it doesn’t match, nothing is changed.',
+    'On Windows the update installs just for you, with no admin prompt. On a Mac the app in Applications is replaced. Your data folder is never touched.'] },
   { cat: 'Auto-pilot & the app', q: 'Where is my data stored?', a: ['On this computer only, in the app\'s data folder. <b>Settings → Your data</b> shows where it is, and can open it or export everything as a file.'], go: { tab: 'settings', el: 'setData', label: 'Show me' } },
   { cat: 'Auto-pilot & the app', q: 'How do I start over?', a: ['Sign out on <b>Account</b>, quit the app, then delete the data folder shown in <b>Settings → Your data</b>. Next time you open the app, setup starts fresh.'] },
 
@@ -190,6 +196,7 @@ const SETTINGS = [
   { ic: '🟣', name: 'Epic launch link', desc: 'Settings · step 2', tab: 'settings', el: 'setAssist', k: 'epic launcher link shortcut' },
   { ic: '🐢', name: 'Pace', desc: 'Settings · step 3', tab: 'settings', el: 'setPace', k: 'delay pace rate limit slow requests' },
   { ic: '💾', name: 'Your data', desc: 'Settings · step 4', tab: 'settings', el: 'setData', k: 'data folder export backup files' },
+  { ic: '⬆️', name: 'Updates', desc: 'Settings · step 5', tab: 'settings', el: 'setUpdates', k: 'update updates upgrade new version install download check automatic latest' },
   { ic: '🧭', name: 'Run setup again', desc: 'Settings', action: 'setup', k: 'setup wizard start again first time playing play while' },
 ];
 
@@ -226,7 +233,7 @@ const TOPICS = [
   ['Code statuses', 'code statuses'], ['Already had', 'already had'], ['Not targeted', 'not targeted'], ['Likely expired', 'likely expired'],
   ['Add a code', 'add a code'], ['Check again', 'check a code again'], ['Choose games', 'choose games'], ['Linked platforms', 'platform linked'],
   ['Source hints', 'trust source hints'], ['Where codes come from', 'where do codes come from'], ['Add a website', 'add my own website'], ['Source errors', 'source error'],
-  ['Auto-pilot', 'auto-pilot'], ['Closing the window', 'close the window'], ['Quit', 'quit completely'], ['Updates', 'update the app'],
+  ['Auto-pilot', 'auto-pilot'], ['Closing the window', 'close the window'], ['Quit', 'quit completely'], ['Updates', 'update the app'], ['Safe updates', 'updating safe'],
   ['Where is my data', 'where is my data'], ['Start over', 'start over'], ['Password safety', 'password safe'], ['Privacy', 'send my data'],
   ['Official?', 'official gearbox'], ['Nothing redeemed', 'nothing gets redeemed'], ['Too many requests', 'too many requests'], ['Retry', 'retry'],
   ['Windows warning', 'windows protected'], ['macOS warning', 'macos opened'], ['Run results', 'results of a run'], ['How long', 'how long run'],

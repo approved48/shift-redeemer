@@ -1069,3 +1069,12 @@ html.reduce-motion .gs-delta, html.reduce-motion .assist-track .as.cur i { anima
   .game-strip::-webkit-scrollbar { display: none; }
   .gs-tile { flex: 0 0 150px; scroll-snap-align: start; }
 }
+
+/* ================================================================ in-app updates */
+.update-status { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2); font-size: var(--fs-body); color: var(--ink-2); margin-bottom: var(--s2); }
+.update-notes { margin-top: var(--s2); font-size: var(--fs-hint); color: var(--ink-2); }
+.update-notes summary { cursor: pointer; color: var(--eridian-2); font-weight: 600; }
+.update-notes .list { margin: var(--s2) 0 0; }
+.callout .bar { margin: var(--s1) 0 var(--s2); max-width: 420px; }
+#overlay.updating .step-title::before { content: ''; display: inline-block; width: 12px; height: 12px; margin-right: var(--s2); border: 2px solid var(--eridian); border-right-color: transparent; border-radius: 50%; animation: spin 0.8s linear infinite; vertical-align: -1px; }
+@keyframes spin { to { transform: rotate(360deg); } }

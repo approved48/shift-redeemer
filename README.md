@@ -59,7 +59,7 @@ That's it. The app searches the web for codes, checks each one with SHiFT, and r
 - **Missing a platform?** SHiFT only redeems for platforms linked to your account. Link them on the SHiFT website under *Gaming Platforms*.
 - **Your data stays on your computer.** The app only talks to SHiFT and the code websites it searches.
 - **"Keep me signed in"** saves your SHiFT password in your system's secure password storage: **Windows Credential Manager** or the **macOS Keychain** (on Linux, GNOME Keyring or KWallet). If that isn't available, the app asks first and clearly warns you before saving it unencrypted, and you can always choose not to save it. **Forget saved password** on the Account tab removes it.
-- **Updating:** when a new version is out, the app shows a banner. Install the new version over the old one; your codes and settings are kept.
+- **Updating:** when a new version is out, the dashboard shows a banner. Select **Update now** and the app downloads it, checks it against GitHub's published checksum, restarts and keeps your codes and settings. **Settings → Updates** has **Check now** and an option to install updates automatically. (Self-updating works from version 1.4.0 onwards. For anything older, install the new version over the old one once.)
 - **Uninstalling (Windows):** Settings → Apps → SHiFT Redeemer → Uninstall.
 
 ## Where codes come from
@@ -108,7 +108,8 @@ The workflow builds every platform, tests the apps and the Windows installer (si
 | `lib/shift.js` | SHiFT website client (sign-in, code check, redemption) |
 | `lib/engine.js` | Queue, targeting, redemption runs, auto-pilot scheduler |
 | `lib/sources.js` | Code discovery |
-| `lib/runtime.js` | Packaged-app behaviour (data folder, app window, start with computer, update check) |
+| `lib/runtime.js` | Packaged-app behaviour (data folder, app window, start with computer) |
+| `lib/updater.js` | In-app updates: check GitHub releases, download and verify, install and restart |
 | `lib/codelists.js` | Import and export of shareable code lists |
 | `lib/rewards.js` | Reward parsing (keys per game, cosmetic types) and the rewards report |
 | `lib/llm.js` | Instructions for AI assistants to find codes |

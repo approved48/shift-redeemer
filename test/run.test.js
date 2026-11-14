@@ -511,3 +511,70 @@ test('AI instructions: personalised, and the AI reply imports cleanly', async ()
   engine.ingest([{ code: 'ZFR3J-WZHBJ-BJBBB-3JBBB-F9R3W', reward: '3 Golden Keys', expires: 'ZFR3J-WZHBJ-BJBBB-3JBBB-F9R3W' }], { id: 'feed', name: 'Feed' });
   assert.equal(store.db.codes['ZFR3J-WZHBJ-BJBBB-3JBBB-F9R3W'].expires, '');
 });
+
+test('updater: picks the right download, verifies it, and writes a safe helper', async () => {
+  const http = await import('node:http');
+  const crypto = await import('node:crypto');
+  const u = await import('../lib/updater.js');
+  assert.ok(u.newer('1.3.1', '1.3.0') && u.newer('2.0.0', '1.9.9') && !u.newer('1.3.0', '1.3.0') && !u.newer('1.2.9', '1.3.0'));
+
+  const env = { LOCALAPPDATA: 'C:\\Users\\vh\\AppData\\Local' };
+  assert.equal(u.installKind({ platform: 'win32', execPath: 'C:\\Users\\vh\\AppData\\Local\\Programs\\SHiFT Redeemer\\SHiFT Redeemer.exe', packaged: true, env }).kind, 'windows-installer');
+  assert.equal(u.installKind({ platform: 'win32', execPath: 'D:\\Games\\SHiFT-Redeemer-1.3.0-Windows-Portable.exe', packaged: true, env }).kind, 'windows-portable');
+  assert.deepEqual(u.installKind({ platform: 'darwin', execPath: '/Applications/SHiFT Redeemer.app/Contents/MacOS/shift-redeemer', packaged: true }), { kind: 'macos', target: '/Applications/SHiFT Redeemer.app' });
+  assert.deepEqual(u.installKind({ platform: 'linux', execPath: '/home/vh/SHiFT-Redeemer/shift-redeemer', packaged: true }), { kind: 'linux', target: '/home/vh/SHiFT-Redeemer' });
+  assert.equal(u.installKind({ packaged: false }).kind, 'source');
+
+  const assets = ['SHiFT-Redeemer-Setup-1.4.0-Windows.exe', 'SHiFT-Redeemer-1.4.0-Windows-Portable.exe', 'SHiFT-Redeemer-1.4.0-macOS.dmg', 'SHiFT-Redeemer-1.4.0-Linux-x64.tar.gz'].map((name) => ({ name }));
+  assert.equal(u.pickAsset(assets, 'windows-installer').name, 'SHiFT-Redeemer-Setup-1.4.0-Windows.exe');
+  assert.equal(u.pickAsset(assets, 'windows-portable').name, 'SHiFT-Redeemer-1.4.0-Windows-Portable.exe');
+  assert.equal(u.pickAsset(assets, 'macos').name, 'SHiFT-Redeemer-1.4.0-macOS.dmg');
+  assert.equal(u.pickAsset(assets, 'linux').name, 'SHiFT-Redeemer-1.4.0-Linux-x64.tar.gz');
+  assert.equal(u.pickAsset(assets, 'source'), null);
+  assert.equal(u.whatsNew("## What's new\n- **Faster** launches\n\n## Download\n| x |"), '- **Faster** launches');
+
+  // A local "GitHub" serving a release and its file.
+  const body = Buffer.from('pretend installer bytes '.repeat(500));
+  const sha = crypto.createHash('sha256').update(body).digest('hex');
+  const srv = http.createServer((req, res) => {
+    if (req.url === '/release') {
+      res.writeHead(200, { 'content-type': 'application/json' });
+      return res.end(JSON.stringify({ tag_name: 'v9.9.9', html_url: 'https://x/rel', body: "## What's new\n- Thing", assets: [{ name: 'SHiFT-Redeemer-9.9.9-Linux-x64.tar.gz', size: body.length, digest: `sha256:${sha}`, browser_download_url: `http://127.0.0.1:${srv.address().port}/file` }] }));
+    }
+    res.writeHead(200, { 'content-length': body.length });
+    res.end(body);
+  });
+  await new Promise((r) => srv.listen(0, '127.0.0.1', r));
+  process.env.SHIFT_UPDATE_API = `http://127.0.0.1:${srv.address().port}/release`;
+  try {
+    const rel = await u.checkLatest({ current: '1.0.0' });
+    assert.equal(rel.version, '9.9.9');
+    assert.equal(rel.notes, '- Thing');
+    assert.equal(await u.checkLatest({ current: '9.9.9' }), null, 'same version is not an update');
+    const asset = { name: 'SHiFT-Redeemer-9.9.9-Linux-x64.tar.gz', url: `http://127.0.0.1:${srv.address().port}/file`, size: body.length, digest: `sha256:${sha}` };
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'upd-'));
+    const seen = [];
+    const ok = await u.download(asset, { dir: tmp, onProgress: (p) => seen.push(p) });
+    assert.equal(ok.sha256, sha);
+    assert.deepEqual(fs.readFileSync(ok.file), body);
+    assert.equal(seen.at(-1), 1);
+    await assert.rejects(u.download({ ...asset, name: 'bad.tar.gz', digest: `sha256:${'0'.repeat(64)}` }, { dir: tmp }), /checksum/);
+    assert.ok(!fs.existsSync(path.join(tmp, 'bad.tar.gz')) && !fs.existsSync(path.join(tmp, 'bad.tar.gz.part')), 'a bad download is deleted');
+    await assert.rejects(u.download({ ...asset, name: 'short.tar.gz', size: body.length + 1, digest: null }, { dir: tmp }), /incomplete/);
+    fs.rmSync(tmp, { recursive: true, force: true });
+  } finally {
+    delete process.env.SHIFT_UPDATE_API;
+    srv.close();
+  }
+
+  // Paths with quotes and spaces can't break out of the helper scripts.
+  const win = u.helperScript({ kind: 'windows-installer', file: "C:\\Temp\\it's\\Setup.exe", target: 'C:\\Users\\O\'Neil\\SHiFT Redeemer.exe', pid: 42, relaunchArgs: ['--after-update=window'] });
+  assert.match(win, /Start-Process -FilePath 'C:\\Temp\\it''s\\Setup.exe' -ArgumentList '\/VERYSILENT'/);
+  assert.match(win, /Start-Process -FilePath 'C:\\Users\\O''Neil\\SHiFT Redeemer.exe' -ArgumentList '--after-update=window'/);
+  assert.match(win, /Wait-Process -Id 42/);
+  const mac = u.helperScript({ kind: 'macos', file: "/tmp/a'b.dmg", target: '/Applications/SHiFT Redeemer.app', pid: 7 });
+  assert.match(mac, /'\/tmp\/a'\\''b\.dmg'/);
+  assert.match(mac, /APP='\/Applications\/SHiFT Redeemer.app'/);
+  const lin = u.helperScript({ kind: 'linux', file: '/tmp/x.tar.gz', target: '/opt/SHiFT-Redeemer', pid: 7, relaunchArgs: ['--after-update=background'] });
+  assert.match(lin, /nohup "\$DIR\/shift-redeemer" '--after-update=background'/);
+});
