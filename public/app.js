@@ -490,6 +490,60 @@ function platPicksHTML() {
 
 // ------------------------------------------------------------------ render
 
+// ------------------------------------------------------------------ getting started
+// A live checklist for new users: each step ticks itself off from the app's real state.
+
+const CHECK_HIDE = 'sr.hideChecklist';
+function startSteps() {
+  const linked = S.catalog.platforms.some((p) => p.linked);
+  let tipsSeen = false;
+  try {
+    tipsSeen = localStorage.getItem('sr.tipsSeen') === '1';
+  } catch {
+    /* storage unavailable */
+  }
+  return [
+    { done: !!S.account.loggedIn, t: 'Connect your SHiFT account', d: 'Rewards go to this account.', act: '<button class="btn btn-xs btn-eridian" data-act="setup">Connect</button>' },
+    { done: linked, t: 'Link your gaming platforms', d: linked ? 'Linked platforms found.' : 'On the SHiFT website. The app sees them after its first check.', act: '<a class="btn btn-xs" href="#account" data-goto="stepLinks">How</a>' },
+    { done: !!S.settings.setupComplete, t: 'Pick your games & platforms', d: 'Or leave everything on.', act: '<a class="btn btn-xs" href="#targets">Choose</a>' },
+    { done: !!S.engine.lastRun, t: 'Run Find & redeem', d: 'The first run takes a few minutes.', act: '<button class="btn btn-xs btn-eridian" data-act="first-run">Run it</button>' },
+    { done: !!S.settings.autoRun.enabled, t: 'Turn on auto-pilot', d: 'Keeps redeeming new codes by itself.', act: '<a class="btn btn-xs" href="#settings" data-goto="setAutopilot">Settings</a>', optional: true },
+    { done: tipsSeen, t: 'Read the best-practice tips', d: 'A dozen habits worth knowing.', act: '<button class="btn btn-xs" data-help-open="tips">Open</button>', optional: true },
+  ];
+}
+function checklistHTML(steps, { compact = false } = {}) {
+  const core = steps.filter((s) => !s.optional);
+  const done = steps.filter((s) => s.done).length;
+  const next = steps.find((s) => !s.done);
+  return `<div class="sl-head"><h2 class="card-title">Getting started</h2><span class="sl-count">${done} of ${steps.length} done</span>
+      <div class="sl-bar" aria-hidden="true"><i style="width:${(done / steps.length) * 100}%"></i></div>
+      ${compact ? '' : '<button class="btn btn-xs btn-ghost" data-act="hide-checklist" title="Hide this checklist (Help → Start here still has it)">Hide</button>'}</div>
+    <ol class="sl-steps">${steps
+      .map((s, i) => `<li class="${s.done ? 'done' : ''} ${s === next ? 'next' : ''}"><span class="sl-n" aria-hidden="true">${s.done ? '✓' : i + 1}</span><div><b>${esc(s.t)}${s.optional ? ' <small>optional</small>' : ''}</b><span>${esc(s.d)}</span></div>${s.done ? '' : s.act}</li>`)
+      .join('')}</ol>
+    ${core.every((s) => s.done) ? '<p class="hint">You’re all set. The essentials are done.</p>' : ''}`;
+}
+function renderChecklist() {
+  const box = $('#startList');
+  if (!S.settings || !box) return;
+  const steps = startSteps();
+  let hidden = false;
+  try {
+    hidden = localStorage.getItem(CHECK_HIDE) === '1';
+  } catch {
+    /* storage unavailable */
+  }
+  const coreDone = steps.filter((s) => !s.optional).every((s) => s.done);
+  box.hidden = hidden || coreDone;
+  if (!box.hidden) {
+    const html = checklistHTML(steps);
+    if (box.dataset.sig !== html) {
+      box.innerHTML = html;
+      box.dataset.sig = html;
+    }
+  }
+}
+
 // ------------------------------------------------------------------ dashboard game strip
 // A slim row of the games you target, with keys and cosmetics so far and a "+N" as a run adds to
 // each one. The full breakdown lives on the Rewards page.
@@ -553,6 +607,7 @@ function renderAll() {
   renderAccount();
   renderRun();
   renderDashboard();
+  renderChecklist();
   renderGameStrip();
   renderTargets();
   renderSources();
@@ -725,6 +780,7 @@ function renderRun() {
   clearInterval(assistTick);
   if (live && e.assist && ['starting', 'warmup'].includes(e.assist.step)) assistTick = setInterval(renderRun, 1000);
   renderBanners();
+  renderChecklist();
 }
 
 function renderBanners() {
@@ -1202,6 +1258,16 @@ document.addEventListener('click', async (ev) => {
     loadState();
   } else if (a === 'redeem') {
     await act(() => api('POST', '/api/run', {})).catch(() => {});
+  } else if (a === 'hide-checklist') {
+    try {
+      localStorage.setItem(CHECK_HIDE, '1');
+    } catch {
+      /* storage unavailable */
+    }
+    renderChecklist();
+    toast('Checklist hidden. It’s still under Help → Start here.');
+  } else if (a === 'first-run') {
+    if (!needLogin()) await act(() => api('POST', '/api/run', { collectFirst: true }), 'Finding and redeeming codes…').catch(() => {});
   } else if (a === 'update-check') {
     try {
       const r = await api('POST', '/api/update/check');
@@ -1528,8 +1594,17 @@ $('#reduceMotion').addEventListener('change', (e) => {
   toast(e.target.checked ? 'Animations reduced' : 'Animations on', 'ok');
 });
 const report = initReport({ api, toast, isVisible: () => location.hash === '#rewards' });
-const help = initHelp({ goTo, runAction, getDiagnostics, repoUrl: 'https://github.com/approved48/shift-redeemer', getRewardCounts: () => report.counts() });
+const help = initHelp({
+  goTo,
+  runAction,
+  getDiagnostics,
+  repoUrl: 'https://github.com/approved48/shift-redeemer',
+  getRewardCounts: () => report.counts(),
+  renderChecklist: (el) => el && S.settings && (el.innerHTML = checklistHTML(startSteps(), { compact: true })),
+});
 initTips();
+// Refresh the checklist when Help closes (reading the tips ticks a step).
+new MutationObserver(() => $('#helpOverlay').hidden && renderChecklist()).observe($('#helpOverlay'), { attributes: true, attributeFilter: ['hidden'] });
 
 // Sources → Ask an AI to find codes
 async function aiInstructions() {

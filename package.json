@@ -1,6 +1,6 @@
 {
   "name": "shift-redeemer",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "Find SHiFT codes and redeem them automatically for your Borderlands games and platforms.",
   "type": "module",
   "private": true,

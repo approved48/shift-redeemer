@@ -33,7 +33,7 @@ The first time you open it, a short **setup wizard** walks you through everythin
 5. Say whether you'll **play Borderlands while it runs**. If you will, the app never starts or closes a game by itself.
 6. Press **Find & redeem**.
 
-You can run the wizard again any time from **Settings**.
+You can run the wizard again any time from **Settings**. After setup, a **Getting started** checklist on the dashboard shows what's left, and **Help → Best practice** has a dozen tips for getting the most out of the app.
 
 **Share code lists.** On **Codes**, **Import list** takes a friend's or community list: drop in a text, CSV or SHiFT Redeemer list file, or paste it. You see how many codes are new before anything is added, and can redeem them straight away. **Export list** saves your working codes, your queue or everything as text, CSV or a list file to share or back up. Exports never include your account or which rewards you've had.
 
@@ -73,6 +73,8 @@ That's it. The app searches the web for codes, checks each one with SHiFT, and r
 | Steam Community guides | Popular "SHiFT codes" guides for each game |
 | OzBargain | Deals and posts that mention Borderlands SHiFT codes |
 | Eurogamer, PCGamesN, Game8 | Games-press code guides with rewards and expiry dates (Borderlands 4, plus Borderlands 3 on PCGamesN) |
+| esports.net, Fossbytes | Code lists for Borderlands 3 and Tiny Tina's Wonderlands |
+| GIGA (Germany) | A Borderlands 4 list updated several times a month; rewards are translated to English |
 | An AI assistant | Download instructions for ChatGPT, Claude, Gemini or Grok, then import its answer |
 | Your own | Add any web page, or paste codes you found anywhere (tweets, Discord, …) |
 

@@ -53,6 +53,15 @@ test('helpers: code extraction, titles, messages, cookies', () => {
   assert.deepEqual(parseCookieInput('Cookie: si=abc; _session_id=zz'), { si: 'abc', _session_id: 'zz' });
 });
 
+test('German code lists are translated (GIGA)', async () => {
+  const { fromGerman } = await import('../lib/sources.js');
+  const nov = new Date('2026-11-14T00:00:00Z');
+  assert.deepEqual(fromGerman({ reward: '5x Goldener Schlüssel · 17. November', expires: '' }, nov), { reward: '5 Golden Keys', expires: 'November 17, 2026' });
+  assert.deepEqual(fromGerman({ reward: 'Mint Chipset Vault Hunter Skin für Loveless the Hacker · 31. Dezember 2030', expires: '' }, nov), { reward: 'Mint Chipset Vault Hunter Skin for Loveless the Hacker', expires: 'December 31, 2030' });
+  assert.deepEqual(fromGerman({ reward: '1x Goldener Schlüssel · Unbekannt', expires: '' }, nov), { reward: '1 Golden Key', expires: '' });
+  assert.equal(fromGerman({ reward: '3x Goldene Schlüssel · 2. Januar', expires: '' }, nov).expires, 'January 2, 2027', 'a January date seen in November is next year');
+});
+
 test('source parsing: tables and free text', () => {
   const html = `<table><tr><th>Reward</th><th>Expires</th><th>Code</th></tr>
     <tr><td>5 Golden Keys</td><td>Nov 17, 2026</td><td><code>S6RJJ-6THZT-BJJTJ-TB3JT-R995J</code></td></tr></table>`;

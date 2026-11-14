@@ -1,9 +1,10 @@
 ## What's new
-- **Updates install from inside the app.** When a new version is out, select **Update now** on the dashboard: SHiFT Redeemer downloads it, checks it, restarts and keeps your codes and settings. **Settings → Updates** can check now or install updates automatically. *(This works from 1.4.0 onwards. If you have an older version, install this one over it once.)*
-- **Smoother game launches.** An **Auto-launch games** switch on the dashboard, the game closes as soon as SHiFT accepts codes again, each step is shown live, and **Close game & resume** skips the wait.
-- **Your games on the dashboard.** Slim per-game tiles show keys and cosmetics, with a live **+N** as a run adds to each game.
-- **Themed game cards** on the Rewards page, with original banner art for each game.
-- **See what's already on your account.** Each game on the Rewards page shows how many rewards are on your SHiFT account: redeemed by the app, **already redeemed** before (website, in-game or another device), and how many are still to go.
+- **Getting started checklist.** New users see a live checklist on the dashboard: connect, link platforms, pick games, run. Each step has a button and ticks itself off.
+- **Best practice guide.** A new **Help → Best practice** tab with a dozen tips for getting the most out of the app, each linked to the right setting.
+- **Clearer Rewards page.** The game you're viewing is highlighted, and its tag now leads the *Cosmetics collected* and *Reward history* titles (✕ shows every game again).
+- **Three more code sources:** esports.net and Fossbytes (Borderlands 3 and Wonderlands) and GIGA (Borderlands 4, translated from German).
+
+If you have 1.4.0, select **Update now** when the app offers it. Older versions: install this one over the old one once.
 
 ## Download
 
@@ -41,6 +42,6 @@ Nothing else to install. Everything the app needs is included.
 
 **Keep me signed in** stores your password in **Windows Credential Manager** or the **macOS Keychain**, never in a plain file. If secure storage isn't available, the app asks you first and warns you before saving anything unencrypted.
 
-To update, install the new version over the old one. Your codes and settings are kept.
+**Updating:** from 1.4.0 on, the app updates itself: select **Update now** when it tells you a new version is out. For older versions, install the new version over the old one once. Your codes and settings are always kept.
 
 *Free, non-commercial fan tool. Not affiliated with Gearbox Software, 2K or Take-Two.*

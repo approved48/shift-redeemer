@@ -174,13 +174,16 @@ export function initReport({ api, toast, isVisible }) {
   }
 
   function renderTitles(d) {
+    $('#rpTitles').classList.toggle('has-active', d.titles.some((t) => t.id === R.title));
     $('#rpTitles').innerHTML = d.titles
       .map((t) => {
         const keys = SERIES.filter((s) => t.keys[s.id] > 0);
         const plats = Object.entries(t.platforms).map(([p, n]) => `<span class="chip">${esc(PLATFORM_NAMES[p] || p)} ${fmt(n)}</span>`).join('');
         const items = t.items.slice(-3).reverse();
-        return `<section class="rp-title t-${esc(t.id)} ${R.title === t.id ? 'on' : ''}" style="--c:${accentOf(t.id, t.color)}">
+        const on = R.title === t.id;
+        return `<section class="rp-title t-${esc(t.id)} ${on ? 'on' : ''}" style="--c:${accentOf(t.id, t.color)}" ${on ? 'aria-current="true"' : ''}>
           ${coverHTML(t)}
+          ${on ? '<span class="rp-viewing" aria-hidden="true">◉ Viewing</span>' : ''}
           <div class="rp-body">
           ${accountBar(t)}
           <div class="rp-keys">${
@@ -194,11 +197,18 @@ export function initReport({ api, toast, isVisible }) {
             <dt>Last reward</dt><dd>${fmtDate(t.last)}</dd>
           </dl>
           ${items.length ? `<ul class="rp-items">${items.map((i) => `<li title="${esc(i.name)}"><span class="kic" data-tip-kind="${esc(i.kinds?.[0] || 'other')}">${(KINDS[i.kinds?.[0]] || KINDS.other).ic}</span>${esc(i.name)}</li>`).join('')}${t.items.length > 3 ? `<li class="more"><button class="link-btn" data-rp-cos="${esc(t.id)}">+${t.items.length - 3} more</button></li>` : ''}</ul>` : ''}
-          <div class="rp-foot"><div class="chips">${plats}</div><button class="btn btn-sm btn-ghost" data-rp-title="${esc(t.id)}">${R.title === t.id ? 'Show all' : 'History'}</button></div>
+          <div class="rp-foot"><div class="chips">${plats}</div>${on ? `<button class="btn btn-sm btn-eridian" data-rp-title="${esc(t.id)}" aria-pressed="true" title="Showing this game's cosmetics and history. Select to show every game.">✓ Viewing</button>` : `<button class="btn btn-sm btn-ghost" data-rp-title="${esc(t.id)}" aria-pressed="false" title="Show just this game's cosmetics and history">History</button>`}</div>
           </div>
         </section>`;
       })
       .join('');
+  }
+
+  // Which game the Cosmetics and History sections are showing, as a tag at the start of their titles.
+  function scopeTag(d) {
+    const t = d.titles.find((x) => x.id === R.title);
+    if (!t) return '<span class="rp-scope all" title="Showing every game. Select a game card\'s History button to see just that game.">All games</span>';
+    return `<span class="rp-scope" style="--c:${accentOf(t.id, t.color)}" title="Showing ${esc(t.name)} only"><b>${esc(t.short)}</b><button type="button" data-rp-title="" aria-label="Show all games" title="Show all games">✕</button></span>`;
   }
 
   // Where this game stands on your SHiFT account: redeemed here, already redeemed before, still to do.
@@ -218,7 +228,7 @@ export function initReport({ api, toast, isVisible }) {
   function renderHistory(d) {
     const rows = d.recent.filter((r) => !R.title || r.titleId === R.title);
     const t = d.titles.find((x) => x.id === R.title);
-    $('#rpHistoryFilter').innerHTML = t ? `<span class="chip all"><i></i>${esc(t.name)}</span><button class="btn btn-sm btn-ghost" data-rp-title="">Clear</button>` : '';
+    $('#rpHistScope').innerHTML = scopeTag(d);
     $('#rpHistory').innerHTML = rows.length
       ? `<table class="data-table history-table"><thead><tr><th>Date</th><th>Game</th><th>Platform</th><th>Reward</th><th class="num">Keys</th><th>Code</th></tr></thead><tbody>${rows
           .slice(0, R.shown)
@@ -245,6 +255,7 @@ export function initReport({ api, toast, isVisible }) {
           .map((k) => `<button class="${R.kind === k.id ? 'on' : ''}" data-rp-kind="${k.id}" data-tip-kind="${k.id}">${(KINDS[k.id] || KINDS.other).ic} ${esc(k.name)} ${fmt(counts[k.id])}</button>`)
           .join('')}`
       : '';
+    $('#rpCosScope').innerHTML = scopeTag(d);
     const list = all.filter((c) => !R.kind || c.kind === R.kind);
     const t = d.titles.find((x) => x.id === R.title);
     $('#rpCosSub').textContent = all.length
