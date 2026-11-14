@@ -1,0 +1,419 @@
+#!/usr/bin/env node
+// SHiFT Redeemer — local web app.
+//   Packaged app: double-click it; it opens its own window.
+//   From source:  `node server.js`, then open http://localhost:4777
+// Binds to 127.0.0.1 only; your SHiFT session never leaves this machine except to talk to Gearbox.
+
+import http from 'node:http';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import crypto from 'node:crypto';
+import { Store } from './lib/store.js';
+import { ShiftClient, parseCookieInput } from './lib/shift.js';
+import { Engine } from './lib/engine.js';
+import { extractCodes } from './lib/catalog.js';
+import * as rt from './lib/runtime.js';
+
+const ROOT = rt.isPackaged ? path.dirname(process.execPath) : path.dirname(fileURLToPath(import.meta.url));
+const PUBLIC = path.join(ROOT, 'public');
+const BASE_PORT = Number(process.env.PORT) || 4777;
+const HOST = process.env.HOST || '127.0.0.1';
+const DATA_DIR = process.env.DATA_DIR || (rt.isPackaged ? rt.appDataDir() : path.join(ROOT, 'data'));
+const BASE_URL = process.env.SHIFT_BASE_URL || 'https://shift.gearboxsoftware.com';
+const BACKGROUND = process.argv.includes('--background');
+const NO_WINDOW = BACKGROUND || process.argv.includes('--no-open') || process.env.NO_OPEN === '1';
+// Packaged app quits a little while after its window is closed (unless auto-pilot is on).
+const CLOSE_WITH_WINDOW = rt.isPackaged ? process.env.STAY_OPEN !== '1' : process.env.CLOSE_WITH_WINDOW === '1';
+
+const [major] = process.versions.node.split('.').map(Number);
+if (major < 20) {
+  console.error(`Node.js 20 or newer is required (you have ${process.version}).`);
+  process.exit(1);
+}
+
+fs.mkdirSync(DATA_DIR, { recursive: true });
+rt.initLog(DATA_DIR);
+process.on('uncaughtException', (e) => rt.out(`Unexpected error: ${e.stack || e.message}`));
+process.on('unhandledRejection', (e) => rt.out(`Unexpected error: ${e?.stack || e}`));
+
+const store = new Store(DATA_DIR);
+const shift = new ShiftClient({
+  baseUrl: BASE_URL,
+  cookies: store.session.cookies || {},
+  onCookies: (cookies) => store.saveSession({ cookies }),
+});
+const engine = new Engine({ store, shift });
+const app = { version: rt.VERSION, packaged: rt.isPackaged, platform: process.platform, dataDir: DATA_DIR, autostart: false, autostartSupported: rt.autostartSupported, update: null };
+let port = BASE_PORT;
+
+// ------------------------------------------------------------------ SSE
+
+const clients = new Set();
+function broadcast(event, data) {
+  const payload = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+  for (const res of clients) res.write(payload);
+}
+engine.on('log', (e) => broadcast('log', e));
+engine.on('state', (s) => {
+  broadcast('state', s);
+  if (!s.running) scheduleIdleExit();
+});
+engine.on('account', (a) => broadcast('account', a));
+engine.on('codes', () => broadcast('codes', { stats: engine.stats() }));
+setInterval(() => broadcast('ping', Date.now()), 25_000).unref();
+
+// ------------------------------------------------------------------ lifecycle
+
+let idleTimer = null;
+let everConnected = false;
+const startedAt = Date.now();
+const STARTUP_GRACE = BACKGROUND ? 60_000 : 180_000;
+function scheduleIdleExit(delay = 45_000) {
+  if (!CLOSE_WITH_WINDOW) return;
+  clearTimeout(idleTimer);
+  // Before the window has ever connected, wait out the startup grace period instead.
+  if (!everConnected) delay = Math.max(delay, STARTUP_GRACE - (Date.now() - startedAt));
+  idleTimer = setTimeout(() => {
+    if (clients.size || engine.state.running || store.settings.autoRun.enabled) return;
+    rt.out('Window closed — shutting down.');
+    quit();
+  }, delay);
+}
+
+function quit(code = 0) {
+  try {
+    store.flush();
+  } catch {
+    /* ignore */
+  }
+  for (const res of clients) res.end();
+  setTimeout(() => process.exit(code), 150);
+}
+
+const appUrl = () => `http://localhost:${port}`;
+const showWindow = () => (rt.isPackaged ? rt.openAppWindow(appUrl()) : rt.openInBrowser(appUrl()));
+
+// ------------------------------------------------------------------ helpers
+
+const MIME = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon', '.json': 'application/json' };
+
+function send(res, status, body) {
+  res.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
+  res.end(JSON.stringify(body));
+}
+
+async function readJson(req) {
+  let size = 0;
+  const chunks = [];
+  for await (const chunk of req) {
+    size += chunk.length;
+    if (size > 2_000_000) throw Object.assign(new Error('Request too large'), { status: 413 });
+    chunks.push(chunk);
+  }
+  if (!chunks.length) return {};
+  try {
+    return JSON.parse(Buffer.concat(chunks).toString('utf8'));
+  } catch {
+    throw Object.assign(new Error('Invalid JSON'), { status: 400 });
+  }
+}
+
+const allowedHost = (h) => /^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/i.test(h || '') || (HOST !== '127.0.0.1' && HOST !== 'localhost');
+
+function fullState() {
+  const s = store.settings;
+  const sourceStatus = store.db.sourceStatus;
+  return {
+    app,
+    account: { ...engine.account, hasSavedCredentials: !!store.session.credentials, cookieNames: Object.keys(shift.jar.cookies) },
+    engine: engine.publicState(),
+    settings: s,
+    stats: engine.stats(),
+    catalog: engine.catalog(),
+    sources: engine.sourceDefs().map((d) => ({ id: d.id, name: d.name, site: d.site, description: d.description, enabled: d.enabled, custom: !!d.custom, status: sourceStatus[d.id] || null })),
+    logs: engine.logs.slice(-200),
+    baseUrl: BASE_URL,
+  };
+}
+
+function background(promise) {
+  promise.catch((e) => engine.log('error', e.message));
+}
+
+const bad = (msg, status = 400) => Object.assign(new Error(msg), { status });
+
+// ------------------------------------------------------------------ routes
+
+const routes = {
+  'GET /api/ping': () => ({ app: 'shift-redeemer', version: rt.VERSION }),
+  'GET /api/state': () => fullState(),
+  'GET /api/codes': () => ({ codes: Object.values(store.db.codes).map((c) => engine.codeView(c)), stats: engine.stats() }),
+
+  'POST /api/app/show': () => {
+    showWindow();
+    return { ok: true };
+  },
+  'POST /api/app/quit': () => {
+    rt.out('Quit requested from the app window.');
+    setTimeout(() => quit(), 200);
+    return { ok: true };
+  },
+  'POST /api/app/open-data': () => {
+    rt.revealFolder(DATA_DIR);
+    return { ok: true };
+  },
+  'POST /api/app/open-url': ({ body }) => {
+    const u = String(body.url || '');
+    if (!/^https:\/\//.test(u)) throw bad('Only https links can be opened');
+    rt.openInBrowser(u);
+    return { ok: true };
+  },
+  'PUT /api/app/autostart': async ({ body }) => {
+    app.autostart = await rt.setAutostart(!!body.enabled);
+    return { app };
+  },
+
+  'POST /api/account/login': async ({ body }) => {
+    if (!body.email || !body.password) throw bad('Email and password are required');
+    return { account: await engine.login(String(body.email).trim(), String(body.password), !!body.remember) };
+  },
+  'POST /api/account/cookie': async ({ body }) => {
+    const cookies = parseCookieInput(body.cookie);
+    if (!Object.keys(cookies).length) throw bad('Paste the value of the "si" cookie');
+    const account = await engine.useCookies(cookies);
+    if (!account.loggedIn) throw bad('SHiFT did not accept that cookie — copy the "si" value again while signed in.');
+    return { account };
+  },
+  'POST /api/account/check': async () => ({ account: await engine.refreshAccount() }),
+  'POST /api/account/logout': () => {
+    engine.logout();
+    return { account: engine.account };
+  },
+
+  'PUT /api/settings': ({ body }) => {
+    const allowed = ['titles', 'platforms', 'delaySeconds', 'skipExpired', 'useSourceHints', 'maxChecksPerRun', 'autoRun', 'sources'];
+    const patch = {};
+    for (const k of allowed) if (k in body) patch[k] = body[k];
+    if (patch.titles?.selected && !Array.isArray(patch.titles.selected)) delete patch.titles.selected;
+    if (patch.platforms?.selected && !Array.isArray(patch.platforms.selected)) delete patch.platforms.selected;
+    store.updateSettings(patch);
+    if ('rememberCredentials' in body && !body.rememberCredentials) {
+      store.saveSession({ credentials: undefined });
+      store.updateSettings({ rememberCredentials: false });
+    }
+    if ('autoRun' in patch) {
+      engine.schedule();
+      scheduleIdleExit();
+    }
+    engine.changed();
+    return fullState();
+  },
+
+  'POST /api/sources/custom': ({ body }) => {
+    let url;
+    try {
+      url = new URL(String(body.url || '').trim());
+      if (!/^https?:$/.test(url.protocol)) throw new Error();
+    } catch {
+      throw bad('Enter a full http(s) URL');
+    }
+    if (body.follow) {
+      try {
+        new RegExp(body.follow);
+      } catch {
+        throw bad('The link pattern is not a valid regular expression');
+      }
+    }
+    const cs = { id: crypto.randomBytes(4).toString('hex'), name: String(body.name || '').trim() || url.host, url: url.toString(), follow: String(body.follow || '').trim(), enabled: true };
+    store.updateSettings({ customSources: [...store.settings.customSources, cs] });
+    return fullState();
+  },
+  'DELETE /api/sources/custom': ({ query }) => {
+    store.updateSettings({ customSources: store.settings.customSources.filter((c) => c.id !== query.get('id')) });
+    return fullState();
+  },
+
+  'POST /api/collect': ({ body }) => {
+    background(engine.collect({ only: Array.isArray(body.only) ? body.only : null }));
+    return { started: true };
+  },
+  'POST /api/run': ({ body }) => {
+    const codes = Array.isArray(body.codes) ? body.codes.map((c) => String(c).toUpperCase()) : null;
+    background(
+      (async () => {
+        if (body.collectFirst) await engine.collect();
+        await engine.run({ codes });
+      })(),
+    );
+    return { started: true };
+  },
+  'POST /api/stop': () => {
+    engine.stop();
+    return { ok: true };
+  },
+
+  'POST /api/codes/add': ({ body }) => {
+    const codes = engine.addManual(String(body.text || ''));
+    if (!codes.length) throw bad('No SHiFT codes found in that text (format: XXXXX-XXXXX-XXXXX-XXXXX-XXXXX)');
+    if (body.redeem) background(engine.run({ codes }));
+    return { codes };
+  },
+  'POST /api/codes/ignore': ({ body }) => {
+    for (const code of extractCodes((body.codes || []).join(' '))) if (store.db.codes[code]) store.db.codes[code].ignored = !!body.ignored;
+    engine.changed();
+    return { ok: true };
+  },
+  'POST /api/codes/reset': ({ body }) => {
+    for (const code of extractCodes((body.codes || []).join(' '))) {
+      const c = store.db.codes[code];
+      if (!c) continue;
+      delete c.check;
+      for (const k of Object.keys(store.db.redemptions)) if (k.startsWith(`${code}|`)) delete store.db.redemptions[k];
+    }
+    engine.changed();
+    return { ok: true };
+  },
+  'GET /api/export': () => ({ exportedAt: new Date().toISOString(), codes: store.db.codes, redemptions: store.db.redemptions, settings: store.settings }),
+};
+
+function serveStatic(url, res) {
+  let rel = decodeURIComponent(url.pathname === '/' ? '/index.html' : url.pathname).replace(/^\/+/, '');
+  if (rel.includes('..') || rel.includes('\\')) {
+    res.writeHead(403).end();
+    return;
+  }
+  const type = MIME[path.extname(rel)] || 'application/octet-stream';
+  const ok = (data) => {
+    res.writeHead(200, { 'content-type': type, 'cache-control': 'no-cache' });
+    res.end(data);
+  };
+  if (rt.isPackaged) {
+    const data = rt.getAsset(rel);
+    if (data) return ok(data);
+    res.writeHead(404, { 'content-type': 'text/plain' }).end('Not found');
+    return;
+  }
+  fs.readFile(path.join(PUBLIC, rel), (err, data) => (err ? res.writeHead(404, { 'content-type': 'text/plain' }).end('Not found') : ok(data)));
+}
+
+const server = http.createServer(async (req, res) => {
+  const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+  if (!allowedHost(req.headers.host)) {
+    res.writeHead(403).end('Forbidden host');
+    return;
+  }
+
+  if (!url.pathname.startsWith('/api/')) return serveStatic(url, res);
+
+  // CSRF guard: only same-origin JS (which can set this header) may call the API.
+  if (req.method !== 'GET' && req.headers['x-shift-redeemer'] !== '1') return send(res, 403, { error: 'Missing app header' });
+  const origin = req.headers.origin;
+  if (origin) {
+    let host = '';
+    try {
+      host = new URL(origin).host;
+    } catch {
+      /* malformed */
+    }
+    if (!allowedHost(host)) return send(res, 403, { error: 'Cross-origin request blocked' });
+  }
+
+  if (url.pathname === '/api/events') {
+    res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-store', connection: 'keep-alive' });
+    res.write(`event: hello\ndata: {}\n\n`);
+    clients.add(res);
+    everConnected = true;
+    clearTimeout(idleTimer);
+    req.on('close', () => {
+      clients.delete(res);
+      if (!clients.size) scheduleIdleExit();
+    });
+    return;
+  }
+  const handler = routes[`${req.method} ${url.pathname}`];
+  if (!handler) return send(res, 404, { error: 'Not found' });
+  try {
+    const body = req.method === 'GET' || req.method === 'DELETE' ? {} : await readJson(req);
+    send(res, 200, await handler({ body, query: url.searchParams }));
+  } catch (e) {
+    send(res, e.status || 500, { error: e.message });
+  }
+});
+
+// ------------------------------------------------------------------ start
+
+/** Is another copy of this app already answering on that port? */
+async function existingInstance(p) {
+  try {
+    const r = await fetch(`http://127.0.0.1:${p}/api/ping`, { signal: AbortSignal.timeout(2000) });
+    const j = await r.json();
+    return j && j.app === 'shift-redeemer';
+  } catch {
+    return false;
+  }
+}
+
+function listen(p) {
+  return new Promise((resolve, reject) => {
+    const onErr = (e) => {
+      server.off('listening', onOk);
+      reject(e);
+    };
+    const onOk = () => {
+      server.off('error', onErr);
+      resolve();
+    };
+    server.once('error', onErr);
+    server.once('listening', onOk);
+    server.listen(p, HOST);
+  });
+}
+
+async function start() {
+  for (let attempt = 0; attempt < 12; attempt++) {
+    const p = BASE_PORT + attempt;
+    try {
+      await listen(p);
+      port = p;
+      break;
+    } catch (e) {
+      if (e.code !== 'EADDRINUSE') throw e;
+      if (await existingInstance(p)) {
+        // Already running: just bring up its window and leave.
+        rt.out(`SHiFT Redeemer is already running on port ${p} — opening it.`);
+        if (!BACKGROUND) {
+          await fetch(`http://127.0.0.1:${p}/api/app/show`, { method: 'POST', headers: { 'x-shift-redeemer': '1' } }).catch(() => {});
+        }
+        process.exit(0);
+      }
+      if (attempt === 11) throw new Error(`No free port between ${BASE_PORT} and ${p}`);
+    }
+  }
+
+  rt.out(`\n  SHiFT Redeemer ${rt.VERSION} is running → ${appUrl()}\n  Data folder: ${DATA_DIR}\n  ${rt.isPackaged ? 'Close the app window to quit.' : 'Press Ctrl+C to stop.'}\n`);
+  if (BASE_URL !== 'https://shift.gearboxsoftware.com') rt.out(`  (Using SHiFT endpoint ${BASE_URL})\n`);
+
+  if (!NO_WINDOW) showWindow();
+  // Quit if the window never connects (e.g. no browser could open).
+  scheduleIdleExit();
+
+  app.autostart = await rt.getAutostart().catch(() => false);
+  if (store.session.cookies && Object.keys(store.session.cookies).length) await engine.refreshAccount().catch(() => {});
+  engine.schedule();
+
+  const updateCheck = async () => {
+    if (process.env.NO_UPDATE_CHECK === '1') return;
+    app.update = await rt.checkForUpdate();
+    if (app.update) broadcast('app', app);
+  };
+  updateCheck();
+  setInterval(updateCheck, 24 * 3600_000).unref();
+}
+
+start().catch((e) => {
+  rt.out(`Could not start: ${e.message}`);
+  process.exit(1);
+});
+
+for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => quit());

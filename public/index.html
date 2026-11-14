@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>SHiFT Redeemer</title>
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;1,700;1,800;1,900&family=Barlow:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="fx" aria-hidden="true"></div>
+
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="#dashboard" aria-label="SHiFT Redeemer home">
+        <svg class="brand-mark" viewBox="0 0 64 64" aria-hidden="true">
+          <path d="M32 3 57 17.5v29L32 61 7 46.5v-29Z" fill="#ffd21f" stroke="#000" stroke-width="4" stroke-linejoin="round"/>
+          <circle cx="25" cy="30" r="9" fill="none" stroke="#000" stroke-width="5"/>
+          <path d="M33 30h16v6M43 30v5" fill="none" stroke="#000" stroke-width="5" stroke-linecap="square"/>
+        </svg>
+        <span class="wordmark"><b>SHiFT</b><i>Redeemer</i></span>
+      </a>
+      <nav class="tabs" id="tabs" aria-label="Sections">
+        <a href="#dashboard" data-tab="dashboard">Dashboard</a>
+        <a href="#codes" data-tab="codes">Codes <span class="tab-count" id="tabCount"></span></a>
+        <a href="#targets" data-tab="targets">Games &amp; Platforms</a>
+        <a href="#sources" data-tab="sources">Code Sources</a>
+        <a href="#account" data-tab="account">Account</a>
+        <a href="#settings" data-tab="settings">Settings</a>
+      </nav>
+      <a class="acct-pill" id="acctPill" href="#account"><span class="dot"></span><span class="txt">Checking…</span></a>
+      <button class="quit-btn" id="btnQuit" title="Quit SHiFT Redeemer" aria-label="Quit SHiFT Redeemer"><svg viewBox="0 0 24 24"><path d="M12 3v9"/><path d="M6.3 6.8a8 8 0 1 0 11.4 0"/></svg></button>
+    </div>
+  </header>
+
+  <main>
+    <!-- ============================================================ DASHBOARD -->
+    <section class="tab" id="tab-dashboard">
+      <div class="hero panel">
+        <div class="hero-copy">
+          <p class="eyebrow">Unofficial · Non-profit · Runs only on your PC</p>
+          <h1 class="display">Every code.<br><em>Every vault.</em></h1>
+          <p class="lede">Hunts SHiFT codes across the web and redeems them on your account for exactly the games and platforms you pick. No more copy-paste marathons.</p>
+          <div class="hero-actions">
+            <button class="btn btn-primary btn-xl" id="btnGo"><span>Find &amp; redeem</span></button>
+            <button class="btn" id="btnCollect" title="Search every enabled source for new codes">Find codes</button>
+            <button class="btn" id="btnRedeem" title="Redeem what's already in your queue">Redeem queue</button>
+            <button class="btn btn-danger" id="btnStop" hidden>Stop</button>
+          </div>
+        </div>
+        <div class="run-card" id="runCard"></div>
+      </div>
+
+      <div id="onboarding"></div>
+      <div id="dashBanners"></div>
+      <div class="stats" id="stats"></div>
+
+      <div class="grid-dash">
+        <section class="panel">
+          <div class="panel-head">
+            <h2>Live feed</h2>
+            <button class="btn btn-ghost btn-sm" id="btnClearLog">Clear</button>
+          </div>
+          <ol class="log" id="log" aria-live="polite"></ol>
+        </section>
+        <div class="stack">
+          <section class="panel">
+            <div class="panel-head"><h2>Targets</h2><a class="btn btn-ghost btn-sm" href="#targets">Edit</a></div>
+            <div id="targetSummary"></div>
+          </section>
+          <section class="panel">
+            <div class="panel-head"><h2>Last run</h2></div>
+            <div id="lastRun"></div>
+          </section>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ CODES -->
+    <section class="tab" id="tab-codes" hidden>
+      <div class="page-head">
+        <h1 class="page-title">Code library</h1>
+        <p class="page-sub">Every code found so far and what happened when it was redeemed. Codes are checked against SHiFT, which is the final word on which games and platforms they work for.</p>
+      </div>
+      <div class="toolbar panel">
+        <label class="search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><input type="search" id="codeSearch" placeholder="Search codes, rewards, games…" autocomplete="off"></label>
+        <div class="seg" id="statusFilter" role="tablist">
+          <button data-v="all">All</button>
+          <button data-v="queue">Queue</button>
+          <button data-v="done">Redeemed</button>
+          <button data-v="dead">Dead</button>
+          <button data-v="other">Not for you</button>
+        </div>
+        <select id="gameFilter" aria-label="Filter by game"></select>
+        <button class="btn btn-primary" id="btnAddCodes">+ Add codes</button>
+      </div>
+
+      <section class="panel paste" id="pastePanel" hidden>
+        <div class="panel-head"><h2>Paste codes</h2><button class="btn btn-ghost btn-sm" id="btnPasteClose">Close</button></div>
+        <p class="muted">Paste anything — a tweet, a Discord message, a whole guide. Codes in the <code>XXXXX-XXXXX-XXXXX-XXXXX-XXXXX</code> format are picked out automatically.</p>
+        <textarea id="pasteText" rows="5" placeholder="e.g. New BL4 code! T9RJB-3XWBS-6TJJJ-3TBTJ-SFXZK — 5 Golden Keys, expires Nov 20"></textarea>
+        <div class="row gap">
+          <button class="btn" id="btnPasteAdd">Add to library</button>
+          <button class="btn btn-primary" id="btnPasteRedeem">Add &amp; redeem now</button>
+          <span class="muted" id="pasteCount"></span>
+        </div>
+      </section>
+
+      <div class="code-list" id="codeList"></div>
+      <div class="center"><button class="btn" id="btnMore" hidden>Show more</button></div>
+    </section>
+
+    <!-- ============================================================ TARGETS -->
+    <section class="tab" id="tab-targets" hidden>
+      <div class="page-head">
+        <h1 class="page-title">Games &amp; platforms</h1>
+        <p class="page-sub">Choose where rewards should land. A single code can unlock rewards in several games at once — each game/platform pair you target is redeemed separately.</p>
+      </div>
+
+      <section class="panel">
+        <header class="sec-head"><span class="sec-num">01</span><div><h2>Titles</h2><p class="muted">Which Borderlands games should receive rewards?</p></div></header>
+        <div class="seg seg-lg" data-setting="titles.mode">
+          <button data-v="all">All titles</button>
+          <button data-v="select">Only the titles I pick</button>
+        </div>
+        <div class="pick-grid" id="titleGrid"></div>
+        <div class="row gap sm-gap" id="titleBulk">
+          <button class="btn btn-ghost btn-sm" data-bulk="titles:all">Select all</button>
+          <button class="btn btn-ghost btn-sm" data-bulk="titles:none">Clear</button>
+        </div>
+      </section>
+
+      <section class="panel">
+        <header class="sec-head"><span class="sec-num">02</span><div><h2>Platforms</h2><p class="muted">Where do you play? SHiFT only offers platforms that are linked to your account.</p></div></header>
+        <div class="seg seg-lg" data-setting="platforms.mode">
+          <button data-v="all">All linked platforms</button>
+          <button data-v="select">Only the platforms I pick</button>
+        </div>
+        <div class="pick-grid plat" id="platGrid"></div>
+        <p class="hint">Missing a platform? Link it at <a href="https://shift.gearboxsoftware.com/account" target="_blank" rel="noopener">SHiFT → Gaming Platforms</a>, then run again.</p>
+      </section>
+
+      <section class="panel">
+        <header class="sec-head"><span class="sec-num">03</span><div><h2>Smart filtering</h2><p class="muted">Fewer wasted requests means fewer SHiFT rate limits.</p></div></header>
+        <label class="switch-row"><input type="checkbox" class="switch" data-setting="useSourceHints"><span><b>Trust source hints</b><small>Skip checking codes that sources say are only for games or platforms you didn't pick.</small></span></label>
+        <label class="switch-row"><input type="checkbox" class="switch" data-setting="skipExpired"><span><b>Skip expired codes</b><small>Don't spend requests on codes whose published expiry date has passed.</small></span></label>
+      </section>
+
+      <div class="matrix panel" id="matrix"></div>
+    </section>
+
+    <!-- ============================================================ SOURCES -->
+    <section class="tab" id="tab-sources" hidden>
+      <div class="page-head">
+        <h1 class="page-title">Code sources</h1>
+        <p class="page-sub">Where codes are found. Sources only supply candidates — every code is checked with SHiFT before anything is redeemed.</p>
+        <div class="row gap"><button class="btn btn-primary" id="btnCollectAll">Search all enabled sources</button></div>
+      </div>
+
+      <section class="panel">
+        <header class="sec-head"><span class="sec-num">01</span><div><h2>Built-in sources</h2><p class="muted">Community feeds, official announcements, guides and deal sites.</p></div></header>
+        <div class="source-list" id="builtinSources"></div>
+      </section>
+
+      <section class="panel">
+        <header class="sec-head"><span class="sec-num">02</span><div><h2>Your sources</h2><p class="muted">Add any page that posts codes — a Steam guide, a forum thread, an OzBargain deal, a fan site.</p></div></header>
+        <form class="custom-form" id="customForm">
+          <label><span>Name</span><input name="name" placeholder="My favourite guide"></label>
+          <label class="grow"><span>Page URL</span><input name="url" type="url" placeholder="https://steamcommunity.com/sharedfiles/filedetails/?id=…" required></label>
+          <label><span>Follow links matching <small>(optional regex)</small></span><input name="follow" placeholder="/node/\d+$"></label>
+          <button class="btn btn-primary" type="submit">Add source</button>
+        </form>
+        <div class="source-list" id="customSources"></div>
+      </section>
+    </section>
+
+    <!-- ============================================================ ACCOUNT -->
+    <section class="tab" id="tab-account" hidden>
+      <div class="page-head">
+        <h1 class="page-title">SHiFT account</h1>
+        <p class="page-sub">Sign in to the SHiFT account your rewards should go to.</p>
+      </div>
+      <section class="panel acct-status" id="acctStatus"></section>
+      <div class="grid-2">
+        <section class="panel">
+          <header class="sec-head"><span class="sec-num">1</span><div><h2>Sign in to SHiFT</h2><p class="muted">Use the same email and password as the <a href="https://shift.gearboxsoftware.com" target="_blank" rel="noopener">SHiFT website</a>.</p></div></header>
+          <form id="loginForm" class="stack-form">
+            <label><span>Email</span><input name="email" type="email" autocomplete="username" required></label>
+            <label><span>Password</span><input name="password" type="password" autocomplete="current-password" required></label>
+            <label class="check"><input type="checkbox" name="remember"> <span>Keep me signed in for auto-pilot <small>(saves your password on this computer only)</small></span></label>
+            <button class="btn btn-primary btn-lg" type="submit">Sign in</button>
+          </form>
+          <p class="hint">No SHiFT account yet? <a href="https://shift.gearboxsoftware.com/home" target="_blank" rel="noopener">Create one free</a>, then link your gaming platforms (Steam, Epic, PlayStation, Xbox…) there.</p>
+        </section>
+        <section class="panel">
+          <header class="sec-head"><span class="sec-num">?</span><div><h2>Sign-in not working?</h2><p class="muted">If SHiFT asks for extra verification, you can borrow the session from a browser where you're already signed in.</p></div></header>
+          <details class="adv">
+            <summary>Advanced: use my browser session instead</summary>
+            <ol class="steps">
+              <li><span>In Chrome or Edge, open <a href="https://shift.gearboxsoftware.com/rewards" target="_blank" rel="noopener">shift.gearboxsoftware.com/rewards</a> while signed in.</span></li>
+              <li><span>Press <kbd>F12</kbd> → <b>Application</b> tab → <b>Cookies</b> → <code>https://shift.gearboxsoftware.com</code>.</span></li>
+              <li><span>Click the cookie named <code>si</code> and copy its <b>Value</b>.</span></li>
+              <li><span>Paste it below.</span></li>
+            </ol>
+            <form id="cookieForm" class="stack-form">
+              <label><span>Value of the <code>si</code> cookie</span><input name="cookie" autocomplete="off" spellcheck="false" placeholder="e.g. 2fa8c1…"></label>
+              <button class="btn btn-primary" type="submit">Connect session</button>
+            </form>
+          </details>
+          <p class="hint">Your sign-in is stored only on this computer and is used only to talk to SHiFT.</p>
+        </section>
+      </div>
+    </section>
+
+    <!-- ============================================================ SETTINGS -->
+    <section class="tab" id="tab-settings" hidden>
+      <div class="page-head">
+        <h1 class="page-title">Settings</h1>
+        <p class="page-sub">Pace, automation and data.</p>
+      </div>
+      <div class="grid-2">
+        <section class="panel">
+          <header class="sec-head"><span class="sec-num">01</span><div><h2>Pace</h2><p class="muted">SHiFT rate-limits fast clients. Slower is safer.</p></div></header>
+          <label class="field"><span>Delay between SHiFT requests <output id="delayOut"></output></span><input type="range" min="2" max="30" step="1" data-setting="delaySeconds" id="delayRange"></label>
+          <label class="field"><span>Max codes to check per run <small>(0 = no limit)</small></span><input type="number" min="0" max="5000" data-setting="maxChecksPerRun"></label>
+        </section>
+        <section class="panel">
+          <header class="sec-head"><span class="sec-num">02</span><div><h2>Auto-pilot</h2><p class="muted">Keeps hunting while this app is running.</p></div></header>
+          <label class="switch-row"><input type="checkbox" class="switch" data-setting="autoRun.enabled"><span><b>Run automatically</b><small>Find new codes and redeem them on a timer.</small></span></label>
+          <label class="field"><span>Every</span>
+            <select data-setting="autoRun.intervalMinutes">
+              <option value="60">1 hour</option><option value="120">2 hours</option><option value="180">3 hours</option><option value="360">6 hours</option><option value="720">12 hours</option><option value="1440">24 hours</option>
+            </select>
+          </label>
+          <label class="switch-row"><input type="checkbox" class="switch" data-setting="autoRun.collectFirst"><span><b>Search sources first</b><small>Look for new codes before each automatic run.</small></span></label>
+          <label class="switch-row" id="autostartRow"><input type="checkbox" class="switch" id="autostart"><span><b>Start with my computer</b><small>Open quietly in the background when you sign in to your computer, so auto-pilot keeps working.</small></span></label>
+          <p class="hint" id="nextRun"></p>
+          <p class="hint">While auto-pilot is on, closing the window keeps SHiFT Redeemer running in the background. Use the <b>⏻</b> button at the top to quit completely.</p>
+        </section>
+        <section class="panel">
+          <header class="sec-head"><span class="sec-num">03</span><div><h2>Your data</h2><p class="muted">Codes, results and settings are saved on this computer.</p></div></header>
+          <div class="row gap"><a class="btn" href="/api/export" download="shift-redeemer-export.json">Export JSON</a><button class="btn" id="btnOpenData">Open data folder</button></div>
+          <p class="hint" id="dataDir"></p>
+        </section>
+        <section class="panel">
+          <header class="sec-head"><span class="sec-num">04</span><div><h2>About</h2><p class="muted" id="versionLine"></p></div></header>
+          <p class="muted">A free, non-commercial helper that automates what you'd otherwise do by hand on the SHiFT rewards page. Not affiliated with, endorsed by, or sponsored by Gearbox Software, 2K or Take-Two. Borderlands and SHiFT are trademarks of their respective owners.</p>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot">Unofficial fan tool · not affiliated with Gearbox Software · free &amp; non-commercial</footer>
+  <div class="toasts" id="toasts" aria-live="polite"></div>
+  <div class="overlay" id="overlay" hidden>
+    <div class="panel overlay-card">
+      <h2 id="overlayTitle">SHiFT Redeemer has stopped</h2>
+      <p class="muted" id="overlayText">You can close this window. Open SHiFT Redeemer again from your Start menu, desktop or Applications folder.</p>
+    </div>
+  </div>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>
