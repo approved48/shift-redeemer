@@ -278,3 +278,94 @@ test('game launch assist: launches, waits, closes, resumes — or pauses with a 
 
   mock.setLaunchAfter(Infinity);
 });
+
+test('code lists: import every format, export without account data', async () => {
+  const { parseCodeList, exportCodeList, LIST_FORMAT } = await import('../lib/codelists.js');
+  const A = 'AAAAA-11111-AAAAA-11111-AAAAA';
+  const B = 'BBBBB-22222-BBBBB-22222-BBBBB';
+  // plain text, with noise and duplicates
+  let r = parseCodeList(`from my mate:\n${A.toLowerCase()} 5 Golden Keys\n${B}\n${A}`);
+  assert.equal(r.kind, 'text');
+  assert.deepEqual(r.records.map((x) => x.code), [A, B]);
+  // CSV (semicolon, quoted, extra columns)
+  r = parseCodeList(`Code;Reward;Game;Expires\n${A};"3 Golden Keys; BL2";Borderlands 2;Dec 1, 2026\n${B};;Borderlands 4;`);
+  assert.equal(r.kind, 'csv');
+  assert.equal(r.records[0].reward, '3 Golden Keys; BL2');
+  assert.deepEqual(r.records[0].games, ['bl2']);
+  assert.equal(r.records[0].expires, 'Dec 1, 2026');
+  // community feed JSON
+  r = parseCodeList(JSON.stringify([{ meta: {}, codes: [{ code: A, game: 'Borderlands 4', platform: 'universal', reward: '5 Golden Keys', expired: true }] }]));
+  assert.equal(r.records[0].expired, true);
+  assert.deepEqual(r.records[0].games, ['bl4']);
+  // our own list round-trips, and exports carry no account data
+  const codes = [
+    { code: A, reward: '5 Golden Keys', games: ['bl4'], platforms: [], expires: '', check: { status: 'ok' } },
+    { code: B, reward: '', games: [], platforms: [], expires: '', check: { status: 'expired' } },
+  ];
+  const json = exportCodeList(codes, 'json', '1.2.0');
+  const doc = JSON.parse(json.content);
+  assert.equal(doc.format, LIST_FORMAT);
+  assert.deepEqual(doc.codes.map((c) => c.state), ['valid', 'expired']);
+  assert.ok(!/redeemed|email|password|steam/i.test(json.content.replace(/"platforms"/g, '')), 'export leaked account data');
+  r = parseCodeList(json.content);
+  assert.equal(r.kind, 'list');
+  assert.equal(r.records[1].expired, true);
+  assert.equal(exportCodeList(codes, 'txt').content, `${A}\n${B}\n`);
+  assert.match(exportCodeList(codes, 'csv').content, /^code,reward,games,platforms,expires,state\r\n/);
+
+  // engine: dry run reports, real import adds with a source label
+  const { engine, store } = makeEngine();
+  const dry = engine.importList(`${A}\n${B}`, 'friends.txt', { dryRun: true });
+  assert.equal(dry.found, 2);
+  assert.ok(!store.db.codes[B] || dry.fresh < 2);
+  engine.importList(`${A}\n${B}\nCCCCC-33333-CCCCC-33333-CCCCC`, 'friends.txt');
+  assert.equal(store.db.codes['CCCCC-33333-CCCCC-33333-CCCCC'].sources[0].name, 'Imported list (friends.txt)');
+});
+
+test('rewards report: parses keys per title and aggregates', async () => {
+  const { parseReward, buildReport } = await import('../lib/rewards.js');
+  const k = (t, id) => parseReward(t, id).keys;
+  assert.deepEqual(k('5 Golden Keys', 'bl4'), { golden: 5, diamond: 0, skeleton: 0 });
+  assert.deepEqual(k('1 Golden Key', 'bl3'), { golden: 1, diamond: 0, skeleton: 0 });
+  assert.deepEqual(k('10 Skeleton Keys', 'ttw'), { golden: 0, diamond: 0, skeleton: 10 });
+  // shared code: Diamond Keys only for the game named after them
+  const pax = 'This SHiFT Code unlocks 50 Golden Keys in multiple Gearbox games plus 20 Diamond Keys in Borderlands 3!';
+  assert.deepEqual(k(pax, 'bl3'), { golden: 50, diamond: 20, skeleton: 0 });
+  assert.deepEqual(k(pax, 'bl2'), { golden: 50, diamond: 0, skeleton: 0 });
+  // "each for <list of games>"
+  const movie = 'unlocks one Golden Key each for Borderlands: Game of the Year Edition, Borderlands 2, Borderlands: The Pre-Sequel, and Borderlands 3!';
+  assert.deepEqual(k(movie, 'bl2'), { golden: 1, diamond: 0, skeleton: 0 });
+  assert.deepEqual(k(movie, 'bl4'), { golden: 0, diamond: 0, skeleton: 0 });
+  // cosmetic items and unknowns
+  assert.equal(parseReward('Cosmic Hunter Skin', 'bl3').item, 'Cosmic Hunter Skin');
+  assert.equal(parseReward('3 Golden Keys and a Weapon Skin', 'bl3').item, '3 Golden Keys and a Weapon Skin');
+  assert.equal(parseReward('', 'bl3').unknown, true);
+  // real-world feed quirks
+  assert.deepEqual(k('50 Golden PAX West Keys', 'bl1'), { golden: 50, diamond: 0, skeleton: 0 });
+  assert.deepEqual(k('1 Golden Key2K Japan', 'bl4'), { golden: 1, diamond: 0, skeleton: 0 });
+  assert.equal(parseReward('1 Golden Key2K Japan', 'bl4').item, null);
+  assert.deepEqual(k('SDCC 2024 Skeleton Keys', 'ttw'), { golden: 0, diamond: 0, skeleton: 1 });
+  assert.equal(parseReward('Vault Hunter SkinHype Squad', 'bl4').item, 'Vault Hunter Skin: Hype Squad');
+  assert.equal(parseReward('Vault Hunter skinLuck of the Kairish', 'bl4').item, 'Vault Hunter skin: Luck of the Kairish');
+
+  const now = Date.now();
+  const db = {
+    codes: { 'AAAAA-1': { reward: '5 Golden Keys' }, 'BBBBB-2': { reward: pax }, 'CCCCC-3': { reward: 'Neon Skin' } },
+    redemptions: {
+      'AAAAA-1|bl4|steam': { status: 'success', at: now, title: 'Borderlands 4', service: 'steam' },
+      'BBBBB-2|bl3|steam': { status: 'success', at: now, title: 'Borderlands 3', service: 'steam' },
+      'BBBBB-2|bl2|epic': { status: 'success', at: now, title: 'Borderlands 2', service: 'epic' },
+      'CCCCC-3|bl3|steam': { status: 'redeemed', at: now, title: 'Borderlands 3', service: 'steam' },
+      'CCCCC-3|bl2|steam': { status: 'trylater', at: now, title: 'Borderlands 2', service: 'steam' },
+    },
+  };
+  const r = buildReport(db);
+  assert.deepEqual(r.totals.keys, { golden: 105, diamond: 20, skeleton: 0 });
+  assert.equal(r.totals.rewards, 3);
+  assert.equal(r.totals.already, 1);
+  assert.equal(r.titles.find((t) => t.id === 'bl3').keys.diamond, 20);
+  assert.equal(r.months.length, 12);
+  assert.equal(r.months.at(-1).golden, 105);
+  assert.equal(buildReport(db, { platform: 'epic' }).totals.keys.golden, 50);
+  assert.equal(buildReport(db, { since: now + 1000 }).totals.rewards, 0);
+});

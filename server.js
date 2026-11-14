@@ -14,6 +14,7 @@ import { ShiftClient, parseCookieInput } from './lib/shift.js';
 import { Engine } from './lib/engine.js';
 import { extractCodes } from './lib/catalog.js';
 import * as rt from './lib/runtime.js';
+import { buildReport } from './lib/rewards.js';
 
 const ROOT = rt.isPackaged ? path.dirname(process.execPath) : path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC = path.join(ROOT, 'public');
@@ -153,6 +154,11 @@ const bad = (msg, status = 400) => Object.assign(new Error(msg), { status });
 const routes = {
   'GET /api/ping': () => ({ app: 'shift-redeemer', version: rt.VERSION }),
   'GET /api/state': () => fullState(),
+  'GET /api/report': ({ query }) => {
+    const days = Number(query.get('days')) || 0;
+    const platform = query.get('platform') || null;
+    return buildReport(store.db, { since: days ? Date.now() - days * 86_400_000 : null, platform });
+  },
   'GET /api/codes': () => ({ codes: Object.values(store.db.codes).map((c) => engine.codeView(c)), stats: engine.stats() }),
 
   'POST /api/app/show': () => {
@@ -287,6 +293,15 @@ const routes = {
     if (body.redeem) background(engine.run({ codes }));
     return { codes };
   },
+  'POST /api/codes/import': ({ body }) => {
+    const text = String(body.text || '');
+    if (!text.trim()) throw bad('The list is empty');
+    const res = engine.importList(text, String(body.filename || ''), { dryRun: body.dryRun === true });
+    if (!res.found) throw bad('No SHiFT codes found in that list (format: XXXXX-XXXXX-XXXXX-XXXXX-XXXXX)');
+    if (!body.dryRun && body.redeem) background(engine.run({ codes: res.codes }));
+    return res;
+  },
+  'GET /api/codes/export': ({ query }) => engine.exportList(query.get('format') || 'txt', query.get('which') || 'working', rt.VERSION),
   'POST /api/codes/ignore': ({ body }) => {
     for (const code of extractCodes((body.codes || []).join(' '))) if (store.db.codes[code]) store.db.codes[code].ignored = !!body.ignored;
     engine.changed();

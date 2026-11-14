@@ -1,5 +1,9 @@
 // SHiFT Redeemer front-end (no build step, no framework).
 
+import { initHelp } from './help.js';
+import { initReport } from './report.js';
+import { initLists } from './lists.js';
+
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -47,6 +51,69 @@ const ICON = {
   search: '<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>',
   ext: '<svg viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>',
 };
+
+/** One callout shape for every status message, note and banner. */
+function callout(tone, icon, title, body, actions = '') {
+  return `<div class="callout is-${tone}"><span class="co-ic" aria-hidden="true">${icon}</span><div class="co-body">${title ? `<b class="co-title">${title}</b>` : ''}${body}</div>${actions ? `<div class="co-actions">${actions}</div>` : ''}</div>`;
+}
+
+// ------------------------------------------------------------------ motion
+
+const MOTION_KEY = 'sr.reduceMotion';
+try {
+  if (localStorage.getItem(MOTION_KEY) === '1') document.documentElement.classList.add('reduce-motion');
+} catch {
+  /* storage unavailable */
+}
+const reducedMotion = () => document.documentElement.classList.contains('reduce-motion') || matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/** Quick staggered entrance for the visible blocks of a page, like a game menu panel sliding in. */
+function cascade(root) {
+  if (reducedMotion() || !root) return;
+  const els = [...root.querySelectorAll('.hero, .panel, .statbar, .callout, .stat-tile, .rp-title, .code, .source')].filter((el) => el.offsetParent !== null).slice(0, 18);
+  els.forEach((el, i) => {
+    el.classList.remove('in');
+    el.style.setProperty('--i', i);
+    void el.offsetWidth;
+    el.classList.add('in');
+    el.addEventListener('animationend', () => el.classList.remove('in'), { once: true });
+  });
+}
+
+/** Slide the active-tab highlight to the current tab. */
+function moveInk() {
+  const ink = $('#tabInk');
+  const a = $('#tabs a.active');
+  if (!ink || !a) return;
+  ink.style.width = `${a.offsetWidth - 8}px`;
+  ink.style.transform = `translateX(${a.offsetLeft + 4}px) skewX(-14deg)`;
+  ink.classList.add('on');
+}
+addEventListener('resize', moveInk);
+
+const prevNums = new Map();
+/** Count a number up (or down) to its new value. */
+function countTo(el, key, to) {
+  const from = prevNums.get(key);
+  prevNums.set(key, to);
+  if (from === undefined || from === to || reducedMotion()) {
+    el.textContent = Number(to || 0).toLocaleString();
+    return;
+  }
+  const t0 = performance.now();
+  const d = 420;
+  const step = (t) => {
+    const p = Math.min(1, (t - t0) / d);
+    el.textContent = Math.round(from + (to - from) * (1 - (1 - p) ** 3)).toLocaleString();
+    if (p < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+  el.classList.remove('bump');
+  void el.offsetWidth;
+  el.classList.add('bump');
+}
+let lastPick = null;
+let lastPhase = null;
 
 // ------------------------------------------------------------------ api
 
@@ -214,6 +281,7 @@ function connect() {
     S.stats = JSON.parse(e.data).stats;
     renderStats();
     loadCodes();
+    report.refresh(S.catalog.platforms);
   });
   es.addEventListener('app', (e) => {
     S.app = JSON.parse(e.data);
@@ -244,7 +312,10 @@ function showTab() {
   const valid = $$('.tab').some((t) => t.id === `tab-${tab}`) ? tab : 'dashboard';
   $$('.tab').forEach((t) => (t.hidden = t.id !== `tab-${valid}`));
   $$('#tabs a').forEach((a) => a.classList.toggle('active', a.dataset.tab === valid));
+  if (valid === 'rewards' && typeof report !== 'undefined') report.refresh(S.catalog.platforms);
   window.scrollTo({ top: 0 });
+  moveInk();
+  cascade($(`#tab-${valid}`));
 }
 window.addEventListener('hashchange', showTab);
 
@@ -258,22 +329,22 @@ function connectHTML() {
     </div>
     <div data-cpane="login">
       <form class="stack-form" data-form="login">
-        <label><span>Email</span><input name="email" type="email" autocomplete="username" required></label>
-        <label><span>Password</span><input name="password" type="password" autocomplete="current-password" required></label>
+        <label class="field"><span class="label">Email</span><input name="email" type="email" autocomplete="username" required></label>
+        <label class="field"><span class="label">Password</span><input name="password" type="password" autocomplete="current-password" required></label>
         <label class="check"><input type="checkbox" name="remember" checked> <span>Keep me signed in for auto-pilot <small class="remember-hint"></small></span></label>
         <button class="btn btn-eridian" type="submit">Sign in</button>
       </form>
       <p class="hint alt">No SHiFT account? <a href="https://shift.gearboxsoftware.com/home" target="_blank" rel="noopener">Create one free</a>. If SHiFT asks for extra verification, use <button type="button" class="link-btn" data-ctab="cookie">Browser session</button> instead.</p>
     </div>
     <div data-cpane="cookie" hidden>
-      <p class="hint" style="margin:0 0 10px">Already signed in to SHiFT in Chrome or Edge? Borrow that session instead. No password needed.</p>
+      <p class="hint" style="margin:0 0 var(--s3)">Already signed in to SHiFT in Chrome or Edge? Borrow that session instead. No password needed.</p>
       <ol class="steps">
         <li><span>Open <a href="https://shift.gearboxsoftware.com/rewards" target="_blank" rel="noopener">shift.gearboxsoftware.com/rewards</a> in Chrome or Edge while signed in.</span></li>
         <li><span>Press <kbd>F12</kbd>, then go to <b>Application</b> → <b>Cookies</b> → <code>https://shift.gearboxsoftware.com</code>.</span></li>
         <li><span>Click the cookie named <code>si</code> and copy its <b>Value</b>, then paste it below.</span></li>
       </ol>
       <form class="stack-form" data-form="cookie">
-        <label><span>Value of the <code>si</code> cookie</span><input name="cookie" autocomplete="off" spellcheck="false" placeholder="e.g. 2fa8c1…"></label>
+        <label class="field"><span class="label">Value of the <code>si</code> cookie</span><input name="cookie" autocomplete="off" spellcheck="false" placeholder="e.g. 2fa8c1…"></label>
         <button class="btn btn-eridian" type="submit">Connect session</button>
       </form>
     </div>
@@ -287,9 +358,9 @@ function linksHTML() {
       <li><span>Click <b>Gaming Platforms</b> in the left-hand menu.</span></li>
       <li><span>Link every platform you play on: Steam, Epic Games, PlayStation, Xbox, Nintendo.</span></li>
     </ol>
-    <div class="row gap" style="margin-top:10px"><a class="btn" href="${SHIFT_ACCOUNT_URL}" target="_blank" rel="noopener">${ICON.ext} Open SHiFT Gaming Platforms</a></div>
+    <div class="row gap"><a class="btn btn-sm" href="${SHIFT_ACCOUNT_URL}" target="_blank" rel="noopener">${ICON.ext} Open SHiFT Gaming Platforms</a></div>
     <div class="links-detected">
-      <h3>Detected on your account</h3>
+      <h3 class="eyebrow">Detected on your account</h3>
       ${
         linked.length
           ? `<div class="chips">${linked.map((p) => `<span class="chip ok"><i style="--c:${C.green}"></i>${esc(p.name)}</span>`).join('')}</div>`
@@ -305,7 +376,7 @@ function titlePicksHTML() {
     .map((t) => {
       const on = all || st.titles.selected.includes(t.id);
       const n = codeCountFor(t.id);
-      return `<label class="pick ${on ? 'on' : ''} ${all ? 'locked' : ''}" style="--c:${t.color}">
+      return `<label class="pick ${on ? 'on' : ''} ${all ? 'locked' : ''} ${lastPick === t.id ? 'just' : ''}" style="--c:${t.color}">
         <input type="checkbox" data-pick="titles" value="${esc(t.id)}" ${on ? 'checked' : ''} ${all ? 'disabled' : ''}>
         <span class="tick">${ICON.check}</span>
         <span class="big">${esc(t.short)}</span>
@@ -324,7 +395,7 @@ function platPicksHTML() {
   return S.catalog.platforms
     .map((p) => {
       const on = all ? !known || p.linked : st.platforms.selected.includes(p.id);
-      return `<label class="pick ${on ? 'on' : ''} ${all ? 'locked' : ''} ${all && known && !p.linked ? 'dim' : ''}" style="--c:${C.eridian}">
+      return `<label class="pick ${on ? 'on' : ''} ${all ? 'locked' : ''} ${all && known && !p.linked ? 'dim' : ''} ${lastPick === p.id ? 'just' : ''}" style="--c:${C.eridian}">
         <input type="checkbox" data-pick="platforms" value="${esc(p.id)}" ${on ? 'checked' : ''} ${all ? 'disabled' : ''}>
         <span class="tick">${ICON.check}</span>
         <span class="big">${esc(p.glyph)}</span>
@@ -420,9 +491,10 @@ function renderRun() {
   else if (live) current = `${esc(e.current || '…')}${e.total ? ` · ${e.done}/${e.total} · ${pct}%` : ''}`;
   else if (paused) current = `SHiFT needs a game launched · ${lr.pause.waiting} code${lr.pause.waiting === 1 ? '' : 's'} waiting`;
   else current = `${S.stats.queue ?? 0} code${S.stats.queue === 1 ? '' : 's'} in the queue`;
+  const phaseChanged = phase;
   const warmPct = e.assist?.step === 'warmup' && e.assist.endsAt ? 100 - Math.round(((e.assist.endsAt - Date.now()) / (Number(S.settings?.gameAssist?.warmupSeconds || 75) * 1000)) * 100) : null;
   $('#runCard').innerHTML = `
-    <div class="cmd-line"><span class="cmd-dot ${dot}"></span><span class="cmd-phase ${live ? 'live' : ''} ${paused ? 'warn' : ''}">${phase}</span><span class="cmd-current">${current}</span></div>
+    <div class="cmd-line"><span class="cmd-dot ${dot}"></span><span class="cmd-phase ${live ? 'live' : ''} ${paused ? 'warn' : ''} ${phase !== lastPhase && lastPhase !== null ? 'flick' : ''}">${phase}</span><span class="cmd-current">${current}</span></div>
     <div class="bar ${live ? 'live' : ''} ${e.assist ? 'assist' : ''}"><i style="width:${live ? Math.max(warmPct ?? pct, 2) : 0}%"></i></div>
     <div class="cmd-meta">
       <span>Last search <b>${e.lastCollect ? `${ago(e.lastCollect.at)} · ${e.lastCollect.added} new` : 'never'}</b></span>
@@ -431,6 +503,7 @@ function renderRun() {
       <span>Game assist <b>${{ auto: 'automatic', ask: 'asks first', off: 'off' }[S.settings?.gameAssist?.mode] || 'off'}</b></span>
       ${e.message && !e.assist ? `<span class="cmd-msg">${esc(e.message)}</span>` : ''}
     </div>`;
+  lastPhase = phaseChanged;
   clearInterval(assistTick);
   if (live && e.assist && ['starting', 'warmup'].includes(e.assist.step)) assistTick = setInterval(renderRun, 1000);
   renderBanners();
@@ -439,11 +512,11 @@ function renderRun() {
 function renderBanners() {
   const out = [];
   if (!S.account.loggedIn)
-    out.push(`<div class="banner eridian"><div><b>Connect your SHiFT account to start redeeming</b><p>Codes can be found without an account, but redeeming them needs you signed in.</p></div><div class="row gap"><button class="btn btn-eridian btn-xs" data-act="setup">Run setup</button><a class="btn btn-xs" href="#account">Account</a></div></div>`);
+    out.push(callout('eridian', '🔑', 'Connect your SHiFT account to start redeeming', 'Codes can be found without an account, but redeeming them needs you signed in.', '<button class="btn btn-sm btn-eridian" data-act="setup">Run setup</button><a class="btn btn-sm" href="#account">Account</a>'));
   if (S.account.saved && !S.account.saved.secure)
-    out.push(`<div class="banner danger"><div><b>Your SHiFT password is saved without encryption</b><p>It's stored as readable text on this computer because secure storage wasn't available.</p></div><button class="btn btn-xs" data-act="acct-forget">Forget password</button></div>`);
+    out.push(callout('danger', '⚠', 'Your SHiFT password is saved without encryption', "It's stored as readable text on this computer because secure storage wasn't available.", '<button class="btn btn-sm" data-act="acct-forget">Forget password</button>'));
   if (S.app?.update)
-    out.push(`<div class="banner eridian"><div><b>Update available: version ${esc(S.app.update.version)}</b><p>You have ${esc(S.app.version)}. Install the new version over this one; your codes and settings are kept.</p></div><a class="btn btn-eridian btn-xs" href="${esc(S.app.update.url)}" target="_blank" rel="noopener">Download</a></div>`);
+    out.push(callout('eridian', '⬆', `Update available: version ${esc(S.app.update.version)}`, `You have ${esc(S.app.version)}. Install the new version over this one; your codes and settings are kept.`, `<a class="btn btn-sm btn-eridian" href="${esc(S.app.update.url)}" target="_blank" rel="noopener">Download</a>`));
   const lr = S.engine.lastRun;
   if (!S.engine.running && lr?.pause) out.push(pauseBanner(lr.pause));
   $('#dashBanners').innerHTML = out.join('');
@@ -459,15 +532,15 @@ function pauseBanner(p) {
   let buttons = '';
   if (p.why === 'ask' || (p.why === 'off' && p.canLaunch)) {
     body = `SHiFT stopped accepting codes on ${esc(where)} until a SHiFT-enabled game is launched (${waiting}). SHiFT Redeemer can start <b>${esc(p.game)}</b> via ${esc(p.via)}, wait about a minute, close it and carry on.`;
-    buttons = `<button class="btn btn-eridian btn-xs" data-act="assist-resume">Launch ${esc(p.game)} &amp; resume</button><button class="btn btn-xs" data-act="redeem">I launched a game, resume</button>`;
+    buttons = `<button class="btn btn-sm btn-eridian" data-act="assist-resume">Launch ${esc(p.game)} &amp; resume</button><button class="btn btn-sm" data-act="redeem">I launched a game, resume</button>`;
   } else if (p.why === 'still-blocked') {
     body = `${esc(p.message)} (${waiting}).`;
-    buttons = `<button class="btn btn-eridian btn-xs" data-act="assist-resume">Launch again &amp; resume</button><button class="btn btn-xs" data-act="redeem">Resume</button>`;
+    buttons = `<button class="btn btn-sm btn-eridian" data-act="assist-resume">Launch again &amp; resume</button><button class="btn btn-sm" data-act="redeem">Resume</button>`;
   } else {
-    body = `SHiFT stopped accepting codes on ${esc(where)} until a SHiFT-enabled game is launched (${waiting}). ${esc(p.message)} Start any Borderlands game, wait at its main menu for a minute, then press Resume.`;
-    buttons = `<button class="btn btn-eridian btn-xs" data-act="redeem">Resume</button><a class="btn btn-ghost btn-xs" href="#settings">Game launch settings</a>`;
+    body = `SHiFT stopped accepting codes on ${esc(where)} until a SHiFT-enabled game is launched (${waiting}). ${esc(/[.!?]$/.test(p.message) ? p.message : `${p.message}.`)} Start any Borderlands game, wait at its main menu for a minute, then press Resume.`;
+    buttons = `<button class="btn btn-sm btn-eridian" data-act="redeem">Resume</button><button class="btn btn-sm btn-ghost" data-help="paused game">Why?</button>`;
   }
-  return `<div class="banner pause"><div><b>⏸ Redeeming paused: SHiFT needs a game launched</b><p>${body}${auto}</p></div><div class="row gap">${buttons}</div></div>`;
+  return callout('warn', '⏸', 'Redeeming paused: SHiFT needs a game launched', `${body}${auto}`, buttons);
 }
 
 function runResult(lr) {
@@ -487,7 +560,8 @@ function renderStats() {
     ['Dead', (s.expired || 0) + (s.invalid || 0) + (s.unavailable || 0) + (s.stale || 0), C.red, 'Expired or invalid codes'],
     ['Known', s.total, C.ink, `${s.filtered || 0} not for your games or platforms`],
   ];
-  $('#stats').innerHTML = cells.map(([l, n, c, tip]) => `<div class="sb-cell" style="--c:${c}" title="${esc(tip)}"><b>${n ?? 0}</b><span>${l}</span></div>`).join('');
+  if (!$('#stats').children.length) $('#stats').innerHTML = cells.map(([l, n, c, tip]) => `<div class="sb-cell" style="--c:${c}" title="${esc(tip)}"><b data-k="${l}"></b><span>${l}</span></div>`).join('');
+  cells.forEach(([l, n]) => countTo($(`#stats b[data-k="${l}"]`), `stat:${l}`, n ?? 0));
 }
 
 function renderDashboard() {
@@ -537,6 +611,7 @@ function appendLog(e) {
   const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
   $('.log-empty', el)?.remove();
   el.insertAdjacentHTML('beforeend', logLine(e));
+  el.lastElementChild?.classList.add('new');
   while (el.children.length > 400) el.firstElementChild.remove();
   if (atBottom) el.scrollTop = el.scrollHeight;
 }
@@ -562,10 +637,13 @@ function renderTargets() {
   const nT = tAll ? 'every' : st.titles.selected.length;
   const linked = S.catalog.platforms.filter((p) => p.linked).length;
   const nP = pAll ? linked || 'every linked' : st.platforms.selected.length;
-  $('#matrix').innerHTML = `<div class="eq">${nT === 'every' ? 'ALL' : nT} × ${pAll ? (linked ? linked : 'ALL') : nP}</div>
-    <p>Each valid code is redeemed for <b>${tAll ? 'every title it unlocks' : `${nT} selected title${nT === 1 ? '' : 's'}`}</b> on <b>${pAll ? 'every platform linked to your SHiFT account' : `${nP} selected platform${nP === 1 ? '' : 's'}`}</b>.
-    ${!tAll && !st.titles.selected.length ? '<br><span style="color:var(--red)">No titles selected: nothing will be redeemed.</span>' : ''}
-    ${!pAll && !st.platforms.selected.length ? '<br><span style="color:var(--red)">No platforms selected: nothing will be redeemed.</span>' : ''}</p>`;
+  const warn = [!tAll && !st.titles.selected.length ? 'No titles selected, so nothing will be redeemed.' : '', !pAll && !st.platforms.selected.length ? 'No platforms selected, so nothing will be redeemed.' : '']
+    .filter(Boolean)
+    .map((w) => `<br><span style="color:var(--red)">${w}</span>`)
+    .join('');
+  const m = $('#matrix');
+  m.className = `callout ${warn ? 'is-danger' : 'is-eridian'}`;
+  m.innerHTML = `<span class="eq">${nT === 'every' ? 'ALL' : nT} × ${pAll ? (linked ? linked : 'ALL') : nP}</span><div class="co-body"><b class="co-title">What will be redeemed</b>Each valid code is redeemed for <b>${tAll ? 'every title it unlocks' : `${nT} selected title${nT === 1 ? '' : 's'}`}</b> on <b>${pAll ? 'every platform linked to your SHiFT account' : `${nP} selected platform${nP === 1 ? '' : 's'}`}</b>.${warn}</div>`;
 }
 
 // --- sources
@@ -712,7 +790,7 @@ function renderCodes() {
   const list = filteredCodes();
   $('#codeList').innerHTML = list.length
     ? list.slice(0, S.shown).map(codeRow).join('')
-    : `<div class="empty">${S.codes.length ? 'No codes match these filters.' : 'No codes yet. Press <b>Find codes</b> on the dashboard, or paste some with <b>+ Add codes</b>.'}</div>`;
+    : `<div class="empty">${S.codes.length ? 'No codes match these filters.' : 'No codes yet. Press <b>Find codes</b> on the dashboard, paste some with <b>+ Paste codes</b>, or import a list.'}</div>`;
   $('#btnMore').hidden = list.length <= S.shown;
   $('#btnMore').textContent = `Show more (${list.length - S.shown} left)`;
 }
@@ -745,6 +823,7 @@ function renderWizard() {
     li.classList.toggle('done', i < WZ.step);
   });
   $('#wzBack').hidden = WZ.step === 0;
+  $('#wzKicker').textContent = `Setup · step ${WZ.step + 1} of ${WZ.last + 1}`;
   $('#wzSkip').textContent = WZ.step === WZ.last ? 'Close without running' : 'Skip setup';
 
   // Account step: show the connected state instead of the forms once signed in.
@@ -752,18 +831,18 @@ function renderWizard() {
   const showForms = !loggedIn || page1.dataset.change === '1';
   $('#wzConnected').hidden = !loggedIn;
   $('#wzConnected').innerHTML = loggedIn
-    ? `✓ Connected as <b>${esc(S.account.email || 'your SHiFT account')}</b>${S.account.saved?.secure ? ' · password saved securely' : ''}${showForms ? '' : ' <button type="button" class="link-btn" data-act="wz-change">Use a different account</button>'}`
+    ? `<span class="co-ic" aria-hidden="true">✓</span><div class="co-body"><b class="co-title">Connected</b>Signed in as <b>${esc(S.account.email || 'your SHiFT account')}</b>${S.account.saved?.secure ? ', password saved securely' : ''}.</div>${showForms ? '' : '<div class="co-actions"><button type="button" class="btn btn-sm btn-ghost" data-act="wz-change">Use a different account</button></div>'}`
     : '';
   $('.js-connect', page1).hidden = !showForms;
 
   const hint = $('#wzAutoHint');
   const needsSave = S.settings.autoRun.enabled && loggedIn && !S.account.saved;
   hint.hidden = !needsSave;
-  hint.textContent = needsSave ? 'Auto-pilot works best with “Keep me signed in”. Without it, auto-pilot pauses when SHiFT’s session expires until you sign in again.' : '';
+  hint.innerHTML = needsSave ? '<span class="co-ic" aria-hidden="true">!</span><div class="co-body"><b class="co-title">Tip</b>Auto-pilot works best with “Keep me signed in”. Without it, auto-pilot pauses when SHiFT’s session expires until you sign in again.</div>' : '';
 
   if (WZ.step === WZ.last) {
     const st = S.settings;
-    const row = (k, v, cls = '') => `<div><span class="k">${k}</span><span class="v ${cls}">${v}</span></div>`;
+    const row = (k, v, cls = '') => `<dt>${k}</dt><dd class="${cls}">${v}</dd>`;
     $('#wzSummary').innerHTML =
       row('SHiFT account', loggedIn ? esc(S.account.email || 'Connected') : 'Not connected yet. Do this on the Account tab.', loggedIn ? 'ok' : 'bad') +
       row('Titles', st.titles.mode === 'all' ? 'All titles' : st.titles.selected.map(titleLabel).join(', ') || 'None', st.titles.mode === 'select' && !st.titles.selected.length ? 'bad' : '') +
@@ -795,7 +874,7 @@ $('#wzBack').addEventListener('click', () => {
 $('#wzSkip').addEventListener('click', () => closeWizard({ toast: WZ.step !== WZ.last }));
 $('#wzClose').addEventListener('click', () => closeWizard({ toast: true }));
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && WZ.open && $('#plainModal').hidden) closeWizard({ toast: true });
+  if (e.key === 'Escape' && WZ.open && $('#plainModal').hidden && !help.isOpen()) closeWizard({ toast: true });
 });
 $('#btnSetupAgain').addEventListener('click', () => openWizard(0));
 
@@ -934,8 +1013,8 @@ $('#btnMore').addEventListener('click', () => {
   renderCodes();
 });
 $('#btnAddCodes').addEventListener('click', () => {
-  $('#pastePanel').hidden = false;
-  $('#pasteText').focus();
+  lists.openPaste();
+  setTimeout(() => $('#pasteText').focus(), 60);
 });
 $('#btnPasteClose').addEventListener('click', () => ($('#pastePanel').hidden = true));
 $('#pasteText').addEventListener('input', (e) => {
@@ -961,7 +1040,9 @@ document.addEventListener('change', async (e) => {
     const kind = el.dataset.pick;
     const sel = new Set(S.settings[kind].selected);
     el.checked ? sel.add(el.value) : sel.delete(el.value);
+    lastPick = el.value;
     setSetting(`${kind}.selected`, [...sel]);
+    lastPick = null;
   } else if (el.dataset.source) {
     api('PUT', '/api/settings', { sources: { [el.dataset.source]: { enabled: el.checked } } }).then((st) => applyState(st));
   } else if (el.classList.contains('js-assist-auto')) {
@@ -1084,6 +1165,73 @@ setInterval(() => {
   renderRun();
   renderSettingsBound();
 }, 30_000);
+
+// ------------------------------------------------------------------ help
+
+function goTo(tab, elId) {
+  if (location.hash !== `#${tab}`) location.hash = `#${tab}`;
+  else showTab();
+  if (!elId) return;
+  setTimeout(() => {
+    const el = document.getElementById(elId);
+    if (!el) return;
+    el.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'center' });
+    el.classList.remove('flash-target');
+    void el.offsetWidth;
+    el.classList.add('flash-target');
+  }, 80);
+}
+
+function runAction(a, arg) {
+  if (a === 'setup') openWizard(0);
+  else if (a === 'paste') {
+    lists.openPaste();
+    setTimeout(() => $('#pasteText').focus(), 120);
+  } else if (a === 'import') lists.openImport();
+  else if (a === 'export') lists.openExport(); else if (a === 'data') api('POST', '/api/app/open-data').catch((e) => toast(e.message, 'err'));
+  else if (a === 'toast') toast(arg, 'ok');
+}
+
+function getDiagnostics() {
+  const st = S.settings || {};
+  const lr = S.engine.lastRun;
+  const redact = (t) => String(t).replace(/[\w.+-]+@[\w-]+\.[\w.-]+/g, '<email>');
+  const lines = [
+    `SHiFT Redeemer ${S.app?.version || '?'} · ${S.app?.platform || navigator.platform} · ${S.app?.packaged ? 'installed app' : 'from source'}`,
+    `Signed in: ${S.account.loggedIn ? 'yes' : 'no'} · password saved: ${S.account.saved ? (S.account.saved.secure ? `securely (${S.account.saved.storeName})` : 'plain text') : 'no'} · secure storage: ${S.account.secureStore?.available ? 'available' : `unavailable (${S.account.secureStore?.reason || '?'})`}`,
+    `Titles: ${st.titles?.mode === 'all' ? 'all' : (st.titles?.selected || []).join(', ')} · Platforms: ${st.platforms?.mode === 'all' ? 'all linked' : (st.platforms?.selected || []).join(', ')} · Linked: ${S.catalog.platforms.filter((p) => p.linked).map((p) => p.id).join(', ') || 'none seen'}`,
+    `Auto-pilot: ${st.autoRun?.enabled ? `on, every ${st.autoRun.intervalMinutes} min` : 'off'} · Game assist: ${st.gameAssist?.mode} (Steam ${S.games.steam?.found ? `found, installed: ${(S.games.steam.installed || []).join(', ') || 'none'}` : 'not found'}) · Delay: ${st.delaySeconds}s`,
+    `Codes: ${S.stats.total || 0} known, ${S.stats.queue || 0} queued, ${S.stats.successes || 0} redeemed`,
+    lr ? `Last run: ${new Date(lr.finishedAt || lr.at).toISOString()} · checked ${lr.checked}, redeemed ${lr.redeemed}, already ${lr.already}, dead ${lr.dead}, errors ${lr.errors}, launches ${lr.assists || 0}${lr.stopped ? `, stopped: ${lr.stopped}` : ''}${lr.pause ? `, paused (${lr.pause.why}): ${lr.pause.message}` : ''}` : 'Last run: never',
+    'Sources: ' + S.sources.map((x) => `${x.id}=${x.enabled ? (x.status ? (x.status.ok ? `ok(${x.status.found})` : 'error') : 'unused') : 'off'}`).join(' '),
+    '',
+    'Recent activity:',
+    ...S.logs.slice(-40).map((e) => `${new Date(e.t).toISOString().slice(11, 19)} ${e.level.padEnd(5)} ${e.msg}`),
+  ];
+  return redact(lines.join('\n'));
+}
+
+const lists = initLists({
+  api,
+  toast,
+  isLoggedIn: () => !!S.account.loggedIn,
+  onImported: () => {
+    S.filter.status = 'all';
+    loadCodes();
+  },
+});
+$('#reduceMotion').checked = document.documentElement.classList.contains('reduce-motion');
+$('#reduceMotion').addEventListener('change', (e) => {
+  document.documentElement.classList.toggle('reduce-motion', e.target.checked);
+  try {
+    localStorage.setItem(MOTION_KEY, e.target.checked ? '1' : '0');
+  } catch {
+    /* storage unavailable */
+  }
+  toast(e.target.checked ? 'Animations reduced' : 'Animations on', 'ok');
+});
+const report = initReport({ api, toast, isVisible: () => location.hash === '#rewards' });
+const help = initHelp({ goTo, runAction, getDiagnostics, repoUrl: 'https://github.com/approved48/shift-redeemer' });
 
 // ------------------------------------------------------------------ start
 
