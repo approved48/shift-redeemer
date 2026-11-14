@@ -79,6 +79,13 @@ try {
   const st = await api('GET', '/api/state');
   assert.equal(st.app.packaged, true, 'not running in packaged mode');
   console.log('✔ UI served from embedded assets');
+  let starter = 0;
+  for (let i = 0; i < 20 && !starter; i++) {
+    starter = (await api('GET', '/api/state')).stats.total;
+    if (!starter) await sleep(250);
+  }
+  assert.ok(starter >= 100, `a new install should start with the starter list (has ${starter} codes)`);
+  console.log(`✔ new install starts with ${starter} starter codes`);
 
   // 3. sign in + redeem
   await api('POST', '/api/account/login', { email: 'vault@hunter.test', password: 'hunter2' });

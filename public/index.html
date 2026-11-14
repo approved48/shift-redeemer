@@ -15,6 +15,7 @@
 </head>
 <body>
   <div class="grime" aria-hidden="true"></div>
+  <div class="tab-wipe" id="tabWipe" aria-hidden="true"></div>
 
   <header class="topbar">
     <div class="topbar-inner">
@@ -255,6 +256,11 @@
         <div class="step-head"><h2 class="step-title"><span class="step-n">1</span>Built-in sources</h2><button class="btn btn-sm btn-ghost" data-help="where do codes come from">?</button></div>
         <p class="step-hint">Community feeds, official announcements, guides and deal sites. Turn off any you don't want.</p>
         <div class="source-list" id="builtinSources"></div>
+        <div class="unsure-head">
+          <h3 class="eyebrow">Unsure <span class="tag-opt">Off by default</span></h3>
+          <p class="hint">Code sites we couldn't check when they were added, because they block automated visits from our test setup. They may work fine from your computer. Turn one on to try it; if it shows an error, it's blocking visits from apps too. Either way, SHiFT checks every code before anything is redeemed.</p>
+        </div>
+        <div class="source-list" id="unsureSources"></div>
       </section>
       <section class="panel step" id="stepCustom">
         <div class="step-head"><h2 class="step-title"><span class="step-n">2</span>Your sources <span class="tag-opt">Optional</span></h2><button class="btn btn-sm btn-ghost" data-help="add my own website">?</button></div>

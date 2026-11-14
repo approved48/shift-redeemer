@@ -70,16 +70,38 @@ try {
 const reducedMotion = () => document.documentElement.classList.contains('reduce-motion') || matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 /** Quick staggered entrance for the visible blocks of a page, like a game menu panel sliding in. */
-function cascade(root) {
+function cascade(root, { cls = 'in' } = {}) {
   if (reducedMotion() || !root) return;
-  const els = [...root.querySelectorAll('.hero, .panel, .statbar, .callout, .stat-tile, .rp-title, .code, .source')].filter((el) => el.offsetParent !== null).slice(0, 18);
+  const els = [...root.querySelectorAll('.hero, .panel, .statbar, .game-strip, .callout, .stat-tile, .rp-title, .code, .source')].filter((el) => el.offsetParent !== null).slice(0, 18);
   els.forEach((el, i) => {
-    el.classList.remove('in');
+    el.classList.remove('in', 'tab-in');
     el.style.setProperty('--i', i);
     void el.offsetWidth;
-    el.classList.add('in');
-    el.addEventListener('animationend', () => el.classList.remove('in'), { once: true });
+    el.classList.add(cls);
+    el.addEventListener('animationend', () => el.classList.remove(cls), { once: true });
   });
+}
+
+// Switching pages: a quick light sweep in the direction you're moving through the tabs, then the
+// page punches in from that side. Fast enough never to get in the way.
+let lastTabIdx = null;
+function tabSwitchFX(tab) {
+  const links = $$('#tabs a');
+  const idx = links.findIndex((a) => a.dataset.tab === tab);
+  const dir = lastTabIdx === null || idx >= lastTabIdx ? 1 : -1;
+  const first = lastTabIdx === null;
+  lastTabIdx = idx;
+  document.documentElement.style.setProperty('--dir', dir);
+  if (reducedMotion() || first) return;
+  const wipe = $('#tabWipe');
+  wipe.classList.remove('go', 'rev');
+  void wipe.offsetWidth;
+  wipe.classList.add('go');
+  if (dir < 0) wipe.classList.add('rev');
+  const ink = $('#tabInk');
+  ink.classList.remove('kick');
+  void ink.offsetWidth;
+  ink.classList.add('kick');
 }
 
 /** Slide the active-tab highlight to the current tab. */
@@ -354,7 +376,8 @@ function showTab() {
   if (valid === 'rewards' && typeof report !== 'undefined') report.refresh(S.catalog.platforms);
   window.scrollTo({ top: 0 });
   moveInk();
-  cascade($(`#tab-${valid}`));
+  tabSwitchFX(valid);
+  cascade($(`#tab-${valid}`), { cls: 'tab-in' });
 }
 window.addEventListener('hashchange', showTab);
 
@@ -398,8 +421,15 @@ $('#tabs').addEventListener('keydown', (e) => {
   const i = links.indexOf(document.activeElement);
   links[(i + (e.key === 'ArrowDown' ? 1 : links.length - 1)) % links.length].focus();
 });
-new ResizeObserver(() => fitNav()).observe($('.topbar-inner'));
-document.fonts?.ready.then(fitNav);
+new ResizeObserver(() => {
+  fitNav();
+  moveInk();
+}).observe($('.topbar-inner'));
+// Tab widths change once the web fonts arrive: measure again then.
+document.fonts?.ready.then(() => {
+  fitNav();
+  moveInk();
+});
 
 // ------------------------------------------------------------------ shared components
 
@@ -963,7 +993,8 @@ function sourceCard(s) {
   </div>`;
 }
 function renderSources() {
-  $('#builtinSources').innerHTML = S.sources.filter((s) => !s.custom).map(sourceCard).join('');
+  $('#builtinSources').innerHTML = S.sources.filter((s) => !s.custom && !s.unsure).map(sourceCard).join('');
+  $('#unsureSources').innerHTML = S.sources.filter((s) => s.unsure).map(sourceCard).join('');
   const custom = S.sources.filter((s) => s.custom);
   $('#customSources').innerHTML = custom.length ? custom.map(sourceCard).join('') : '<div class="empty">No custom sources yet. Add a guide or deal URL above.</div>';
 }

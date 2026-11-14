@@ -53,6 +53,21 @@ test('helpers: code extraction, titles, messages, cookies', () => {
   assert.deepEqual(parseCookieInput('Cookie: si=abc; _session_id=zz'), { si: 'abc', _session_id: 'zz' });
 });
 
+test('starter list: a new install starts with it, once, and never for existing users', async () => {
+  const { STARTER_CODES } = await import('../lib/starter-codes.js');
+  assert.ok(STARTER_CODES.length > 100 && STARTER_CODES.every((c) => /^[A-Z0-9]{5}(-[A-Z0-9]{5}){4}$/.test(c.code)));
+  fs.rmSync(path.join(dir, 'db.json'), { force: true });
+  const { store, engine } = makeEngine();
+  assert.equal(engine.seedStarter(), new Set(STARTER_CODES.map((c) => c.code)).size);
+  assert.equal(store.db.codes[STARTER_CODES[0].code].sources[0].name, 'Starter list');
+  assert.equal(engine.seedStarter(), 0, 'only once');
+  const other = makeEngine();
+  other.store.db.codes = { 'AAAAA-AAAAA-AAAAA-AAAAA-AAAAA': { code: 'AAAAA-AAAAA-AAAAA-AAAAA-AAAAA', games: [], platforms: [], sources: [] } };
+  other.store.db.starterSeeded = undefined;
+  assert.equal(other.engine.seedStarter(), 0, 'existing users keep their own list');
+  fs.rmSync(path.join(dir, 'db.json'), { force: true });
+});
+
 test('German code lists are translated (GIGA)', async () => {
   const { fromGerman } = await import('../lib/sources.js');
   const nov = new Date('2026-11-14T00:00:00Z');

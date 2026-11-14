@@ -137,7 +137,7 @@ async function fullState() {
     settings: s,
     stats: engine.stats(),
     catalog: engine.catalog(),
-    sources: engine.sourceDefs().map((d) => ({ id: d.id, name: d.name, site: d.site, description: d.description, enabled: d.enabled, custom: !!d.custom, status: sourceStatus[d.id] || null })),
+    sources: engine.sourceDefs().map((d) => ({ id: d.id, name: d.name, site: d.site, description: d.description, enabled: d.enabled, custom: !!d.custom, unsure: !!d.unsure, status: sourceStatus[d.id] || null })),
     logs: engine.logs.slice(-200),
     games: await engine.gameInfo(),
     baseUrl: BASE_URL,
@@ -465,6 +465,7 @@ async function start() {
   app.autostart = await rt.getAutostart().catch(() => false);
   await engine.migrateCredentials().catch((e) => rt.out(`Could not migrate saved password: ${e.message}`));
   if (store.session.cookies && Object.keys(store.session.cookies).length) await engine.refreshAccount().catch(() => {});
+  engine.seedStarter();
   engine.schedule();
 
   if (AFTER_UPDATE) {
