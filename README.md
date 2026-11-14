@@ -39,7 +39,7 @@ You can run the wizard again any time from **Settings**.
 
 **Per-game tiles on the dashboard** show the keys and cosmetics each game has received, with a live **+N** as a run adds to it. Select one for the full breakdown.
 
-**Your rewards report.** The **Rewards** tab adds up everything the app has unlocked for you: Golden, Diamond and Skeleton Keys and cosmetic items, per game and per platform. It includes a month-by-month chart, every cosmetic you've collected grouped by type (skins, heads, weapon skins, trinkets and more), the full history, filters for time period and platform, and **Export CSV**. When one code gives different rewards in different games, each game is credited with its own share.
+**Your rewards report.** The **Rewards** tab adds up everything the app has unlocked for you: Golden, Diamond and Skeleton Keys and cosmetic items, per game and per platform. It includes a month-by-month chart, every cosmetic you've collected grouped by type (skins, heads, weapon skins, trinkets and more), the full history, filters for time period and platform, and **Export CSV**. When one code gives different rewards in different games, each game is credited with its own share. Each game card also shows what's **on your account**: rewards the app redeemed, ones that were **already redeemed** (on the website, in a game or on another device), and how many are still to go.
 
 **What do the rewards actually do?** Help → **Rewards guide** explains what Golden, Diamond and Skeleton Keys open in each game and what each kind of cosmetic is, with links to the [Borderlands Wiki](https://borderlands.fandom.com) for more. Hover over any key or cosmetic in the app for a quick explanation.
 

@@ -463,6 +463,27 @@ test('rewards v1.3: count styles, keys per game, cosmetics by type', async () =>
   assert.equal(r.cosmetics.length, 3, 'same cosmetic on two platforms is listed once');
   assert.deepEqual(r.cosmetics.find((c) => c.kind === 'head').services.sort(), ['epic', 'steam']);
   assert.ok(r.itemKinds.some((x) => x.id === 'drone'));
+
+  // Account standing per game: redeemed here / already redeemed / still to do (targeted only).
+  const acctDb = {
+    codes: {
+      'AAAAA-1': { check: { status: 'ok', offers: [{ title: 'Borderlands 3', titleId: 'bl3', service: 'steam' }, { title: 'Borderlands 3', titleId: 'bl3', service: 'epic' }] } },
+      'BBBBB-2': { check: { status: 'ok', offers: [{ title: 'Borderlands 3', titleId: 'bl3', service: 'steam' }, { title: 'Borderlands 3', titleId: 'bl3', service: 'psn' }] } },
+      'CCCCC-3': { check: { status: 'ok', offers: [{ title: 'Borderlands 3', titleId: 'bl3', service: 'steam' }] } },
+      'DDDDD-4': { check: { status: 'expired', offers: [{ title: 'Borderlands 3', titleId: 'bl3', service: 'steam' }] } },
+      'EEEEE-5': { check: { status: 'ok', offers: [{ title: 'Borderlands 2', titleId: 'bl2', service: 'steam' }] } },
+    },
+    redemptions: {
+      'AAAAA-1|bl3|steam': { status: 'success', at: now, title: 'Borderlands 3', service: 'steam' },
+      'AAAAA-1|bl3|epic': { status: 'redeemed', at: now, title: 'Borderlands 3', service: 'epic' },
+      'BBBBB-2|bl3|steam': { status: 'redeemed', at: now, title: 'Borderlands 3', service: 'steam' },
+    },
+  };
+  const wants = (t, svc) => svc !== 'psn'; // PlayStation not targeted
+  const ra = buildReport(acctDb, { wants });
+  assert.deepEqual(ra.titles.find((t) => t.id === 'bl3').account, { app: 1, already: 2, todo: 1, total: 4 });
+  assert.deepEqual(ra.titles.find((t) => t.id === 'bl2').account, { app: 0, already: 0, todo: 1, total: 1 }, 'a game with only codes to do still gets a card');
+  assert.deepEqual(buildReport(acctDb, { wants, platform: 'epic' }).titles.find((t) => t.id === 'bl3').account, { app: 0, already: 1, todo: 0, total: 1 });
 });
 
 test('AI instructions: personalised, and the AI reply imports cleanly', async () => {

@@ -1078,3 +1078,18 @@ html.reduce-motion .gs-delta, html.reduce-motion .assist-track .as.cur i { anima
 .callout .bar { margin: var(--s1) 0 var(--s2); max-width: 420px; }
 #overlay.updating .step-title::before { content: ''; display: inline-block; width: 12px; height: 12px; margin-right: var(--s2); border: 2px solid var(--eridian); border-right-color: transparent; border-radius: 50%; animation: spin 0.8s linear infinite; vertical-align: -1px; }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* ================================================================ rewards: account standing per game */
+.rp-acct { display: grid; gap: 6px; padding: var(--s2) var(--s3); background: rgba(0, 0, 0, 0.28); border: 1px solid #2a231d; }
+.rp-acct-head { display: flex; align-items: baseline; justify-content: space-between; font: 600 var(--fs-tag)/1.2 var(--head); text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+.rp-acct-head b { font: 400 16px/1 var(--stencil); color: var(--ink); letter-spacing: 0; }
+.rp-acct-head small { font: 400 12px/1 var(--body); color: var(--muted); }
+.rp-acct-bar { display: flex; gap: 2px; height: 8px; background: #2a231d; overflow: hidden; }
+.rp-acct-bar i { display: block; height: 100%; min-width: 0; transition: width 0.5s var(--ease-out); }
+.rp-acct i.app { background: var(--green); }
+.rp-acct i.already { background: var(--teal); }
+.rp-acct i.todo { background: #4a3e33; }
+.rp-acct-legend { display: flex; flex-wrap: wrap; gap: 2px var(--s3); font-size: var(--fs-tag); color: var(--ink-2); }
+.rp-acct-legend span { display: inline-flex; align-items: center; gap: 5px; }
+.rp-acct-legend i { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
+.rp-acct-legend .all { color: var(--green); }

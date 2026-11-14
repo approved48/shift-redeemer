@@ -3,6 +3,7 @@
 - **Smoother game launches.** An **Auto-launch games** switch on the dashboard, the game closes as soon as SHiFT accepts codes again, each step is shown live, and **Close game & resume** skips the wait.
 - **Your games on the dashboard.** Slim per-game tiles show keys and cosmetics, with a live **+N** as a run adds to each game.
 - **Themed game cards** on the Rewards page, with original banner art for each game.
+- **See what's already on your account.** Each game on the Rewards page shows how many rewards are on your SHiFT account: redeemed by the app, **already redeemed** before (website, in-game or another device), and how many are still to go.
 
 ## Download
 

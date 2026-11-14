@@ -101,6 +101,10 @@ const FAQ = [
   { cat: 'Game launch assist', q: 'Does it work with Epic Games?', a: ['Yes, with your game\'s Epic launch link. In the Epic launcher, create a desktop shortcut for the game, open the shortcut\'s properties, copy the URL and paste it into <b>Settings → Game launch assist</b>.'], go: { tab: 'settings', el: 'setAssist', label: 'Show me' } },
   { cat: 'Game launch assist', q: 'What about PlayStation, Xbox and Switch?', a: ['Console games can\'t be started from a computer. When SHiFT asks, start any Borderlands game on your console, wait at the main menu for a minute, then press <b>Resume</b> on the dashboard.'] },
 
+  { cat: 'Redeeming', q: 'What does "On your account" on the Rewards page mean?', a: [
+    'Each game card shows where that game stands on your SHiFT account, counted per code and platform for every working code the app knows:',
+    '<ul><li><b>Redeemed here</b>: rewards SHiFT Redeemer unlocked.</li><li><b>Already redeemed</b>: SHiFT said you already had it, because you redeemed it on the website, in the game or on another device.</li><li><b>To go</b>: still waiting to be redeemed for the platforms you target.</li></ul>',
+    'Every run updates it as codes are checked against your account. The platform filter at the top narrows it to one platform. Expired codes aren\'t counted.'], go: { tab: 'rewards', el: 'rpTitles', label: 'Show me' } },
   { cat: 'Redeeming', q: 'What are the game tiles on the dashboard?', a: [
     'One tile for each game you target, with the keys and cosmetics the app has unlocked there so far. During a run, a green <b>+N</b> shows what that run has added to each game, and it stays until your next run.',
     'Select a tile to open its full breakdown on the <b>Rewards</b> page.'], go: { tab: 'dashboard', el: 'gameStrip', label: 'Show me' } },
@@ -238,7 +242,7 @@ const TOPICS = [
   ['Official?', 'official gearbox'], ['Nothing redeemed', 'nothing gets redeemed'], ['Too many requests', 'too many requests'], ['Retry', 'retry'],
   ['Windows warning', 'windows protected'], ['macOS warning', 'macos opened'], ['Run results', 'results of a run'], ['How long', 'how long run'],
   ['Golden Keys', 'what does a golden key do'], ['Diamond Keys', 'what does a diamond key do'], ['Skeleton Keys', 'what does a skeleton key do'], ['Cosmetics', 'what are cosmetics'], ['Ask an AI', 'ask an ai to find codes'], ['Playing while it runs', 'play borderlands while it runs'], ['Where are the tabs?', 'where did the menu tabs go'],
-  ['Import a list', 'import list friend'], ['Share codes', 'share back up codes'], ['File types', 'which files import'], ['Export privacy', 'export include account'], ['Animations', 'turn off animations'], ['Rewards report', 'rewards report counted'], ['Export rewards', 'rewards report export csv'], ['Setup again', 'run setup again'], ['Supported games', 'which games supported'], ['Which game launches', 'which game launch'], ['Auto-launch switch', 'turn automatic game launching on off quickly'], ['Game tiles', 'game tiles dashboard'], ['Still paused', 'still paused'],
+  ['Import a list', 'import list friend'], ['Share codes', 'share back up codes'], ['File types', 'which files import'], ['Export privacy', 'export include account'], ['Animations', 'turn off animations'], ['Rewards report', 'rewards report counted'], ['Already redeemed', 'on your account mean already redeemed'], ['Export rewards', 'rewards report export csv'], ['Setup again', 'run setup again'], ['Supported games', 'which games supported'], ['Which game launches', 'which game launch'], ['Auto-launch switch', 'turn automatic game launching on off quickly'], ['Game tiles', 'game tiles dashboard'], ['Still paused', 'still paused'],
 ];
 
 const TILES = [

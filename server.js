@@ -170,7 +170,7 @@ const routes = {
   'GET /api/report': ({ query }) => {
     const days = Number(query.get('days')) || 0;
     const platform = query.get('platform') || null;
-    return buildReport(store.db, { since: days ? Date.now() - days * 86_400_000 : null, platform });
+    return buildReport(store.db, { since: days ? Date.now() - days * 86_400_000 : null, platform, wants: (titleId, service) => engine.wantsTitle(null, titleId) && engine.wantsService(service) });
   },
   'GET /api/codes': () => ({ codes: Object.values(store.db.codes).map((c) => engine.codeView(c)), stats: engine.stats() }),
 

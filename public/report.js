@@ -80,7 +80,7 @@ export function initReport({ api, toast, isVisible }) {
         return tile(s.name, k[s.id], from.length ? `from ${from.join(', ')}` : 'none yet', s.color, `data-tip-key="${s.id}"`);
       }).join('') +
       tile('Cosmetics & items', d.totals.items, topKinds || (d.totals.unknown ? `${fmt(d.totals.unknown)} reward${d.totals.unknown === 1 ? '' : 's'} not described` : 'skins, heads and more'), null, 'data-tip="Skins, heads, weapon skins, trinkets and other non-key rewards. See them all under Cosmetics collected below."') +
-      tile('Already on account', d.totals.already, 'redeemed before');
+      tile('Already redeemed', d.totals.already, 'were on your account already', null, 'data-tip="Codes SHiFT said you had already redeemed, on the website, in a game or on another device. They count per game and platform."');
   }
 
   // Stacked columns, one per month. Thin bars, 2px surface gap between segments,
@@ -182,6 +182,7 @@ export function initReport({ api, toast, isVisible }) {
         return `<section class="rp-title t-${esc(t.id)} ${R.title === t.id ? 'on' : ''}" style="--c:${accentOf(t.id, t.color)}">
           ${coverHTML(t)}
           <div class="rp-body">
+          ${accountBar(t)}
           <div class="rp-keys">${
             keys.length
               ? keys.map((s) => `<div class="rp-key" data-tip-key="${s.id}" data-tip-game="${esc(t.id)}" tabindex="0"><i class="sw" style="--c:${s.color}"></i><b>${fmt(t.keys[s.id])}</b><span>${s.name}</span></div>`).join('')
@@ -190,7 +191,6 @@ export function initReport({ api, toast, isVisible }) {
           <dl class="kv rp-kv">
             <dt>Rewards unlocked</dt><dd>${fmt(t.rewards)}</dd>
             <dt>Items &amp; cosmetics</dt><dd>${fmt(t.items.length)}</dd>
-            ${t.already ? `<dt>Already on account</dt><dd>${fmt(t.already)}</dd>` : ''}
             <dt>Last reward</dt><dd>${fmtDate(t.last)}</dd>
           </dl>
           ${items.length ? `<ul class="rp-items">${items.map((i) => `<li title="${esc(i.name)}"><span class="kic" data-tip-kind="${esc(i.kinds?.[0] || 'other')}">${(KINDS[i.kinds?.[0]] || KINDS.other).ic}</span>${esc(i.name)}</li>`).join('')}${t.items.length > 3 ? `<li class="more"><button class="link-btn" data-rp-cos="${esc(t.id)}">+${t.items.length - 3} more</button></li>` : ''}</ul>` : ''}
@@ -199,6 +199,20 @@ export function initReport({ api, toast, isVisible }) {
         </section>`;
       })
       .join('');
+  }
+
+  // Where this game stands on your SHiFT account: redeemed here, already redeemed before, still to do.
+  function accountBar(t) {
+    const a = t.account;
+    if (!a || !a.total) return '';
+    const done = a.app + a.already;
+    const pct = (n) => `${((n / a.total) * 100).toFixed(1)}%`;
+    const tip = `${t.name}: ${fmt(done)} of ${fmt(a.total)} rewards from known working codes are on your account${R.platform ? ` (${PLATFORM_NAMES[R.platform] || R.platform})` : ''}. ${fmt(a.app)} redeemed by SHiFT Redeemer, ${fmt(a.already)} already redeemed before (website, in-game or another device)${a.todo ? `, ${fmt(a.todo)} still to redeem for your platforms` : ''}. Counted per code and platform.`;
+    return `<div class="rp-acct" data-tip="${esc(tip)}" tabindex="0">
+      <div class="rp-acct-head"><span>On your account</span><b>${fmt(done)}<small> / ${fmt(a.total)}</small></b></div>
+      <div class="rp-acct-bar" role="img" aria-label="${esc(`${fmt(done)} of ${fmt(a.total)} on your account`)}">${a.app ? `<i class="app" style="width:${pct(a.app)}"></i>` : ''}${a.already ? `<i class="already" style="width:${pct(a.already)}"></i>` : ''}</div>
+      <div class="rp-acct-legend"><span><i class="app"></i>${fmt(a.app)} redeemed here</span><span><i class="already"></i>${fmt(a.already)} already redeemed</span>${a.todo ? `<span><i class="todo"></i>${fmt(a.todo)} to go</span>` : '<span class="all">✓ all done</span>'}</div>
+    </div>`;
   }
 
   function renderHistory(d) {
