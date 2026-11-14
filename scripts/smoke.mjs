@@ -12,7 +12,7 @@ import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
 import { startMock } from '../test/mock-shift.js';
 import { secureStoreInfo, loadSecret } from '../lib/secrets.js';
-import { listProcesses } from '../lib/games.js';
+import { listProcesses, muteProcesses } from '../lib/games.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const BUILD = path.join(ROOT, 'dist', 'build');
@@ -89,7 +89,10 @@ try {
 
   // 3. sign in + redeem
   await api('POST', '/api/account/login', { email: 'vault@hunter.test', password: 'hunter2' });
-  await api('PUT', '/api/settings', { delaySeconds: 2 });
+  await api('PUT', '/api/settings', { delaySeconds: 3, smartPace: false });
+  assert.equal((await api('GET', '/api/state')).settings.delaySeconds, 3);
+  await api('PUT', '/api/settings', { delaySeconds: 1 });
+  assert.equal((await api('GET', '/api/state')).settings.delaySeconds, 3, 'the 3-second minimum can\'t be lowered');
   await api('POST', '/api/codes/add', { text: 'DDDDD-DDDDD-DDDDD-DDDDD-DDDD1', redeem: true });
   let code;
   for (let i = 0; i < 60; i++) {
@@ -150,6 +153,12 @@ try {
   const procs = await listProcesses();
   assert.ok(procs.length > 3 && procs.some((p) => p.pid === process.pid), `process list looks wrong (${procs.length} entries)`);
   console.log(`✔ game detection works (Steam ${g.games.steam.found ? 'found' : 'not installed'}; ${procs.length} processes listed)`);
+  if (process.platform === 'win32') {
+    // The mute helper compiles and runs (CI machines may have no sound device: then it reports -1).
+    const m = await muteProcesses([process.pid]);
+    assert.ok(m.ok, `mute helper failed: ${m.error}`);
+    console.log(`✔ game mute helper works (${m.muted < 0 ? 'no sound device here' : `${m.muted} session(s)`})`);
+  }
 
   // 4. a second launch hands over to the running copy and exits
   const second = spawn(bin, ['--background'], { env, stdio: 'ignore' });

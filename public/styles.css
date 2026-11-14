@@ -1244,3 +1244,46 @@ html.reduce-motion .tab-in, html.reduce-motion .tab-wipe::before, html.reduce-mo
 .tour-nav { display: inline-flex; gap: var(--s2); }
 html.reduce-motion .wz-start, html.reduce-motion .tour-card.in { animation: none; }
 html.reduce-motion .tour-spot { transition: none; }
+
+/* ================================================================ settings: menu on the left, section on the right */
+.set-layout { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: var(--gap); align-items: start; }
+.set-nav { position: sticky; top: 68px; display: flex; flex-direction: column; gap: 4px; padding: var(--s2); background: var(--grit), #141210; background-size: 300px 300px; border: 1px solid #000; box-shadow: inset 0 0 0 1px #2e261f; clip-path: var(--cut-sm); }
+.set-nav button {
+  position: relative; display: flex; align-items: center; gap: var(--s3); width: 100%; padding: var(--s2) var(--s3); text-align: left; cursor: pointer;
+  border: 0; background: transparent; color: var(--ink-2); transition: background 0.15s, color 0.15s;
+}
+.set-nav button b { display: block; font: 600 var(--fs-step)/1.2 var(--head); text-transform: uppercase; letter-spacing: 0.05em; color: inherit; }
+.set-nav button small { display: block; font-size: var(--fs-tag); color: var(--muted); margin-top: 1px; }
+.set-nav .sn-ic { display: grid; place-items: center; width: 30px; height: 30px; flex-shrink: 0; font-size: 15px; background: #0e0c0b; border: 1px solid var(--line); }
+.set-nav button:hover { background: rgba(255, 255, 255, 0.03); color: var(--ink); }
+.set-nav button.on { color: #f6efff; background: linear-gradient(90deg, rgba(181, 124, 255, 0.22), rgba(181, 124, 255, 0.04)); }
+.set-nav button.on::before { content: ''; position: absolute; left: 0; top: 4px; bottom: 4px; width: 3px; background: var(--eridian); box-shadow: 0 0 8px var(--eridian); }
+.set-nav button.on .sn-ic { border-color: #8a5ad6; box-shadow: 0 0 8px rgba(181, 124, 255, 0.4); }
+.set-nav button:focus-visible { outline: 2px solid var(--eridian); outline-offset: -2px; }
+.set-panel { min-width: 0; }
+.set-panel > .set-sec { margin-bottom: 0; }
+@media (max-width: 900px) {
+  .set-layout { grid-template-columns: minmax(0, 1fr); }
+  .set-nav { position: static; flex-direction: row; overflow-x: auto; scrollbar-width: none; clip-path: none; }
+  .set-nav::-webkit-scrollbar { display: none; }
+  .set-nav button { flex: 0 0 auto; width: auto; }
+  .set-nav button small { display: none; }
+  .set-nav button.on::before { left: 4px; right: 4px; top: auto; bottom: 0; width: auto; height: 3px; }
+}
+
+/* auto-pilot day picker */
+.day-picks { display: flex; flex-wrap: wrap; gap: 4px; }
+.day-picks button {
+  min-width: 48px; height: var(--h-sm); padding: 0 var(--s2); cursor: pointer; transform: skewX(-8deg);
+  font: 600 var(--fs-hint)/1 var(--body); letter-spacing: 0.05em; color: var(--muted); background: #0e0c0b; border: 1px solid var(--line);
+}
+.day-picks button.on { color: #f6efff; border-color: #8a5ad6; background: rgba(181, 124, 255, 0.25); box-shadow: 0 0 8px rgba(181, 124, 255, 0.35); }
+.day-picks button:focus-visible { outline: 2px solid var(--eridian); outline-offset: 2px; }
+input[type="time"] { color-scheme: dark; }
+
+/* dashboard: auto-pilot may start a game */
+.ap-note { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2) var(--s3); margin-top: var(--s2); padding: 6px var(--s3); font-size: var(--fs-hint); color: var(--ink-2); background: rgba(181, 124, 255, 0.06); border: 1px solid rgba(181, 124, 255, 0.25); }
+.ap-note.warn { background: rgba(219, 165, 74, 0.08); border-color: rgba(219, 165, 74, 0.45); color: var(--ink); }
+.ap-note .ap-ic { font-size: 14px; }
+.ap-note > span:nth-child(2) { flex: 1 1 260px; }
+.cmd-meta small.muted { color: var(--muted); font-size: var(--fs-tag); }

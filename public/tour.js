@@ -16,7 +16,7 @@ export const STEPS = [
   { tab: 'codes', sel: ['#codeList .code', '#codeList'], t: 'Codes', d: 'Every code the app knows, with its reward, expiry and where it came from. Paste codes, or import and export lists from the buttons at the top.' },
   { tab: 'rewards', sel: ['#rpTitles', '#rpTotals', '#rpEmpty'], t: 'Rewards', d: 'Everything unlocked for you, game by game, including what’s already on your SHiFT account and what’s still to go.' },
   { tab: 'sources', sel: ['#stepBuiltin'], t: 'Sources', d: 'Where codes come from. They’re all on by default, so you don’t need to change anything here.' },
-  { tab: 'settings', sel: ['#setAutopilot'], t: 'Auto-pilot', d: 'Turn this on to find and redeem new codes every few hours without pressing anything. Add “Start with my computer” to make it fully hands-free.', help: 'auto-pilot' },
+  { tab: 'settings', focus: 'setAutopilot', sel: ['#setAutopilot'], t: 'Auto-pilot', d: 'Turn this on to find and redeem new codes every few hours without pressing anything. Add “Start with my computer” to make it fully hands-free.', help: 'auto-pilot' },
   { tab: 'dashboard', sel: ['#helpBtn'], t: 'Help is always here', d: 'Press this, or the ? key, for answers, best-practice tips and a guide to every reward. That’s the tour. Have fun, Vault Hunter!' },
 ];
 
@@ -81,8 +81,8 @@ export function initTour({ goTo, onSkip, onDone, openHelp }) {
   async function show(k, dir = 1) {
     i = Math.max(0, Math.min(STEPS.length - 1, k));
     const s = STEPS[i];
-    if (location.hash !== `#${s.tab}`) {
-      goTo(s.tab);
+    if (location.hash !== `#${s.tab}` || s.focus) {
+      goTo(s.tab, s.focus);
       await new Promise((r) => setTimeout(r, 380));
     }
     target = find(s.sel);

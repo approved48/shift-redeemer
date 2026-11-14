@@ -773,6 +773,18 @@ function assistToggle() {
   return `<button type="button" class="mini-toggle ${on ? 'on' : ''}" data-act="assist-toggle" role="switch" aria-checked="${on}" data-tip="${esc(tip)}" ${canLaunch || on ? '' : 'disabled'}>Auto-launch games<i aria-hidden="true"></i></button>`;
 }
 
+// With auto-pilot and auto-launch both on, a game can start while nobody is watching: say so, and
+// make closing it (and muting it) one click away.
+function autopilotGameNote() {
+  const st = S.settings;
+  if (!st?.autoRun.enabled || st.gameAssist?.mode !== 'auto') return '';
+  const ga = st.gameAssist;
+  const sw = (key, on, label) => `<button type="button" class="mini-toggle ${on ? 'on' : ''}" data-act="ga-flip" data-key="${key}" role="switch" aria-checked="${on}">${label}<i aria-hidden="true"></i></button>`;
+  return `<div class="ap-note ${ga.closeAfter ? '' : 'warn'}"><span class="ap-ic" aria-hidden="true">🕹</span><span>${
+    ga.closeAfter ? 'While auto-pilot runs, a game may start when SHiFT asks. It closes again by itself.' : '<b>Heads up:</b> games auto-pilot starts <b>won’t be closed</b> by themselves.'
+  }</span>${sw('closeAfter', !!ga.closeAfter, 'Close it afterwards')}${sw('mute', ga.mute !== false, 'Muted')}<button type="button" class="q-btn" data-help="game launch assist" aria-label="About game launching">?</button></div>`;
+}
+
 // Where a game launch is up to: start → wait for SHiFT → close → resume.
 function assistTrack(a) {
   const own = a.via === 'the game you have open';
@@ -804,11 +816,13 @@ function renderRun() {
     <div class="cmd-line"><span class="cmd-dot ${dot}"></span><span class="cmd-phase ${live ? 'live' : ''} ${paused ? 'warn' : ''} ${phase !== lastPhase && lastPhase !== null ? 'flick' : ''}">${phase}</span><span class="cmd-current">${current}</span></div>
     <div class="bar ${live ? 'live' : ''} ${e.assist ? 'assist' : ''}"><i style="width:${live ? Math.max(warmPct ?? pct, 2) : 0}%"></i></div>
     ${live && e.assist ? assistTrack(e.assist) : ''}
+    ${autopilotGameNote()}
     <div class="cmd-meta">
       <span>Last search <b>${e.lastCollect ? `${ago(e.lastCollect.at)} · ${e.lastCollect.added} new` : 'never'}</b></span>
       <span>Last run <b>${lr ? `${ago(lr.finishedAt || lr.at)} · ${lr.redeemed} redeemed` : 'never'}</b></span>
       <span>Auto-pilot <b>${S.settings?.autoRun.enabled ? (e.nextRun ? `next ${ago(e.nextRun)}` : 'on') : 'off'}</b> <button type="button" class="q-btn" data-help="auto-pilot" title="What is auto-pilot?" aria-label="What is auto-pilot?">?</button></span>
       ${assistToggle()}
+      ${live && e.pace ? `<span>Pace <b>${e.pace}s</b>${e.smartPace ? ' <small class="muted">smart</small>' : ''}</span>` : ''}
       ${e.message && !e.assist ? `<span class="cmd-msg">${esc(e.message)}</span>` : ''}
     </div>`;
   lastPhase = phaseChanged;
@@ -1049,14 +1063,100 @@ function renderSettingsBound() {
     if (el.type === 'checkbox') el.checked = !!v;
     else el.value = v;
   });
-  $('#delayOut').textContent = `${S.settings.delaySeconds} sec`;
-  const nr = S.engine.nextRun;
-  $('#nextRun').textContent = S.settings.autoRun.enabled
-    ? nr
-      ? `Next automatic run ${ago(nr)} (${new Date(nr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}).`
-      : 'Scheduled.'
-    : 'Auto-pilot is off.';
+  renderPace();
+  renderSchedule();
 }
+
+// Settings → Pace
+function renderPace() {
+  const d = Number(S.settings.delaySeconds) || 10;
+  $('#delayOut').textContent = `${d} sec`;
+  $('#paceWarn').hidden = d >= 10;
+  const e = S.engine;
+  $('#paceNow').textContent = e.running && e.pace ? `Right now: ${e.pace} seconds between requests${e.smartPace ? ' (smart pace)' : ''}.` : S.settings.smartPace ? `Smart pace will start at ${Math.min(18, Math.max(4, d))} seconds.` : '';
+}
+
+// Settings → Auto-pilot schedule
+const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+function renderSchedule() {
+  const a = S.settings.autoRun;
+  const times = a.when === 'times';
+  $$('[data-setting="autoRun.when"] button').forEach((b) => b.classList.toggle('on', b.dataset.v === (a.when || 'interval')));
+  $('#apInterval').hidden = times;
+  $('#apTimes').hidden = !times;
+  const days = a.days || [];
+  $$('#apDays [data-day]').forEach((b) => {
+    const on = days.includes(Number(b.dataset.day));
+    b.classList.toggle('on', on);
+    b.setAttribute('aria-pressed', String(on));
+  });
+  $('#apClock').textContent = `Uses this computer's clock. It's ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} now. Early morning (like 3:00) runs while you're asleep; if the computer is asleep then, it runs soon after it wakes.`;
+  const nr = S.engine.nextRun;
+  const when = (t) => {
+    const d = new Date(t);
+    const days = Math.round((new Date(d.getFullYear(), d.getMonth(), d.getDate()) - new Date(new Date().toDateString())) / 86400000);
+    const hm = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return days === 0 ? `today at ${hm}` : days === 1 ? `tomorrow at ${hm}` : `${DAY_NAMES[d.getDay()]} at ${hm}`;
+  };
+  $('#nextRun').textContent = a.enabled ? (nr ? `Next automatic run: ${when(nr)} (${ago(nr)}).` : 'Scheduled.') : 'Auto-pilot is off.';
+}
+
+// Settings layout: a menu on the left, one section on the right.
+const SET_KEY = 'sr.settingsSection';
+function showSettingsSection(id, { remember = true } = {}) {
+  const sec = document.getElementById(id);
+  if (!sec || !sec.classList.contains('set-sec')) return;
+  $$('.set-sec').forEach((x) => (x.hidden = x !== sec));
+  $$('#setNav [data-set]').forEach((b) => {
+    const on = b.dataset.set === id;
+    b.classList.toggle('on', on);
+    b.setAttribute('aria-selected', String(on));
+  });
+  if (!reducedMotion()) {
+    sec.classList.remove('tab-in');
+    void sec.offsetWidth;
+    sec.classList.add('tab-in');
+  }
+  if (remember)
+    try {
+      localStorage.setItem(SET_KEY, id);
+    } catch {
+      /* storage unavailable */
+    }
+}
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-set], [data-set-go]');
+  if (!b) return;
+  showSettingsSection(b.dataset.set || b.dataset.setGo);
+});
+$('#setNav').addEventListener('keydown', (e) => {
+  if (!['ArrowDown', 'ArrowUp', 'ArrowLeft', 'ArrowRight'].includes(e.key)) return;
+  e.preventDefault();
+  const tabs = $$('#setNav [data-set]');
+  const i = tabs.indexOf(document.activeElement);
+  const n = tabs[(i + (e.key === 'ArrowDown' || e.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length];
+  n.focus();
+  showSettingsSection(n.dataset.set);
+});
+// Auto-pilot day picks
+$('#apDays').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-day]');
+  if (!b) return;
+  const d = Number(b.dataset.day);
+  const days = new Set(S.settings.autoRun.days || []);
+  if (days.has(d) && days.size === 1) return toast('Keep at least one day, or switch to “Every few hours”.');
+  days.has(d) ? days.delete(d) : days.add(d);
+  setSetting('autoRun.days', [...days].sort(), { now: true });
+});
+(() => {
+  let first = 'setAutopilot';
+  try {
+    first = localStorage.getItem(SET_KEY) || first;
+  } catch {
+    /* storage unavailable */
+  }
+  showSettingsSection(document.getElementById(first) ? first : 'setAutopilot', { remember: false });
+})();
 
 // --- codes
 
@@ -1322,6 +1422,11 @@ document.addEventListener('click', async (ev) => {
     }
   } else if (a === 'update-install') {
     await act(() => api('POST', '/api/update/install'), 'Downloading the update…').catch(() => {});
+  } else if (a === 'ga-flip') {
+    const key = t.dataset.key;
+    const on = key === 'mute' ? S.settings.gameAssist.mute === false : !S.settings.gameAssist[key];
+    setSetting(`gameAssist.${key}`, on, { now: true });
+    toast(key === 'mute' ? (on ? 'Games will start muted' : 'Games will start with sound') : on ? 'Games will be closed afterwards' : 'Games will be left open', 'ok');
   } else if (a === 'assist-toggle') {
     const on = S.settings.gameAssist.mode !== 'auto';
     setSetting('gameAssist.askedAt', Date.now());
@@ -1483,7 +1588,10 @@ document.addEventListener('change', async (e) => {
     setSetting(el.dataset.setting, v);
   }
 });
-$('#delayRange').addEventListener('input', (e) => ($('#delayOut').textContent = `${e.target.value} sec`));
+$('#delayRange').addEventListener('input', (e) => {
+  $('#delayOut').textContent = `${e.target.value} sec`;
+  $('#paceWarn').hidden = Number(e.target.value) >= 10;
+});
 
 // sign-in forms (used on the Account tab and in setup)
 function askPlaintextConsent(err) {
@@ -1589,6 +1697,9 @@ setInterval(() => {
 // ------------------------------------------------------------------ help
 
 function goTo(tab, elId) {
+  // Settings shows one section at a time: open the one that holds the element first.
+  const sec = tab === 'settings' && elId ? document.getElementById(elId)?.closest('.set-sec') : null;
+  if (sec) showSettingsSection(sec.id, { remember: false });
   if (location.hash !== `#${tab}`) location.hash = `#${tab}`;
   else showTab();
   if (!elId) return;
@@ -1620,7 +1731,7 @@ function getDiagnostics() {
     `SHiFT Redeemer ${S.app?.version || '?'} · ${S.app?.platform || navigator.platform} · ${S.app?.packaged ? 'installed app' : 'from source'}`,
     `Signed in: ${S.account.loggedIn ? 'yes' : 'no'} · password saved: ${S.account.saved ? (S.account.saved.secure ? `securely (${S.account.saved.storeName})` : 'plain text') : 'no'} · secure storage: ${S.account.secureStore?.available ? 'available' : `unavailable (${S.account.secureStore?.reason || '?'})`}`,
     `Titles: ${st.titles?.mode === 'all' ? 'all' : (st.titles?.selected || []).join(', ')} · Platforms: ${st.platforms?.mode === 'all' ? 'all linked' : (st.platforms?.selected || []).join(', ')} · Linked: ${S.catalog.platforms.filter((p) => p.linked).map((p) => p.id).join(', ') || 'none seen'}`,
-    `Auto-pilot: ${st.autoRun?.enabled ? `on, every ${st.autoRun.intervalMinutes} min` : 'off'} · Game assist: ${st.gameAssist?.mode} (Steam ${S.games.steam?.found ? `found, installed: ${(S.games.steam.installed || []).join(', ') || 'none'}` : 'not found'}) · Delay: ${st.delaySeconds}s`,
+    `Auto-pilot: ${st.autoRun?.enabled ? `on, every ${st.autoRun.intervalMinutes} min` : 'off'} · Game assist: ${st.gameAssist?.mode} (Steam ${S.games.steam?.found ? `found, installed: ${(S.games.steam.installed || []).join(', ') || 'none'}` : 'not found'}) · Delay: ${st.delaySeconds}s${st.smartPace ? ' (smart)' : ''} · Schedule: ${st.autoRun?.when === 'times' ? `days ${(st.autoRun.days || []).join(',')} at ${st.autoRun.time}` : 'interval'}`,
     `Codes: ${S.stats.total || 0} known, ${S.stats.queue || 0} queued, ${S.stats.successes || 0} redeemed`,
     lr ? `Last run: ${new Date(lr.finishedAt || lr.at).toISOString()} · checked ${lr.checked}, redeemed ${lr.redeemed}, already ${lr.already}, dead ${lr.dead}, errors ${lr.errors}, launches ${lr.assists || 0}${lr.stopped ? `, stopped: ${lr.stopped}` : ''}${lr.pause ? `, paused (${lr.pause.why}): ${lr.pause.message}` : ''}` : 'Last run: never',
     'Sources: ' + S.sources.map((x) => `${x.id}=${x.enabled ? (x.status ? (x.status.ok ? `ok(${x.status.found})` : 'error') : 'unused') : 'off'}`).join(' '),

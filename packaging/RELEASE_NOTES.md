@@ -4,6 +4,10 @@
 - **Easier game and platform picking.** Unticking one while "All" is on switches to **Pick** with everything else still ticked.
 - **Counts that agree.** Every dashboard number follows the games and platforms you picked, the per-game tiles match, and "Done" means the same thing everywhere.
 - **Auto-pilot answers.** Little **?** buttons next to auto-pilot open the right help, with new answers to the most common questions.
+- **Auto-pilot on a schedule.** Run every few hours, or on set days and times, e.g. **every Wednesday at 3:00** while you're asleep (your computer's clock).
+- **New Settings layout.** A menu on the left (Auto-pilot, Game launching, Pace, Updates, Display & data) and one section at a time on the right.
+- **Gentler on SHiFT.** Requests are never closer than 3 seconds apart, the default is now 10 seconds, and below 10 the app suggests slowing down. New **Smart pace** adjusts between 4 and 18 seconds: quicker through dead codes, slower while redeeming.
+- **Better game launches (Windows).** Games start **muted**, the app presses Enter to get past the title screen so SHiFT notices the game, and it closes everything it started, including the 2K launcher. If the 2K launcher gets in the way, the app tells you how to skip it. While auto-pilot is on, the dashboard shows whether games will be closed and muted, with one-click switches.
 
 If you have 1.4.0 or newer, select **Update now** when the app offers it.
 

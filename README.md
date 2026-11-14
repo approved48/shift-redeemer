@@ -58,7 +58,7 @@ You can run the wizard again any time from **Settings**. After setup, a **Gettin
 
 That's it. The app searches the web for codes, checks each one with SHiFT, and redeems it for every game and platform you picked. It remembers what it has already done, so nothing is redeemed twice.
 
-**Want it fully automatic?** In **Settings**, turn on **Auto-pilot** and **Start with my computer**. SHiFT Redeemer then runs quietly in the background and redeems new codes every few hours.
+**Want it fully automatic?** In **Settings → Auto-pilot**, turn on **Run automatically** and **Start with my computer**. Choose every few hours, or set days and a time (say, every Wednesday at 3:00 while you're asleep). SHiFT Redeemer then runs quietly in the background.
 
 **Closing the app:** closing the window quits it, unless auto-pilot is on, in which case it keeps working in the background. The **⏻** button at the top always quits completely.
 
@@ -68,6 +68,7 @@ That's it. The app searches the web for codes, checks each one with SHiFT, and r
 - **Missing a platform?** SHiFT only redeems for platforms linked to your account. Link them on the SHiFT website under *Gaming Platforms*.
 - **Your data stays on your computer.** The app only talks to SHiFT and the code websites it searches.
 - **"Keep me signed in"** saves your SHiFT password in your system's secure password storage: **Windows Credential Manager** or the **macOS Keychain** (on Linux, GNOME Keyring or KWallet). If that isn't available, the app asks first and clearly warns you before saving it unencrypted, and you can always choose not to save it. **Forget saved password** on the Account tab removes it.
+- **Gentle on SHiFT:** requests are never closer than 3 seconds apart (10 by default), and **Smart pace** adjusts between 4 and 18 seconds as it goes.
 - **Updating:** when a new version is out, the dashboard shows a banner. Select **Update now** and the app downloads it, checks it against GitHub's published checksum, restarts and keeps your codes and settings. **Settings → Updates** has **Check now** and an option to install updates automatically. (Self-updating works from version 1.4.0 onwards. For anything older, install the new version over the old one once.)
 - **Uninstalling (Windows):** Settings → Apps → SHiFT Redeemer → Uninstall.
 
