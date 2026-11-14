@@ -84,8 +84,11 @@ const FAQ = [
     'After a number of redemptions, SHiFT stops accepting codes until you start a SHiFT-enabled game. This is SHiFT\'s rule, not the app\'s.',
     'Game launch assist can start a game for you, wait for SHiFT to notice it, close it again and carry on. Otherwise the dashboard tells you what to do and offers a <b>Resume</b> button.'], go: { tab: 'settings', el: 'setAssist', label: 'Game launch settings' } },
   { cat: 'Game launch assist', q: 'What does game launch assist do?', a: [
-    '<ol><li>Finds a Borderlands game installed through Steam.</li><li>Starts it.</li><li>Waits about a minute at the main menu so SHiFT registers it.</li><li>Closes it again.</li><li>Carries on redeeming.</li></ol>',
+    '<ol><li>Finds a Borderlands game installed through Steam.</li><li>Starts it.</li><li>Waits for SHiFT to notice it. After about 30 seconds it quietly retries one of the paused codes every 15 seconds.</li><li>Closes it as soon as SHiFT accepts codes again, usually within a minute.</li><li>Carries on redeeming.</li></ol>',
     'Choose <b>Automatically</b>, <b>Ask me</b> (one click on the dashboard) or <b>Off</b> in Settings.'], go: { tab: 'settings', el: 'setAssist', label: 'Show me' } },
+  { cat: 'Game launch assist', q: 'How do I turn automatic game launching on or off quickly?', a: [
+    'Use the <b>Auto-launch games</b> switch on the dashboard, under the progress bar. On means a game is started for you when SHiFT asks. Off means redeeming pauses and offers a one-click <b>Launch &amp; resume</b>. Turn it off while you\'re playing.',
+    'While a game is open for SHiFT, the dashboard shows each step. <b>Close game &amp; resume</b> skips the rest of the wait, and <b>Stop</b> also closes the game the app started.'], go: { tab: 'dashboard', el: 'cmdBar', label: 'Show me' } },
   { cat: 'Game launch assist', q: 'Can the game run hidden?', a: ['No. SHiFT only counts a game that actually starts, and Steam doesn\'t allow invisible launches. You\'ll see the game open for about a minute, then close.'] },
   { cat: 'Game launch assist', q: 'Will it close a game I\'m playing?', a: ['No. It only ever closes a game it started itself. If you already have a Borderlands game open, it uses that and leaves it alone.'] },
   { cat: 'Game launch assist', q: 'I play Borderlands while it runs. What should I choose?', a: [
@@ -98,6 +101,9 @@ const FAQ = [
   { cat: 'Game launch assist', q: 'Does it work with Epic Games?', a: ['Yes, with your game\'s Epic launch link. In the Epic launcher, create a desktop shortcut for the game, open the shortcut\'s properties, copy the URL and paste it into <b>Settings → Game launch assist</b>.'], go: { tab: 'settings', el: 'setAssist', label: 'Show me' } },
   { cat: 'Game launch assist', q: 'What about PlayStation, Xbox and Switch?', a: ['Console games can\'t be started from a computer. When SHiFT asks, start any Borderlands game on your console, wait at the main menu for a minute, then press <b>Resume</b> on the dashboard.'] },
 
+  { cat: 'Redeeming', q: 'What are the game tiles on the dashboard?', a: [
+    'One tile for each game you target, with the keys and cosmetics the app has unlocked there so far. During a run, a green <b>+N</b> shows what that run has added to each game, and it stays until your next run.',
+    'Select a tile to open its full breakdown on the <b>Rewards</b> page.'], go: { tab: 'dashboard', el: 'gameStrip', label: 'Show me' } },
   { cat: 'Redeeming', q: 'How is the rewards report counted?', a: [
     'The <b>Rewards</b> page adds up what this app has unlocked for you, game by game. Key counts come from each code\'s published reward description, such as "5 Golden Keys".',
     'When one code gives different rewards in different games (for example Diamond Keys in Borderlands 3 only), each game is only credited with its own share. Rewards you already had are listed separately and not counted again.',
@@ -148,7 +154,7 @@ const FAQ = [
   { cat: 'Troubleshooting', q: 'Nothing gets redeemed', a: [
     '<ol><li>Check you\'re signed in (top right).</li><li>Check <b>Games &amp; Platforms</b> has something selected.</li><li>Check your platforms are linked on the SHiFT website.</li><li>Press <b>Find &amp; redeem</b> to look for new codes. If the queue is empty, there\'s nothing new right now.</li></ol>'] },
   { cat: 'Troubleshooting', q: 'The game launched but redeeming is still paused', a: [
-    'SHiFT may need the game to run a little longer. Increase <b>Wait at the main menu</b> in Settings.',
+    'SHiFT may need the game to run a little longer. Increase <b>Keep the game open for at most</b> in Settings. The game still closes as soon as SHiFT is ready.',
     'If it keeps happening, play for a few minutes, then press <b>Resume</b>.'], go: { tab: 'settings', el: 'setAssist', label: 'Show me' } },
   { cat: 'Troubleshooting', q: 'SHiFT says I\'m making too many requests', a: ['The app waits and tries again by itself. If it happens a lot, increase the delay under <b>Settings → Pace</b>.'], go: { tab: 'settings', el: 'setPace', label: 'Show me' } },
   { cat: 'Troubleshooting', q: 'A code shows "Retry"', a: ['Something went wrong temporarily (for example a network hiccup). It\'s tried again on the next run.'] },
@@ -179,6 +185,8 @@ const SETTINGS = [
   { ic: '⏱️', name: 'Auto-pilot', desc: 'Settings · step 1', tab: 'settings', el: 'setAutopilot', k: 'auto pilot automatic timer schedule background' },
   { ic: '🚀', name: 'Start with my computer', desc: 'Settings · step 1', tab: 'settings', el: 'setAutopilot', k: 'startup start computer boot login windows' },
   { ic: '🕹️', name: 'Game launch assist', desc: 'Settings · step 2', tab: 'settings', el: 'setAssist', k: 'game launch assist paused steam close warm' },
+  { ic: '🎚️', name: 'Auto-launch games switch', desc: 'Dashboard', tab: 'dashboard', el: 'cmdBar', k: 'auto launch games toggle switch quick on off dashboard playing' },
+  { ic: '🧩', name: 'Game tiles', desc: 'Dashboard', tab: 'dashboard', el: 'gameStrip', k: 'game tiles per game dashboard keys added run progress' },
   { ic: '🟣', name: 'Epic launch link', desc: 'Settings · step 2', tab: 'settings', el: 'setAssist', k: 'epic launcher link shortcut' },
   { ic: '🐢', name: 'Pace', desc: 'Settings · step 3', tab: 'settings', el: 'setPace', k: 'delay pace rate limit slow requests' },
   { ic: '💾', name: 'Your data', desc: 'Settings · step 4', tab: 'settings', el: 'setData', k: 'data folder export backup files' },
@@ -223,7 +231,7 @@ const TOPICS = [
   ['Official?', 'official gearbox'], ['Nothing redeemed', 'nothing gets redeemed'], ['Too many requests', 'too many requests'], ['Retry', 'retry'],
   ['Windows warning', 'windows protected'], ['macOS warning', 'macos opened'], ['Run results', 'results of a run'], ['How long', 'how long run'],
   ['Golden Keys', 'what does a golden key do'], ['Diamond Keys', 'what does a diamond key do'], ['Skeleton Keys', 'what does a skeleton key do'], ['Cosmetics', 'what are cosmetics'], ['Ask an AI', 'ask an ai to find codes'], ['Playing while it runs', 'play borderlands while it runs'], ['Where are the tabs?', 'where did the menu tabs go'],
-  ['Import a list', 'import list friend'], ['Share codes', 'share back up codes'], ['File types', 'which files import'], ['Export privacy', 'export include account'], ['Animations', 'turn off animations'], ['Rewards report', 'rewards report counted'], ['Export rewards', 'rewards report export csv'], ['Setup again', 'run setup again'], ['Supported games', 'which games supported'], ['Which game launches', 'which game launch'], ['Still paused', 'still paused'],
+  ['Import a list', 'import list friend'], ['Share codes', 'share back up codes'], ['File types', 'which files import'], ['Export privacy', 'export include account'], ['Animations', 'turn off animations'], ['Rewards report', 'rewards report counted'], ['Export rewards', 'rewards report export csv'], ['Setup again', 'run setup again'], ['Supported games', 'which games supported'], ['Which game launches', 'which game launch'], ['Auto-launch switch', 'turn automatic game launching on off quickly'], ['Game tiles', 'game tiles dashboard'], ['Still paused', 'still paused'],
 ];
 
 const TILES = [

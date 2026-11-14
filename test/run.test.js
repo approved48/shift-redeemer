@@ -283,6 +283,47 @@ test('game launch assist: launches, waits, closes, resumes — or pauses with a 
   assert.deepEqual(closed, []);
   running = [];
 
+  // 3c. Seamless: the game is closed as soon as SHiFT accepts codes again, not after the full wait.
+  launched.length = 0;
+  closed.length = 0;
+  mock.setLaunchAfter(2);
+  ({ engine, store } = fresh());
+  store.updateSettings({ gameAssist: { mode: 'auto', warmupSeconds: 120 } });
+  let naps = 0;
+  engine.sleep = async () => void naps++;
+  s = await engine.run();
+  assert.equal(s.redeemed, 4, JSON.stringify(s));
+  assert.equal(s.assists, 1);
+  assert.deepEqual(closed, [999]);
+  assert.ok(naps < 60, `waited too long before closing (${naps} naps)`);
+
+  // 3d. "Close game & resume" skips the rest of the wait.
+  closed.length = 0;
+  ({ engine, store } = fresh());
+  store.updateSettings({ gameAssist: { mode: 'auto', warmupSeconds: 120 } });
+  naps = 0;
+  engine.probeUnblocked = async () => false; // SHiFT hasn't noticed yet…
+  engine.sleep = async () => {
+    if (engine.state.assist?.step === 'warmup' && ++naps === 3) engine.skipAssist(); // …but the user presses the button
+  };
+  s = await engine.run();
+  assert.deepEqual(closed, [999]);
+  assert.ok(naps < 10, `skip didn't cut the wait short (${naps} naps)`);
+
+  // 3e. Stop while the game is open closes the game it started.
+  closed.length = 0;
+  ({ engine, store } = fresh());
+  store.updateSettings({ gameAssist: { mode: 'auto', warmupSeconds: 120 } });
+  naps = 0;
+  engine.probeUnblocked = async () => false;
+  engine.sleep = async () => {
+    if (engine.state.assist?.step === 'warmup' && ++naps === 3) engine.stop();
+  };
+  s = await engine.run();
+  assert.equal(s.stopped, 'Stopped by you');
+  assert.deepEqual(closed, [999], 'Stop should close the game the app started');
+  running = [];
+
   // 4. Consoles can't be launched remotely → paused with that explanation.
   mock.setLaunchAfter(0);
   ({ engine, store } = fresh());

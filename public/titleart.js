@@ -145,6 +145,21 @@ const ART = {
   },
 };
 
+// The same art can appear twice in the page (dashboard strip and Rewards cards, one of them in a
+// hidden tab), so gradient and pattern ids get a per-use prefix.
+function uniq(svg, pfx) {
+  return svg.replace(/id="([^"]+)"/g, `id="${pfx}-$1"`).replace(/url\(#([^)]+)\)/g, `url(#${pfx}-$1)`);
+}
+
+/** Just the banner artwork for a game (no wordmark), or '' for games without art. */
+export function artSVG(id, pfx = 'a', cls = 'rp-art') {
+  const a = ART[id];
+  return a ? `<svg class="${cls}" viewBox="0 0 320 96" preserveAspectRatio="xMaxYMid slice" aria-hidden="true">${uniq(a.art(), `${pfx}-${id}`)}</svg>` : '';
+}
+
+/** Whether a game's art is light (dark text reads better on it). */
+export const isLightArt = (id) => !!ART[id]?.dark;
+
 /** The banner for one game's card: original art + wordmark. Unknown games get a plain banner. */
 export function coverHTML(t) {
   const a = ART[t.id];
@@ -152,7 +167,7 @@ export function coverHTML(t) {
     return `<header class="rp-cover plain"><div class="rp-mark"><span class="rp-mark-lg">${esc(t.short)}</span><span class="rp-mark-sm">${esc(t.name)}</span></div></header>`;
   }
   return `<header class="rp-cover cv-${t.id} ${a.dark ? 'on-light' : ''}" style="--accent:${a.accent}" aria-label="${esc(t.name)}">
-    <svg class="rp-art" viewBox="0 0 320 96" preserveAspectRatio="xMaxYMid slice" aria-hidden="true">${a.art()}</svg>
+    ${artSVG(t.id, 'rp')}
     <div class="rp-mark" aria-hidden="true"><span class="rp-mark-sm">${esc(a.mark[0])}</span><span class="rp-mark-lg">${esc(a.mark[1])}</span></div>
   </header>`;
 }

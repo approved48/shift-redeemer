@@ -62,6 +62,7 @@
       </div>
 
       <div class="statbar" id="stats"></div>
+      <div class="game-strip" id="gameStrip" aria-label="Rewards by game" hidden></div>
       <div id="dashBanners"></div>
 
       <div class="grid-dash">
@@ -332,16 +333,17 @@
           <p class="hint" id="assistModeHint"></p>
           <div class="field-row">
             <label class="field"><span class="label">Game to launch</span><select data-setting="gameAssist.game" id="assistGame"></select></label>
-            <label class="field"><span class="label">Wait at the main menu</span>
+            <label class="field"><span class="label">Keep the game open for at most</span>
               <select data-setting="gameAssist.warmupSeconds" data-num><option value="45">45 seconds</option><option value="60">1 minute</option><option value="75">75 seconds</option><option value="90">90 seconds</option><option value="120">2 minutes</option><option value="180">3 minutes</option></select>
             </label>
           </div>
+          <p class="hint">It closes as soon as SHiFT accepts codes again, usually well before this.</p>
           <label class="switch-row"><input type="checkbox" class="switch" data-setting="gameAssist.closeAfter"><span><b>Close the game afterwards</b><small>Only a game this app started. A game you opened yourself is never closed.</small></span></label>
           <label class="switch-row" id="assistRemindRow"><input type="checkbox" class="switch" data-setting="gameAssist.dontAsk"><span><b>Don't suggest turning automatic launching back on</b><small>When this is set to Ask me or Off, the dashboard occasionally offers to switch back to Automatically. Turn this on to stop that.</small></span></label>
           <label class="field"><span class="label">Epic Games launch link <small>(optional)</small></span><input data-setting="gameAssist.epicLink" placeholder="com.epicgames.launcher://apps/…?action=launch&amp;silent=true" spellcheck="false"></label>
           <p class="hint">In the Epic launcher, right-click a Borderlands game → <b>Manage</b> → <b>Desktop shortcut</b>. Then right-click the shortcut → <b>Properties</b> and copy the URL.</p>
           <div class="assist-detect" id="assistDetect"></div>
-          <div class="card-foot"><span class="foot-note">The game opens for about a minute, then closes itself.</span><button class="btn btn-sm btn-ghost" id="btnRescan">Re-scan games</button><button class="btn btn-sm" id="btnTestLaunch">Test launch</button></div>
+          <div class="card-foot"><span class="foot-note">The game opens briefly and closes as soon as SHiFT is ready.</span><button class="btn btn-sm btn-ghost" id="btnRescan">Re-scan games</button><button class="btn btn-sm" id="btnTestLaunch">Test launch</button></div>
         </section>
         <section class="panel step" id="setPace">
           <div class="step-head"><h2 class="step-title"><span class="step-n">3</span>Pace <span class="tag-opt">Optional</span></h2><button class="btn btn-sm btn-ghost" data-help="rate limit">?</button></div>
@@ -433,10 +435,10 @@
           <!-- 6 -->
           <section class="wz-page" data-step="5" hidden>
             <h2 class="step-title">Will you play Borderlands while this runs?</h2>
-            <p class="lead">Now and then SHiFT stops accepting codes until a SHiFT-enabled game has been started. SHiFT Redeemer can start one for about a minute and close it again, but that would get in your way if you're playing.</p>
+            <p class="lead">Now and then SHiFT stops accepting codes until a SHiFT-enabled game has been started. SHiFT Redeemer can start one, wait until SHiFT notices it (usually under a minute) and close it again, but that would get in your way if you're playing.</p>
             <div class="choice-grid" role="radiogroup" aria-label="Will you play while SHiFT Redeemer runs?">
               <button type="button" class="choice" role="radio" data-act="wz-play" data-v="yes"><span class="tile-ic" aria-hidden="true">🎮</span><span><b>Yes, I'll often be playing</b><small>It never starts or closes a game by itself. If you're already in a Borderlands game, SHiFT sees it and redeeming carries on. Otherwise you get a one-click <i>Launch &amp; resume</i>.</small></span></button>
-              <button type="button" class="choice" role="radio" data-act="wz-play" data-v="no"><span class="tile-ic" aria-hidden="true">💤</span><span><b>No, it mostly runs while I'm away</b><small>When SHiFT asks, it starts a game for about a minute, then closes it and carries on. It only ever closes a game it started.</small></span></button>
+              <button type="button" class="choice" role="radio" data-act="wz-play" data-v="no"><span class="tile-ic" aria-hidden="true">💤</span><span><b>No, it mostly runs while I'm away</b><small>When SHiFT asks, it starts a game, closes it as soon as SHiFT is ready (usually within a minute) and carries on. It only ever closes a game it started.</small></span></button>
             </div>
             <p class="hint" id="wzAssistText"></p>
           </section>

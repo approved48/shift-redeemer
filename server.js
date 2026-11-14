@@ -221,7 +221,7 @@ const routes = {
         g.epicLink = String(g.epicLink || '').trim();
         if (g.epicLink && !/^com\.epicgames\.launcher:\/\//i.test(g.epicLink)) throw bad('That isn\'t an Epic launch link. It should start with com.epicgames.launcher://');
       }
-      if ('warmupSeconds' in g) g.warmupSeconds = Math.min(600, Math.max(20, Number(g.warmupSeconds) || 75));
+      if ('warmupSeconds' in g) g.warmupSeconds = Math.min(600, Math.max(20, Number(g.warmupSeconds) || 90));
       if ('playing' in g) g.playing = !!g.playing;
       if ('dontAsk' in g) g.dontAsk = !!g.dontAsk;
       if ('askedAt' in g) g.askedAt = Math.min(Date.now(), Math.max(0, Number(g.askedAt) || 0));
@@ -303,6 +303,10 @@ const routes = {
     if (!res.found) throw bad('No SHiFT codes found in that list (format: XXXXX-XXXXX-XXXXX-XXXXX-XXXXX)');
     if (!body.dryRun && body.redeem) background(engine.run({ codes: res.codes }));
     return res;
+  },
+  'POST /api/games/skip': () => {
+    engine.skipAssist();
+    return { ok: true };
   },
   'GET /api/llm-instructions': ({ query }) => engine.llmInstructions({ skipKnown: query.get('skipKnown') === '1', version: rt.VERSION }),
   'GET /api/codes/export': ({ query }) => engine.exportList(query.get('format') || 'txt', query.get('which') || 'working', rt.VERSION),
