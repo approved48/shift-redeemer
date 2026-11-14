@@ -41,6 +41,6 @@ Nothing else to install. Everything the app needs is included.
 
 **Keep me signed in** stores your password in **Windows Credential Manager** or the **macOS Keychain**, never in a plain file. If secure storage isn't available, the app asks you first and warns you before saving anything unencrypted.
 
-To update, install the new version over the old one. Your codes and settings are kept.
+**Updating:** from 1.4.0 on, the app updates itself: select **Update now** when it tells you a new version is out. For older versions, install the new version over the old one once. Your codes and settings are always kept.
 
 *Free, non-commercial fan tool. Not affiliated with Gearbox Software, 2K or Take-Two.*
