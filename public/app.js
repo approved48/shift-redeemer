@@ -3,6 +3,7 @@
 import { initHelp } from './help.js';
 import { initReport } from './report.js';
 import { initLists } from './lists.js';
+import { initTips } from './glossary.js';
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -311,13 +312,63 @@ function showTab() {
   const tab = (location.hash || '#dashboard').slice(1);
   const valid = $$('.tab').some((t) => t.id === `tab-${tab}`) ? tab : 'dashboard';
   $$('.tab').forEach((t) => (t.hidden = t.id !== `tab-${valid}`));
-  $$('#tabs a').forEach((a) => a.classList.toggle('active', a.dataset.tab === valid));
+  $$('#tabs a').forEach((a) => {
+    a.classList.toggle('active', a.dataset.tab === valid);
+    if (a.dataset.tab === valid) a.setAttribute('aria-current', 'page');
+    else a.removeAttribute('aria-current');
+  });
+  const cur = $(`#tabs a[data-tab="${valid}"]`);
+  $('#navCurrent').textContent = cur ? cur.firstChild.textContent.trim() : 'Menu';
+  setNavOpen(false);
   if (valid === 'rewards' && typeof report !== 'undefined') report.refresh(S.catalog.platforms);
   window.scrollTo({ top: 0 });
   moveInk();
   cascade($(`#tab-${valid}`));
 }
 window.addEventListener('hashchange', showTab);
+
+// When the window is too narrow for every tab, fold them into a ☰ menu instead of hiding some.
+const topbar = $('.topbar');
+function setNavOpen(on) {
+  const open = on && topbar.classList.contains('compact');
+  topbar.classList.toggle('nav-open', open);
+  $('#navToggle').setAttribute('aria-expanded', String(open));
+}
+function fitNav() {
+  const tabs = $('#tabs');
+  const was = topbar.classList.contains('compact');
+  topbar.classList.remove('compact');
+  // Measure the full row: compact only if the tabs don't fit in the space they'd get.
+  const need = $$('a', tabs).reduce((w, a) => w + a.offsetWidth + 2, 0);
+  const compact = need > tabs.clientWidth + 1;
+  topbar.classList.toggle('compact', compact);
+  if (!compact) setNavOpen(false);
+  if (was !== compact) moveInk();
+}
+$('#navToggle').addEventListener('click', (e) => {
+  e.stopPropagation();
+  const open = !topbar.classList.contains('nav-open');
+  setNavOpen(open);
+  if (open) ($('#tabs a.active') || $('#tabs a'))?.focus({ preventScroll: true });
+});
+document.addEventListener('click', (e) => {
+  if (topbar.classList.contains('nav-open') && !e.target.closest('#tabs')) setNavOpen(false);
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && topbar.classList.contains('nav-open')) {
+    setNavOpen(false);
+    $('#navToggle').focus();
+  }
+});
+$('#tabs').addEventListener('keydown', (e) => {
+  if (!topbar.classList.contains('nav-open') || !['ArrowDown', 'ArrowUp'].includes(e.key)) return;
+  e.preventDefault();
+  const links = $$('#tabs a');
+  const i = links.indexOf(document.activeElement);
+  links[(i + (e.key === 'ArrowDown' ? 1 : links.length - 1)) % links.length].focus();
+});
+new ResizeObserver(() => fitNav()).observe($('.topbar-inner'));
+document.fonts?.ready.then(fitNav);
 
 // ------------------------------------------------------------------ shared components
 
@@ -519,10 +570,35 @@ function renderBanners() {
     out.push(callout('eridian', '⬆', `Update available: version ${esc(S.app.update.version)}`, `You have ${esc(S.app.version)}. Install the new version over this one; your codes and settings are kept.`, `<a class="btn btn-sm btn-eridian" href="${esc(S.app.update.url)}" target="_blank" rel="noopener">Download</a>`));
   const lr = S.engine.lastRun;
   if (!S.engine.running && lr?.pause) out.push(pauseBanner(lr.pause));
+  const nudge = assistNudge();
+  if (nudge) out.push(nudge);
   $('#dashBanners').innerHTML = out.join('');
 }
 
 const platNames = (svcs) => svcs.map((x) => platformById(x)?.name || x).join(' & ');
+const NUDGE_EVERY = 7 * 86400000;
+
+// Game launch assist is set to Ask me / Off (usually because the user plays while the app runs).
+// Now and then, offer to switch back to automatic launching for the times they're away.
+function assistNudge() {
+  const ga = S.settings?.gameAssist;
+  if (!ga || ga.mode === 'auto' || ga.dontAsk || S.engine.running) return '';
+  const steam = S.games.steam || {};
+  const canLaunch = steam.installed?.length || ga.epicLink;
+  if (!canLaunch) return '';
+  const paused = !!S.engine.lastRun?.pause;
+  const since = Date.now() - (ga.askedAt || 0);
+  if (!(ga.askedAt ? since > NUDGE_EVERY || (paused && since > 86400000) : paused)) return '';
+  const best = steam.installed?.length ? titleById(['bl2', 'tps', 'bl1', 'bl3', 'ttw', 'bl4'].find((id) => steam.installed.includes(id)))?.name : null;
+  const why = ga.playing ? ' because you said you play while SHiFT Redeemer runs' : '';
+  return callout(
+    'eridian',
+    '🕹',
+    'Launch games automatically when you’re not playing?',
+    `Game launch assist is set to <b>${ga.mode === 'ask' ? 'Ask me' : 'Off'}</b>${why}. When you’re away, SHiFT Redeemer can start ${best ? esc(best) : 'a game'} for about a minute whenever SHiFT asks, then close it and carry on. It never closes a game you opened yourself.`,
+    '<button class="btn btn-sm btn-eridian" data-act="nudge-on">Turn on</button><button class="btn btn-sm" data-act="nudge-later">Not now</button><button class="btn btn-sm btn-ghost" data-act="nudge-never">Don’t ask again</button>',
+  );
+}
 
 function pauseBanner(p) {
   const where = platNames(p.services || []);
@@ -697,11 +773,11 @@ function renderAssist() {
       ? `<span class="chip ok"><i style="--c:${C.green}"></i>Steam</span> Installed: ${steam.installed.map((id) => esc(titleById(id)?.name || id)).join(', ')}`
       : '<span class="chip"><i></i>Steam</span> Found, but no Borderlands games are installed through it.'
     : "<span class=\"chip\"><i style=\"--c:#6f665c\"></i>Steam</span> Not found on this computer. Epic users can add a launch link above.";
-  $$('.js-assist-auto').forEach((c) => (c.checked = ga.mode === 'auto'));
+  $('#assistRemindRow').hidden = ga.mode === 'auto';
   const best = steam.installed?.length ? titleById(['bl2', 'tps', 'bl1', 'bl3', 'ttw', 'bl4'].find((id) => steam.installed.includes(id)))?.name : null;
   $('#wzAssistText').textContent = best
-    ? `SHiFT sometimes pauses codes until a SHiFT-enabled game is launched. The app will open ${best} via Steam for about a minute, then close it and carry on.`
-    : 'SHiFT sometimes pauses codes until a SHiFT-enabled game is launched. No Borderlands game was found on Steam here, so the app will pause and tell you when that happens.';
+    ? `Found ${best} on Steam: that's the game it would start. You can change this any time in Settings → Game launch assist.`
+    : 'No Borderlands game was found on Steam here, so when SHiFT asks, the app pauses and tells you what to do. Epic players can add a launch link in Settings → Game launch assist.';
 }
 
 function renderSettingsBound() {
@@ -742,6 +818,13 @@ function filteredCodes() {
     .sort((a, b) => (b.firstSeen || 0) - (a.firstSeen || 0));
 }
 
+// Key names in reward text get a hover explanation (Help → Rewards guide has the full version).
+const KEY_WORD = /\b(golden|diamond|skeleton)(\s+keys?)\b/i;
+function rewardHTML(reward, game) {
+  if (!reward) return 'Unknown reward';
+  return esc(reward).replace(new RegExp(KEY_WORD.source, 'gi'), (m, k) => `<span class="kw kw-${k.toLowerCase()}" data-tip-key="${k.toLowerCase()}" ${game ? `data-tip-game="${esc(game)}"` : ''} tabindex="0">${m}</span>`);
+}
+
 function codeRow(c) {
   const st = STATUS[c.status] || { label: c.status, c: '#555' };
   const games = [...new Set([...c.games, ...c.offers.map((o) => o.titleId || `raw:${o.title}`)])];
@@ -758,7 +841,7 @@ function codeRow(c) {
   return `<div class="code ${c.ignored ? 'ignored' : ''}" style="--sc:${st.c}" data-code="${esc(c.code)}">
     <div class="key"><code>${esc(c.code)}</code><button class="btn btn-ghost btn-icon btn-xs" data-copy="${esc(c.code)}" title="Copy code">${ICON.copy}</button></div>
     <div class="what">
-      <div class="reward" title="${esc(c.reward)}">${esc(c.reward || 'Unknown reward')}</div>
+      <div class="reward" ${KEY_WORD.test(c.reward || '') ? '' : `title="${esc(c.reward)}"`}>${rewardHTML(c.reward, games.length === 1 ? games[0] : '')}</div>
       <div class="games">${games.map((g) => `<span class="gtag" style="--c:${titleColor(g)}">${esc(titleLabel(g))}</span>`).join('')}${c.platforms.map((p) => `<span class="ptag">${esc(platformById(p)?.name || p)} only</span>`).join('')}
         <span class="srcs">via ${c.sources.map((s) => (s.url ? `<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.name)}</a>` : esc(s.name))).join(', ')}</span></div>
     </div>
@@ -797,10 +880,11 @@ function renderCodes() {
 
 // ------------------------------------------------------------------ first-time setup
 
-const WZ = { open: false, step: 0, last: 5 };
+const WZ = { open: false, step: 0, last: 6 };
 
 function openWizard(step = 0) {
   WZ.open = true;
+  WZ.played = undefined;
   WZ.step = step;
   $('#wizard').hidden = false;
   renderWizard();
@@ -847,8 +931,15 @@ function renderWizard() {
       row('SHiFT account', loggedIn ? esc(S.account.email || 'Connected') : 'Not connected yet. Do this on the Account tab.', loggedIn ? 'ok' : 'bad') +
       row('Titles', st.titles.mode === 'all' ? 'All titles' : st.titles.selected.map(titleLabel).join(', ') || 'None', st.titles.mode === 'select' && !st.titles.selected.length ? 'bad' : '') +
       row('Platforms', st.platforms.mode === 'all' ? 'All linked platforms' : st.platforms.selected.map((p) => platformById(p)?.name || p).join(', ') || 'None', st.platforms.mode === 'select' && !st.platforms.selected.length ? 'bad' : '') +
-      row('Auto-pilot', st.autoRun.enabled ? `On, every ${st.autoRun.intervalMinutes >= 60 ? `${st.autoRun.intervalMinutes / 60} h` : `${st.autoRun.intervalMinutes} min`}` : 'Off');
+      row('Auto-pilot', st.autoRun.enabled ? `On, every ${st.autoRun.intervalMinutes >= 60 ? `${st.autoRun.intervalMinutes / 60} h` : `${st.autoRun.intervalMinutes} min`}` : 'Off') +
+      row('Game launches', { auto: 'Automatic: starts a game for a minute when SHiFT asks', ask: 'Asks first, so it never interrupts your game', off: 'Off' }[st.gameAssist.mode] || 'Off');
   }
+  // "How you play" step: reflect the current choice.
+  const playing = WZ.played ?? (S.settings.gameAssist.mode === 'auto' ? 'no' : S.settings.gameAssist.playing ? 'yes' : null);
+  $$('[data-act="wz-play"]').forEach((b) => {
+    b.classList.toggle('on', b.dataset.v === playing);
+    b.setAttribute('aria-checked', String(b.dataset.v === playing));
+  });
 
   const next = $('#wzNext');
   next.textContent =
@@ -949,6 +1040,28 @@ document.addEventListener('click', async (ev) => {
     await act(() => api('POST', '/api/games/resume'), 'Launching the game, then resuming…').catch(() => {});
   } else if (a === 'setup') {
     openWizard(S.account.loggedIn ? 2 : 1);
+  } else if (a === 'wz-play') {
+    const yes = t.dataset.v === 'yes';
+    WZ.played = t.dataset.v;
+    setSetting('gameAssist.playing', yes);
+    setSetting('gameAssist.askedAt', Date.now());
+    setSetting('gameAssist.mode', yes ? 'ask' : 'auto', { now: true });
+    renderWizard();
+  } else if (a === 'nudge-on') {
+    setSetting('gameAssist.askedAt', Date.now());
+    setSetting('gameAssist.mode', 'auto', { now: true });
+    toast('Games will be launched automatically when SHiFT asks', 'ok');
+  } else if (a === 'nudge-later') {
+    setSetting('gameAssist.askedAt', Date.now(), { now: true });
+    toast('OK, we’ll ask again in a week');
+  } else if (a === 'nudge-never') {
+    setSetting('gameAssist.dontAsk', true);
+    setSetting('gameAssist.askedAt', Date.now(), { now: true });
+    toast('We won’t ask again. You can change this in Settings → Game launch assist.');
+  } else if (a === 'import') {
+    ev.preventDefault();
+    goTo('codes');
+    runAction('import');
   } else if (a === 'wz-change') {
     $('.wz-page[data-step="1"]').dataset.change = '1';
     renderWizard();
@@ -1045,8 +1158,6 @@ document.addEventListener('change', async (e) => {
     lastPick = null;
   } else if (el.dataset.source) {
     api('PUT', '/api/settings', { sources: { [el.dataset.source]: { enabled: el.checked } } }).then((st) => applyState(st));
-  } else if (el.classList.contains('js-assist-auto')) {
-    setSetting('gameAssist.mode', el.checked ? 'auto' : 'ask', { now: true });
   } else if (el.classList.contains('js-autostart')) {
     try {
       const r = await api('PUT', '/api/app/autostart', { enabled: el.checked });
@@ -1231,7 +1342,44 @@ $('#reduceMotion').addEventListener('change', (e) => {
   toast(e.target.checked ? 'Animations reduced' : 'Animations on', 'ok');
 });
 const report = initReport({ api, toast, isVisible: () => location.hash === '#rewards' });
-const help = initHelp({ goTo, runAction, getDiagnostics, repoUrl: 'https://github.com/approved48/shift-redeemer' });
+const help = initHelp({ goTo, runAction, getDiagnostics, repoUrl: 'https://github.com/approved48/shift-redeemer', getRewardCounts: () => report.counts() });
+initTips();
+
+// Sources → Ask an AI to find codes
+async function aiInstructions() {
+  return api('GET', `/api/llm-instructions?skipKnown=${$('#aiSkipKnown').checked ? 1 : 0}`);
+}
+$('#btnAiDownload').addEventListener('click', async () => {
+  try {
+    const r = await aiInstructions();
+    const url = URL.createObjectURL(new Blob([r.content], { type: 'text/markdown' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = r.filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    toast('Instructions downloaded. Give the file to your AI assistant.', 'ok');
+  } catch (e) {
+    toast(e.message, 'err');
+  }
+});
+$('#btnAiCopy').addEventListener('click', async () => {
+  try {
+    const r = await aiInstructions();
+    await navigator.clipboard.writeText(r.content);
+    toast('Instructions copied. Paste them into your AI assistant.', 'ok');
+  } catch (e) {
+    toast(`Couldn't copy: ${e.message}`, 'err');
+  }
+});
+document.addEventListener('click', (e) => {
+  const g = e.target.closest('[data-goto]');
+  if (!g) return;
+  e.preventDefault();
+  goTo(g.getAttribute('href').slice(1), g.dataset.goto);
+});
 
 // ------------------------------------------------------------------ start
 

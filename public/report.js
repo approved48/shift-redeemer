@@ -1,4 +1,6 @@
-// Rewards report: totals, keys by month (stacked columns), per-title cards and history.
+// Rewards report: totals, keys by month (stacked columns), per-title cards, cosmetics and history.
+
+import { KINDS } from './glossary.js';
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -20,7 +22,7 @@ const SERIES = [
 const PLATFORM_NAMES = { steam: 'Steam', epic: 'Epic Games', psn: 'PlayStation', xboxlive: 'Xbox', nintendo: 'Nintendo Switch' };
 
 export function initReport({ api, toast, isVisible }) {
-  const R = { data: null, days: 0, platform: '', title: null, shown: 40 };
+  const R = { data: null, days: 0, platform: '', title: null, shown: 40, kind: '', cosShown: 24 };
   let loading = false;
 
   async function load() {
@@ -49,18 +51,24 @@ export function initReport({ api, toast, isVisible }) {
     $('#rpEmpty').innerHTML = hasAny
       ? ''
       : `<div class="callout is-eridian"><span class="co-ic" aria-hidden="true">🗝</span><div class="co-body"><b class="co-title">No rewards ${R.days || R.platform ? 'for this filter' : 'yet'}</b>${R.days || R.platform ? 'Try a longer period or all platforms.' : 'Press <b>Find &amp; redeem</b> on the dashboard. Everything the app unlocks shows up here.'}</div>${R.days || R.platform ? '' : '<div class="co-actions"><a class="btn btn-sm btn-eridian" href="#dashboard">Go to dashboard</a></div>'}</div>`;
-    ['#rpTotals', '#rpChartCard', '#rpTitles', '#rpHistoryCard'].forEach((s) => ($(s).hidden = !hasAny));
+    ['#rpTotals', '#rpChartCard', '#rpTitles', '#rpHistoryCard', '#rpCosmeticsCard'].forEach((s) => ($(s).hidden = !hasAny));
     if (!hasAny) return;
     renderTotals(d);
     renderChart(d);
     renderTitles(d);
+    renderCosmetics(d);
     renderHistory(d);
   }
 
   function renderTotals(d) {
     const k = d.totals.keys;
-    const tile = (label, value, sub, swatch) =>
-      `<div class="stat-tile">${swatch ? `<i class="sw" style="--c:${swatch}"></i>` : ''}<span class="st-label">${label}</span><b class="st-value">${fmt(value)}</b><span class="st-sub">${sub}</span></div>`;
+    const tile = (label, value, sub, swatch, tipAttr = '') =>
+      `<div class="stat-tile" ${tipAttr} ${tipAttr ? 'tabindex="0"' : ''}>${swatch ? `<i class="sw" style="--c:${swatch}"></i>` : ''}<span class="st-label">${label}</span><b class="st-value">${fmt(value)}</b><span class="st-sub">${sub}</span></div>`;
+    const topKinds = Object.entries(d.totals.kinds || {})
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([k, n]) => `${fmt(n)} ${(KINDS[k] || KINDS.other).name.toLowerCase()}`)
+      .join(' · ');
     const plats = Object.entries(d.totals.platforms)
       .map(([p, n]) => `${PLATFORM_NAMES[p] || p} ${fmt(n)}`)
       .join(' · ');
@@ -68,9 +76,9 @@ export function initReport({ api, toast, isVisible }) {
       tile('Rewards unlocked', d.totals.rewards, plats || 'across all platforms') +
       SERIES.map((s) => {
         const from = d.titles.filter((t) => t.keys[s.id] > 0).map((t) => t.short);
-        return tile(s.name, k[s.id], from.length ? `from ${from.join(', ')}` : 'none yet', s.color);
+        return tile(s.name, k[s.id], from.length ? `from ${from.join(', ')}` : 'none yet', s.color, `data-tip-key="${s.id}"`);
       }).join('') +
-      tile('Items & cosmetics', d.totals.items, d.totals.unknown ? `${fmt(d.totals.unknown)} reward${d.totals.unknown === 1 ? '' : 's'} not described` : 'skins, heads and more') +
+      tile('Cosmetics & items', d.totals.items, topKinds || (d.totals.unknown ? `${fmt(d.totals.unknown)} reward${d.totals.unknown === 1 ? '' : 's'} not described` : 'skins, heads and more'), null, 'data-tip="Skins, heads, weapon skins, trinkets and other non-key rewards. See them all under Cosmetics collected below."') +
       tile('Already on account', d.totals.already, 'redeemed before');
   }
 
@@ -121,7 +129,7 @@ export function initReport({ api, toast, isVisible }) {
     svg += `<line x1="${m.l}" x2="${W - m.r}" y1="${y(0)}" y2="${y(0)}" class="axis"/></svg><div class="chart-tip" id="rpTip" hidden></div>`;
     box.innerHTML = svg;
 
-    $('#rpLegend').innerHTML = SERIES.map((s) => `<span class="lg"><i style="--c:${s.color}"></i>${s.name}</span>`).join('');
+    $('#rpLegend').innerHTML = SERIES.map((s) => `<span class="lg" data-tip-key="${s.id}" tabindex="0"><i style="--c:${s.color}"></i>${s.name}</span>`).join('');
     $('#rpChartTable').innerHTML = `<table class="data-table"><thead><tr><th>Month</th>${SERIES.map((s) => `<th class="num">${s.name}</th>`).join('')}<th class="num">Items</th><th class="num">Rewards</th></tr></thead><tbody>${months
       .map((mo) => `<tr><td>${monthLabel(mo.month, true)}</td>${SERIES.map((s) => `<td class="num">${fmt(mo[s.id])}</td>`).join('')}<td class="num">${fmt(mo.items)}</td><td class="num">${fmt(mo.rewards)}</td></tr>`)
       .join('')}</tbody></table>`;
@@ -174,7 +182,7 @@ export function initReport({ api, toast, isVisible }) {
           <div class="rp-head"><span class="rp-short">${esc(t.short)}</span><span class="rp-name">${esc(t.name)}</span></div>
           <div class="rp-keys">${
             keys.length
-              ? keys.map((s) => `<div class="rp-key"><i class="sw" style="--c:${s.color}"></i><b>${fmt(t.keys[s.id])}</b><span>${s.name}</span></div>`).join('')
+              ? keys.map((s) => `<div class="rp-key" data-tip-key="${s.id}" data-tip-game="${esc(t.id)}" tabindex="0"><i class="sw" style="--c:${s.color}"></i><b>${fmt(t.keys[s.id])}</b><span>${s.name}</span></div>`).join('')
               : '<div class="rp-key none"><span>No keys counted</span></div>'
           }</div>
           <dl class="kv rp-kv">
@@ -183,7 +191,7 @@ export function initReport({ api, toast, isVisible }) {
             ${t.already ? `<dt>Already on account</dt><dd>${fmt(t.already)}</dd>` : ''}
             <dt>Last reward</dt><dd>${fmtDate(t.last)}</dd>
           </dl>
-          ${items.length ? `<ul class="rp-items">${items.map((i) => `<li title="${esc(i.name)}">${esc(i.name)}</li>`).join('')}${t.items.length > 3 ? `<li class="more">+${t.items.length - 3} more</li>` : ''}</ul>` : ''}
+          ${items.length ? `<ul class="rp-items">${items.map((i) => `<li title="${esc(i.name)}"><span class="kic" data-tip-kind="${esc(i.kinds?.[0] || 'other')}">${(KINDS[i.kinds?.[0]] || KINDS.other).ic}</span>${esc(i.name)}</li>`).join('')}${t.items.length > 3 ? `<li class="more"><button class="link-btn" data-rp-cos="${esc(t.id)}">+${t.items.length - 3} more</button></li>` : ''}</ul>` : ''}
           <div class="rp-foot"><div class="chips">${plats}</div><button class="btn btn-sm btn-ghost" data-rp-title="${esc(t.id)}">${R.title === t.id ? 'Show all' : 'History'}</button></div>
         </section>`;
       })
@@ -198,7 +206,7 @@ export function initReport({ api, toast, isVisible }) {
       ? `<table class="data-table history-table"><thead><tr><th>Date</th><th>Game</th><th>Platform</th><th>Reward</th><th class="num">Keys</th><th>Code</th></tr></thead><tbody>${rows
           .slice(0, R.shown)
           .map((r) => {
-            const keys = SERIES.filter((s) => r.keys[s.id]).map((s) => `<span class="kk"><i class="sw" style="--c:${s.color}"></i>${fmt(r.keys[s.id])}</span>`).join('');
+            const keys = SERIES.filter((s) => r.keys[s.id]).map((s) => `<span class="kk" data-tip-key="${s.id}" data-tip-game="${esc(r.titleId)}"><i class="sw" style="--c:${s.color}"></i>${fmt(r.keys[s.id])}</span>`).join('');
             const short = d.titles.find((x) => x.id === r.titleId)?.short || r.title;
             return `<tr class="${r.status === 'redeemed' ? 'already' : ''}"><td class="dt">${fmtDate(r.at)}</td><td><span class="full">${esc(r.title)}</span><span class="short">${esc(short)}</span></td><td>${esc(PLATFORM_NAMES[r.service] || r.service)}</td><td class="rw" title="${esc(r.reward)}">${esc(r.reward || 'Reward not described')}${r.status === 'redeemed' ? ' <span class="badge" style="--sc:#8f8474">already had</span>' : ''}</td><td class="num">${keys || '—'}</td><td><code>${esc(r.code)}</code></td></tr>`;
           })
@@ -208,13 +216,45 @@ export function initReport({ api, toast, isVisible }) {
     $('#rpMore').textContent = `Show more (${rows.length - R.shown} left)`;
   }
 
+  // Every cosmetic unlocked, filterable by type (and by game via the title cards).
+  function renderCosmetics(d) {
+    const all = (d.cosmetics || []).filter((c) => !R.title || c.titleId === R.title);
+    const counts = {};
+    for (const c of all) counts[c.kind] = (counts[c.kind] || 0) + 1;
+    if (R.kind && !counts[R.kind]) R.kind = '';
+    const kinds = (d.itemKinds || []).filter((k) => counts[k.id]);
+    $('#rpCosFilter').innerHTML = all.length
+      ? `<button class="${R.kind ? '' : 'on'}" data-rp-kind="">All ${fmt(all.length)}</button>${kinds
+          .map((k) => `<button class="${R.kind === k.id ? 'on' : ''}" data-rp-kind="${k.id}" data-tip-kind="${k.id}">${(KINDS[k.id] || KINDS.other).ic} ${esc(k.name)} ${fmt(counts[k.id])}</button>`)
+          .join('')}`
+      : '';
+    const list = all.filter((c) => !R.kind || c.kind === R.kind);
+    const t = d.titles.find((x) => x.id === R.title);
+    $('#rpCosSub').textContent = all.length
+      ? `${fmt(all.length)} cosmetic${all.length === 1 ? '' : 's'} and item${all.length === 1 ? '' : 's'}${t ? ` in ${t.name}` : ''}. Each is listed once, with every platform it went to.`
+      : t
+        ? `No cosmetics unlocked in ${t.name} yet. Codes that give cosmetics show up here once they’re redeemed.`
+        : 'No cosmetics unlocked yet. Codes that give skins, heads and other cosmetics show up here once they’re redeemed.';
+    $('#rpCosmetics').innerHTML = list
+      .slice(0, R.cosShown)
+      .map((c) => {
+        const k = KINDS[c.kind] || KINDS.other;
+        const short = d.titles.find((x) => x.id === c.titleId)?.short || c.title;
+        const color = d.titles.find((x) => x.id === c.titleId)?.color || '#8f8474';
+        return `<div class="cos" style="--c:${color}"><span class="cos-ic" data-tip-kind="${esc(c.kind)}" tabindex="0" aria-label="${esc(k.name)}">${k.ic}</span><div class="cos-body"><b title="${esc(c.name)}">${esc(c.name)}</b><span><span class="gtag" style="--c:${color}">${esc(short)}</span>${esc(k.name.replace(/s$/, ''))} · ${c.services.map((p) => esc(PLATFORM_NAMES[p] || p)).join(', ')} · ${fmtDate(c.at)}</span></div></div>`;
+      })
+      .join('');
+    $('#rpCosMore').hidden = list.length <= R.cosShown;
+    $('#rpCosMore').textContent = `Show more (${list.length - R.cosShown} left)`;
+  }
+
   function exportCsv() {
     const d = R.data;
     if (!d) return;
     const q = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
-    const lines = [['Date', 'Game', 'Platform', 'Code', 'Reward', 'Golden Keys', 'Diamond Keys', 'Skeleton Keys', 'Item', 'Status'].map(q).join(',')];
+    const lines = [['Date', 'Game', 'Platform', 'Code', 'Reward', 'Golden Keys', 'Diamond Keys', 'Skeleton Keys', 'Item', 'Item type', 'Status'].map(q).join(',')];
     for (const r of d.recent) {
-      lines.push([new Date(r.at).toISOString().slice(0, 10), r.title, PLATFORM_NAMES[r.service] || r.service, r.code, r.reward, r.keys.golden, r.keys.diamond, r.keys.skeleton, r.item || '', r.status === 'success' ? 'Redeemed' : 'Already had'].map(q).join(','));
+      lines.push([new Date(r.at).toISOString().slice(0, 10), r.title, PLATFORM_NAMES[r.service] || r.service, r.code, r.reward, r.keys.golden, r.keys.diamond, r.keys.skeleton, r.item || '', (r.kinds || []).map((k) => (KINDS[k] || KINDS.other).name).join('; '), r.status === 'success' ? 'Redeemed' : 'Already had'].map(q).join(','));
     }
     const url = URL.createObjectURL(new Blob([`${lines.join('\r\n')}\r\n`], { type: 'text/csv' }));
     const a = document.createElement('a');
@@ -248,18 +288,33 @@ export function initReport({ api, toast, isVisible }) {
     e.currentTarget.textContent = on ? 'Show chart' : 'Show table';
     e.currentTarget.setAttribute('aria-pressed', String(on));
   });
+  $('#rpCosMore').addEventListener('click', () => {
+    R.cosShown += 48;
+    renderCosmetics(R.data);
+  });
+  $('#rpCosFilter').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-rp-kind]');
+    if (!b) return;
+    R.kind = b.dataset.rpKind;
+    R.cosShown = 24;
+    renderCosmetics(R.data);
+  });
   $('#rpMore').addEventListener('click', () => {
     R.shown += 60;
     renderHistory(R.data);
   });
   document.addEventListener('click', (e) => {
-    const b = e.target.closest('[data-rp-title]');
+    const cos = e.target.closest('[data-rp-cos]');
+    const b = cos || e.target.closest('[data-rp-title]');
     if (!b) return;
-    R.title = b.dataset.rpTitle && R.title !== b.dataset.rpTitle ? b.dataset.rpTitle : null;
+    const id = cos ? cos.dataset.rpCos : b.dataset.rpTitle;
+    R.title = cos ? id : id && R.title !== id ? id : null;
     R.shown = 40;
+    R.cosShown = 24;
     renderTitles(R.data);
+    renderCosmetics(R.data);
     renderHistory(R.data);
-    if (R.title) $('#rpHistoryCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (R.title) $(cos ? '#rpCosmeticsCard' : '#rpHistoryCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
   let rz;
   addEventListener('resize', () => {
@@ -268,6 +323,13 @@ export function initReport({ api, toast, isVisible }) {
   });
 
   return {
+    /** Latest report data (for Help → Rewards guide), loading it if needed. */
+    async counts() {
+      const d = R.data && !R.days && !R.platform ? R.data : await api('GET', '/api/report');
+      const keys = {};
+      for (const t of d.titles) keys[t.id] = t.keys;
+      return { keys, kinds: d.totals.kinds || {} };
+    },
     /** Refresh when the tab is opened or redemptions change. */
     refresh(platforms) {
       const sel = $('#rpPlatform');
