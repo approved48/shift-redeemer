@@ -24,9 +24,15 @@ You don't need to install anything else.
 
 ## Using it
 
-1. **Sign in** with your SHiFT email and password, the same ones you use on [shift.gearboxsoftware.com](https://shift.gearboxsoftware.com).
-2. **Pick your games and platforms**, or leave everything selected.
-3. Press **Find & redeem**.
+The first time you open it, a short **setup wizard** walks you through everything:
+
+1. **Connect your SHiFT account**: your SHiFT email and password, or (if SHiFT asks for extra verification) a session borrowed from your browser.
+2. **Link your gaming platforms** on the SHiFT website, so rewards have somewhere to go.
+3. **Pick your games and platforms**, or leave everything selected.
+4. **Turn on auto-pilot** if you'd like it to keep going on its own.
+5. Press **Find & redeem**.
+
+You can run the wizard again any time from **Settings**.
 
 That's it. The app searches the web for codes, checks each one with SHiFT, and redeems it for every game and platform you picked. It remembers what it has already done, so nothing is redeemed twice.
 

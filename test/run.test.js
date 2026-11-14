@@ -60,6 +60,9 @@ test('source parsing: tables and free text', () => {
   assert.equal(c.code, 'S6RJJ-6THZT-BJJTJ-TB3JT-R995J');
   assert.equal(c.reward, '5 Golden Keys');
   assert.equal(c.expires, 'Nov 17, 2026');
+  // A list of codes, one per line: no code should borrow its neighbour as a "reward".
+  const list = codesFromText('AAAAA-11111-AAAAA-11111-AAAAA\nBBBBB-22222-BBBBB-22222-BBBBB');
+  assert.deepEqual(list.map((c) => c.reward), ['', '']);
   const [t] = codesFromText('Borderlands 3 code for 3 Golden Keys: ABCDE-12345-ABCDE-12345-ABCDE expires Dec 1, 2026');
   assert.deepEqual(t.games, ['bl3']);
   assert.equal(t.expires, 'Dec 1, 2026');

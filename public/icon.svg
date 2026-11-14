@@ -1,1 +1,20 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><path d="M32 3 57 17.5v29L32 61 7 46.5v-29Z" fill="#ffd21f" stroke="#000" stroke-width="4" stroke-linejoin="round"/><circle cx="25" cy="30" r="9" fill="none" stroke="#000" stroke-width="5"/><path d="M33 30h16v6M43 30v5" fill="none" stroke="#000" stroke-width="5" stroke-linecap="square"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2b241e"/><stop offset="1" stop-color="#110e0c"/></linearGradient>
+    <linearGradient id="hex" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a2c22"/><stop offset="1" stop-color="#1a1410"/></linearGradient>
+    <filter id="rust" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency=".018" numOctaves="4" seed="7"/><feColorMatrix values="0 0 0 0 .55  0 0 0 0 .25  0 0 0 0 .09  2.6 0 0 0 -1.35"/><feComposite in2="SourceGraphic" operator="in"/></filter>
+    <filter id="grain" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" seed="3"/><feColorMatrix values="0 0 0 0 .8  0 0 0 0 .7  0 0 0 0 .55  0 0 0 .22 0"/><feComposite in2="SourceGraphic" operator="in"/></filter>
+    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="9" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <rect x="20" y="20" width="472" height="472" rx="96" fill="url(#bg)" stroke="#4d3d30" stroke-width="8"/>
+  <rect x="20" y="20" width="472" height="472" rx="96" filter="url(#rust)" opacity=".42"/>
+  <rect x="20" y="20" width="472" height="472" rx="96" filter="url(#grain)"/>
+  <g fill="#6b5848"><circle cx="70" cy="70" r="9"/><circle cx="442" cy="70" r="9"/><circle cx="70" cy="442" r="9"/><circle cx="442" cy="442" r="9"/></g>
+  <path d="M256 66 420 161v190L256 446 92 351V161Z" fill="url(#hex)" stroke="#a65a2c" stroke-width="16" stroke-linejoin="round"/>
+  <path d="M256 66 420 161v190L256 446 92 351V161Z" filter="url(#rust)" opacity=".9"/>
+  <path d="M256 112 380 184v144L256 400 132 328V184Z" fill="none" stroke="#b57cff" stroke-width="5" opacity=".55" filter="url(#glow)"/>
+  <g filter="url(#glow)" stroke="#e2c9ff" stroke-width="30" fill="none">
+    <circle cx="196" cy="256" r="52"/>
+    <path d="M248 256h130v40M330 256v34" stroke-linecap="square"/>
+  </g>
+</svg>

@@ -204,7 +204,7 @@ const routes = {
   },
 
   'PUT /api/settings': async ({ body }) => {
-    const allowed = ['titles', 'platforms', 'delaySeconds', 'skipExpired', 'useSourceHints', 'maxChecksPerRun', 'autoRun', 'sources'];
+    const allowed = ['titles', 'platforms', 'delaySeconds', 'skipExpired', 'useSourceHints', 'maxChecksPerRun', 'autoRun', 'sources', 'setupComplete'];
     const patch = {};
     for (const k of allowed) if (k in body) patch[k] = body[k];
     if (patch.titles?.selected && !Array.isArray(patch.titles.selected)) delete patch.titles.selected;
