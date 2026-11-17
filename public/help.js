@@ -7,6 +7,7 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 import { renderGuide } from './glossary.js';
+import { pageRect, uiZoom, viewW, viewH } from './zoom.js';
 
 // ------------------------------------------------------------------ content
 
@@ -106,6 +107,11 @@ const FAQ = [
   { cat: 'Game launch assist', q: 'How do I turn automatic game launching on or off quickly?', a: [
     'Use the <b>Auto-launch games</b> switch on the dashboard, under the progress bar. On means a game is started for you when SHiFT asks. Off means redeeming pauses and offers a one-click <b>Launch &amp; resume</b>. Turn it off while you\'re playing.',
     'While a game is open for SHiFT, the dashboard shows each step. <b>Close game &amp; resume</b> skips the rest of the wait, and <b>Stop</b> also closes the game the app started.'], go: { tab: 'dashboard', el: 'cmdBar', label: 'Show me' } },
+  { cat: 'Game launch assist', q: 'The game just sits at its title or splash screen', a: [
+    'SHiFT only notices a game once it reaches the main menu. On Windows, turn on <b>Get past the title screen</b> (Settings → Game launching): the app presses Enter a few times for a game it started.',
+    'If Steam shows the <b>2K launcher</b> first, the game waits for someone to press Play. In Steam, right-click the game → <b>Properties</b> → <b>Launch options</b>, type <code>-NoLauncher</code>, and it starts straight away.'], go: { tab: 'settings', el: 'setAssist', label: 'Show me' } },
+  { cat: 'Game launch assist', q: 'Why didn\'t the game close afterwards?', a: ['Check <b>Close the game afterwards</b> is on (it\'s also on the dashboard while auto-pilot is on). The app closes the game, and the 2K launcher if it opened, once SHiFT is happy or the time is up. It never closes a game you opened yourself.'], go: { tab: 'settings', el: 'setAssist', label: 'Show me' } },
+  { cat: 'Game launch assist', q: 'Can games start muted?', a: ['Yes. <b>Start games muted</b> in Settings → Game launching is on by default (Windows). The game is muted while the app has it open; it plays sound normally the next time you start it yourself.'], go: { tab: 'settings', el: 'setAssist', label: 'Show me' } },
   { cat: 'Game launch assist', q: 'Can the game run hidden?', a: ['No. SHiFT only counts a game that actually starts, and Steam doesn\'t allow invisible launches. You\'ll see the game open for about a minute, then close.'] },
   { cat: 'Game launch assist', q: 'Will it close a game I\'m playing?', a: ['No. It only ever closes a game it started itself. If you already have a Borderlands game open, it uses that and leaves it alone.'] },
   { cat: 'Game launch assist', q: 'I play Borderlands while it runs. What should I choose?', a: [
@@ -132,6 +138,7 @@ const FAQ = [
     'Codes you redeemed on the SHiFT website yourself aren\'t included.'], go: { tab: 'rewards', el: 'rpTotals', label: 'Open the report' } },
 
   // ---- Games & platforms
+  { cat: 'Games & platforms', q: 'I unticked a game and it switched to Pick. Why?', a: ['With <b>All titles</b> (or <b>All platforms</b>) on, every one is included. Unticking one means “all except this one”, so the app switches to <b>Pick</b> with everything else still ticked. Choose <b>All</b> again to include every one.'], go: { tab: 'targets', el: 'stepTitles', label: 'Show me' } },
   { cat: 'Games & platforms', q: 'How do I choose which games get rewards?', a: ['Open <b>Games &amp; Platforms</b>. Leave <b>All titles</b> on, or choose <b>Only the ones I pick</b> and select your games. Platforms work the same way.'], go: { tab: 'targets', el: 'stepTitles', label: 'Show me' } },
   { cat: 'Games & platforms', q: 'Why isn\'t my platform shown as linked?', a: [
     'Platforms are linked on the SHiFT website, under <b>Gaming Platforms</b>, not in this app.',
@@ -156,7 +163,18 @@ const FAQ = [
   { cat: 'Codes & sources', q: 'A source shows an error. Is something broken?', a: ['Usually not. Websites change or briefly block automated visits. The other sources keep working, and the failed one is tried again next time.'] },
 
   // ---- Auto-pilot & the app
-  { cat: 'Auto-pilot & the app', q: 'How does auto-pilot work?', a: ['Every few hours it searches for new codes and redeems them, as if you\'d pressed <b>Find &amp; redeem</b>. Turn it on in <b>Settings</b>.'], go: { tab: 'settings', el: 'setAutopilot', label: 'Show me' } },
+  { cat: 'Auto-pilot & the app', q: 'How does auto-pilot work?', a: ['Every few hours it searches for new codes and redeems them, as if you\'d pressed <b>Find &amp; redeem</b>. Turn it on in <b>Settings → Auto-pilot</b>.'], go: { tab: 'settings', el: 'setAutopilot', label: 'Show me' } },
+  { cat: 'Auto-pilot & the app', q: 'Does the app have to stay open for auto-pilot?', a: [
+    'It has to be running, but the window doesn\'t: with auto-pilot on, closing the window leaves it working quietly in the background. Your computer has to be on and awake.',
+    'Turn on <b>Start with my computer</b> too, and it starts by itself each time you sign in to your computer. The ⏻ button quits it completely.'], go: { tab: 'settings', el: 'setAutopilot', label: 'Show me' } },
+  { cat: 'Auto-pilot & the app', q: 'Can auto-pilot run at night, or only on certain days?', a: ['Yes. In <b>Settings → Auto-pilot</b>, choose <b>On set days &amp; times</b>, pick the days and a time, for example Wednesday at 3:00. It uses your computer\'s clock. If the computer is asleep at that moment, it runs soon after it wakes.'], go: { tab: 'settings', el: 'apTimes', label: 'Show me' } },
+  { cat: 'Auto-pilot & the app', q: 'How often should auto-pilot run?', a: ['The default, every 3 hours, is plenty. New codes come out a few times a week, so running more often rarely finds more. Every 6 or 12 hours is fine too.'], go: { tab: 'settings', el: 'setAutopilot', label: 'Show me' } },
+  { cat: 'Auto-pilot & the app', q: 'Why didn\'t auto-pilot run?', a: ['<ul><li>The computer was asleep or off.</li><li>The app was quit with ⏻. Open it again, or turn on <b>Start with my computer</b>.</li><li>SHiFT signed you out. Turn on <b>Keep me signed in</b> so it can sign back in.</li><li>SHiFT wanted a game launched. See the dashboard, or turn on <b>Auto-launch games</b>.</li></ul>'], go: { tab: 'dashboard', el: 'cmdBar', label: 'Dashboard' } },
+  { cat: 'Auto-pilot & the app', q: 'Will auto-pilot start my games or slow my computer down?', a: ['It only starts a game if <b>Auto-launch games</b> is on and SHiFT asks for one. Otherwise it just reads a few web pages and talks to SHiFT every few hours, which uses next to no data or power.'] },
+  { cat: 'Auto-pilot & the app', q: 'Everything looks too small (or too big) on my screen', a: [
+    'Open <b>Settings → Data &amp; display → Display size</b>. <b>Automatic</b> makes everything bigger on large, high-resolution and ultrawide screens, and adjusts when you resize the window or move it to another monitor. Or pick a fixed size from 90% to 150%.',
+    'You can also press <kbd>Ctrl</kbd> + <kbd>+</kbd> or <kbd>Ctrl</kbd> + <kbd>−</kbd> in the app window.'], go: { tab: 'settings', el: 'displaySizeRow', label: 'Show me' } },
+  { cat: 'Auto-pilot & the app', q: 'How do I take the walkthrough again?', a: ['In <b>Settings → Data &amp; display</b>, turn on <b>Show the walkthrough</b>. It starts straight away. Skipping it turns it off again.'], go: { tab: 'settings', el: 'tourEnabled', label: 'Show me' } },
   { cat: 'Auto-pilot & the app', q: 'Does it keep running when I close the window?', a: [
     'Only if auto-pilot is on. Then it keeps working quietly in the background. Turn on <b>Start with my computer</b> to have it start when you sign in.',
     'With auto-pilot off, closing the window quits the app.'], go: { tab: 'settings', el: 'setAutopilot', label: 'Show me' } },
@@ -189,6 +207,8 @@ const FAQ = [
   { cat: 'Troubleshooting', q: 'The game launched but redeeming is still paused', a: [
     'SHiFT may need the game to run a little longer. Increase <b>Keep the game open for at most</b> in Settings. The game still closes as soon as SHiFT is ready.',
     'If it keeps happening, play for a few minutes, then press <b>Resume</b>.'], go: { tab: 'settings', el: 'setAssist', label: 'Show me' } },
+  { cat: 'Redeeming', q: 'What is smart pace?', a: ['A gentler way to pace requests. It starts from your delay and adjusts between 4 and 18 seconds: quicker through dead codes, slower while codes are being redeemed (which is what SHiFT limits), and the slowest straight away if SHiFT says “slow down”. Turn it on in <b>Settings → Pace</b>.'], go: { tab: 'settings', el: 'smartPace', label: 'Show me' } },
+  { cat: 'Redeeming', q: 'Why can\'t I set the delay below 3 seconds?', a: ['To keep Gearbox\'s servers happy. Asking faster mostly gets you paused anyway. Under 10 seconds the app suggests slowing down; 10 seconds, or smart pace, is the sweet spot.'], go: { tab: 'settings', el: 'setPace', label: 'Show me' } },
   { cat: 'Troubleshooting', q: 'SHiFT says I\'m making too many requests', a: ['The app waits and tries again by itself. If it happens a lot, increase the delay under <b>Settings → Pace</b>.'], go: { tab: 'settings', el: 'setPace', label: 'Show me' } },
   { cat: 'Troubleshooting', q: 'A code shows "Retry"', a: ['Something went wrong temporarily (for example a network hiccup). It\'s tried again on the next run.'] },
   { cat: 'Troubleshooting', q: '"Windows protected your PC" when installing', a: ['Select <b>More info</b>, then <b>Run anyway</b>. Windows shows this for apps that aren\'t code-signed, which costs money and isn\'t worth it for a free fan tool.'] },
@@ -214,22 +234,27 @@ const SETTINGS = [
   { ic: '🎭', name: 'Cosmetics collected', desc: 'Rewards', tab: 'rewards', el: 'rpCosmeticsCard', k: 'cosmetics cosmetic skins skin heads head trinkets emotes themes decorations items collected unlocked' },
   { ic: '🗝️', name: 'Rewards guide', desc: 'Help · keys & cosmetics explained', guide: '', k: 'guide golden diamond skeleton key keys chest armory cosmetics explained wiki what does' },
   { ic: '🤖', name: 'Ask an AI to find codes', desc: 'Sources · step 3', tab: 'sources', el: 'stepAi', k: 'ai llm chatgpt claude gemini grok instructions prompt assistant find search download' },
-  { ic: '🔔', name: 'Automatic launching reminder', desc: 'Settings · step 2', tab: 'settings', el: 'assistRemindRow', k: 'remind reminder suggest ask again automatic launching playing nudge' },
+  { ic: '🔔', name: 'Automatic launching reminder', desc: 'Settings · Game launching', tab: 'settings', el: 'assistRemindRow', k: 'remind reminder suggest ask again automatic launching playing nudge' },
   { ic: '➕', name: 'Paste codes', desc: 'Codes', tab: 'codes', el: 'btnAddCodes', action: 'paste', k: 'add paste code manual found' },
   { ic: '📥', name: 'Import a code list', desc: 'Codes · import', tab: 'codes', el: 'btnImportOpen', action: 'import', k: 'import list file friend community csv txt json drop share load' },
   { ic: '📤', name: 'Export a code list', desc: 'Codes · export', tab: 'codes', el: 'btnExportOpen', action: 'export', k: 'export list file share friend backup download copy csv txt json save' },
-  { ic: '✨', name: 'Reduce animations', desc: 'Settings · step 4', tab: 'settings', el: 'setData', k: 'animation animations motion effects transitions reduce turn off' },
+  { ic: '✨', name: 'Reduce animations', desc: 'Settings · Display & data', tab: 'settings', el: 'setData', k: 'animation animations motion effects transitions reduce turn off' },
   { ic: '📡', name: 'Built-in sources', desc: 'Sources · step 1', tab: 'sources', el: 'stepBuiltin', k: 'sources feed reddit steam ozbargain mentalmars' },
   { ic: '🌐', name: 'Your sources', desc: 'Sources · step 2', tab: 'sources', el: 'stepCustom', k: 'custom website page url follow links' },
-  { ic: '⏱️', name: 'Auto-pilot', desc: 'Settings · step 1', tab: 'settings', el: 'setAutopilot', k: 'auto pilot automatic timer schedule background' },
-  { ic: '🚀', name: 'Start with my computer', desc: 'Settings · step 1', tab: 'settings', el: 'setAutopilot', k: 'startup start computer boot login windows' },
-  { ic: '🕹️', name: 'Game launch assist', desc: 'Settings · step 2', tab: 'settings', el: 'setAssist', k: 'game launch assist paused steam close warm' },
+  { ic: '⏱️', name: 'Auto-pilot', desc: 'Settings · Auto-pilot', tab: 'settings', el: 'setAutopilot', k: 'auto pilot automatic timer schedule background' },
+  { ic: '🚀', name: 'Start with my computer', desc: 'Settings · Auto-pilot', tab: 'settings', el: 'setAutopilot', k: 'startup start computer boot login windows' },
+  { ic: '🕹️', name: 'Game launch assist', desc: 'Settings · Game launching', tab: 'settings', el: 'setAssist', k: 'game launch assist paused steam close warm' },
   { ic: '🎚️', name: 'Auto-launch games switch', desc: 'Dashboard', tab: 'dashboard', el: 'cmdBar', k: 'auto launch games toggle switch quick on off dashboard playing' },
   { ic: '🧩', name: 'Game tiles', desc: 'Dashboard', tab: 'dashboard', el: 'gameStrip', k: 'game tiles per game dashboard keys added run progress' },
-  { ic: '🟣', name: 'Epic launch link', desc: 'Settings · step 2', tab: 'settings', el: 'setAssist', k: 'epic launcher link shortcut' },
-  { ic: '🐢', name: 'Pace', desc: 'Settings · step 3', tab: 'settings', el: 'setPace', k: 'delay pace rate limit slow requests' },
-  { ic: '💾', name: 'Your data', desc: 'Settings · step 4', tab: 'settings', el: 'setData', k: 'data folder export backup files' },
-  { ic: '⬆️', name: 'Updates', desc: 'Settings · step 5', tab: 'settings', el: 'setUpdates', k: 'update updates upgrade new version install download check automatic latest' },
+  { ic: '🟣', name: 'Epic launch link', desc: 'Settings · Game launching', tab: 'settings', el: 'setAssist', k: 'epic launcher link shortcut' },
+  { ic: '🧠', name: 'Smart pace', desc: 'Settings · Pace', tab: 'settings', el: 'smartPace', k: 'smart pace adaptive delay speed slow fast automatic adjust' },
+  { ic: '📅', name: 'Auto-pilot schedule', desc: 'Settings · Auto-pilot', tab: 'settings', el: 'apTimes', k: 'schedule days time night 3am wednesday weekly when auto-pilot run' },
+  { ic: '🔇', name: 'Start games muted', desc: 'Settings · Game launching', tab: 'settings', el: 'setAssist', k: 'mute muted sound loud quiet volume game' },
+  { ic: '🐢', name: 'Pace', desc: 'Settings · Pace', tab: 'settings', el: 'setPace', k: 'delay pace rate limit slow requests' },
+  { ic: '🔍', name: 'Display size', desc: 'Settings · Data & display', tab: 'settings', el: 'displaySizeRow', k: 'display size scale scaling zoom bigger smaller tiny huge ultrawide 4k monitor screen resolution text' },
+  { ic: '🧭', name: 'Walkthrough', desc: 'Settings · Data & display', tab: 'settings', el: 'tourEnabled', k: 'walkthrough tour guide guided interface show me around' },
+  { ic: '💾', name: 'Your data', desc: 'Settings · Display & data', tab: 'settings', el: 'setData', k: 'data folder export backup files' },
+  { ic: '⬆️', name: 'Updates', desc: 'Settings · Updates', tab: 'settings', el: 'setUpdates', k: 'update updates upgrade new version install download check automatic latest' },
   { ic: '🧭', name: 'Run setup again', desc: 'Settings', action: 'setup', k: 'setup wizard start again first time playing play while' },
 ];
 
@@ -243,7 +268,9 @@ const SYNONYMS = {
   key: 'codes', keys: 'codes', golden: 'codes', code: 'codes', shift: 'codes',
   status: 'statuses', statuses: 'statuses', meaning: 'mean', means: 'mean',
   expire: 'expired', expiry: 'expired', old: 'expired',
-  auto: 'auto-pilot', autopilot: 'auto-pilot', automatic: 'auto-pilot', schedule: 'auto-pilot', background: 'auto-pilot',
+  auto: 'auto-pilot', autopilot: 'auto-pilot', pilot: 'auto-pilot',
+  small: 'display', tiny: 'display', big: 'display', huge: 'display', scaling: 'display', scale: 'display', zoom: 'display', ultrawide: 'display', monitor: 'display', resolution: 'display', '4k': 'display',
+  tour: 'walkthrough', guide: 'walkthrough', untick: 'pick', uncheck: 'pick', unticked: 'pick', automatic: 'auto-pilot', schedule: 'auto-pilot', background: 'auto-pilot',
   close: 'quit', exit: 'quit', stop: 'quit',
   update: 'update', upgrade: 'update', version: 'update',
   safe: 'password', secure: 'password', keychain: 'password', credential: 'password', privacy: 'data', private: 'data',
@@ -257,6 +284,8 @@ const SYNONYMS = {
   ai: 'ai', llm: 'ai', chatgpt: 'ai', claude: 'ai', gemini: 'ai', grok: 'ai', gpt: 'ai', prompt: 'ai', assistant: 'ai',
   menu: 'menu', hamburger: 'menu', tabs: 'menu', missing: 'menu',
   playing: 'play', gaming: 'play',
+  splash: 'title screen', stuck: 'title screen', launcher: 'title screen', '2k': 'title screen', loud: 'muted', sound: 'muted', mute: 'muted', volume: 'muted',
+  night: 'set days', wednesday: 'set days', weekly: 'set days', '3am': 'set days', delay: 'pace', speed: 'pace', fast: 'pace', smart: 'smart pace',
   new: 'start', beginner: 'start', begin: 'start', first: 'start', started: 'start',
   best: 'best practice', practice: 'best practice', tips: 'best practice', tip: 'best practice', recommended: 'best practice', advice: 'best practice',
 };
@@ -272,7 +301,7 @@ const TOPICS = [
   ['Where is my data', 'where is my data'], ['Start over', 'start over'], ['Password safety', 'password safe'], ['Privacy', 'send my data'],
   ['Official?', 'official gearbox'], ['Nothing redeemed', 'nothing gets redeemed'], ['Too many requests', 'too many requests'], ['Retry', 'retry'],
   ['Windows warning', 'windows protected'], ['macOS warning', 'macos opened'], ['Run results', 'results of a run'], ['How long', 'how long run'],
-['New here?', 'new where do i start'], ['Best practice', 'best way set up'], ['Golden Keys', 'what does a golden key do'], ['Diamond Keys', 'what does a diamond key do'], ['Skeleton Keys', 'what does a skeleton key do'], ['Cosmetics', 'what are cosmetics'], ['Ask an AI', 'ask an ai to find codes'], ['Playing while it runs', 'play borderlands while it runs'], ['Where are the tabs?', 'where did the menu tabs go'],
+['New here?', 'new where do i start'], ['Auto-pilot basics', 'does the app have to stay open auto-pilot'], ['Too small?', 'too small screen display size'], ['Walkthrough', 'walkthrough again'], ['Best practice', 'best way set up'], ['Golden Keys', 'what does a golden key do'], ['Diamond Keys', 'what does a diamond key do'], ['Skeleton Keys', 'what does a skeleton key do'], ['Cosmetics', 'what are cosmetics'], ['Ask an AI', 'ask an ai to find codes'], ['Playing while it runs', 'play borderlands while it runs'], ['Where are the tabs?', 'where did the menu tabs go'],
   ['Import a list', 'import list friend'], ['Share codes', 'share back up codes'], ['File types', 'which files import'], ['Export privacy', 'export include account'], ['Animations', 'turn off animations'], ['Rewards report', 'rewards report counted'], ['Already redeemed', 'on your account mean already redeemed'], ['Export rewards', 'rewards report export csv'], ['Setup again', 'run setup again'], ['Supported games', 'which games supported'], ['Which game launches', 'which game launch'], ['Auto-launch switch', 'turn automatic game launching on off quickly'], ['Game tiles', 'game tiles dashboard'], ['Still paused', 'still paused'],
 ];
 
@@ -627,12 +656,14 @@ export function initHelp({ goTo, runAction, getDiagnostics, repoUrl, getRewardCo
     const h = pinPanel.offsetHeight;
     let x;
     let y;
+    const W = viewW();
+    const H = viewH();
     if (pos.edge === 'left' || pos.edge === 'right') {
-      x = pos.edge === 'left' ? m : innerWidth - w - m;
-      y = Math.min(innerHeight - h - m, Math.max(m, pos.t * (innerHeight - h)));
+      x = pos.edge === 'left' ? m : W - w - m;
+      y = Math.min(H - h - m, Math.max(m, pos.t * (H - h)));
     } else {
-      y = pos.edge === 'top' ? m : innerHeight - h - m;
-      x = Math.min(innerWidth - w - m, Math.max(m, pos.t * (innerWidth - w)));
+      y = pos.edge === 'top' ? m : H - h - m;
+      x = Math.min(W - w - m, Math.max(m, pos.t * (W - w)));
     }
     pinPanel.style.left = `${x}px`;
     pinPanel.style.top = `${y}px`;
@@ -671,23 +702,26 @@ export function initHelp({ goTo, runAction, getDiagnostics, repoUrl, getRewardCo
   $('#pinHead').addEventListener('pointerdown', (e) => {
     if (e.target.closest('button')) return;
     const head = $('#pinHead');
-    const r = pinPanel.getBoundingClientRect();
-    const dx = e.clientX - r.left;
-    const dy = e.clientY - r.top;
+    const z = uiZoom();
+    const r = pageRect(pinPanel);
+    const dx = e.clientX / z - r.left;
+    const dy = e.clientY / z - r.top;
     head.setPointerCapture(e.pointerId);
     const move = (ev) => {
-      pinPanel.style.left = `${ev.clientX - dx}px`;
-      pinPanel.style.top = `${ev.clientY - dy}px`;
+      pinPanel.style.left = `${ev.clientX / z - dx}px`;
+      pinPanel.style.top = `${ev.clientY / z - dy}px`;
     };
     const up = () => {
       head.removeEventListener('pointermove', move);
       head.removeEventListener('pointerup', up);
-      const b = pinPanel.getBoundingClientRect();
+      const b = pageRect(pinPanel);
+      const W = viewW();
+      const H = viewH();
       const cx = b.left + b.width / 2;
       const cy = b.top + b.height / 2;
-      const d = { left: cx, right: innerWidth - cx, top: cy, bottom: innerHeight - cy };
-      const edge = Object.keys(d).sort((a, z) => d[a] - d[z])[0];
-      const t = edge === 'left' || edge === 'right' ? b.top / Math.max(1, innerHeight - b.height) : b.left / Math.max(1, innerWidth - b.width);
+      const d = { left: cx, right: W - cx, top: cy, bottom: H - cy };
+      const edge = Object.keys(d).sort((a, q) => d[a] - d[q])[0];
+      const t = edge === 'left' || edge === 'right' ? b.top / Math.max(1, H - b.height) : b.left / Math.max(1, W - b.width);
       pos = { edge, t: Math.min(1, Math.max(0, t)) };
       try {
         localStorage.setItem(POS_KEY, JSON.stringify(pos));

@@ -2,6 +2,8 @@
 // own words, checked against the Borderlands Wiki (borderlands.fandom.com, CC BY-SA), which each
 // entry links to for the full details. Also provides the hover tooltips used across the app.
 
+import { pageRect, viewW } from './zoom.js';
+
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const WIKI = 'https://borderlands.fandom.com/wiki/';
 
@@ -126,10 +128,10 @@ export function initTips() {
   };
   const place = () => {
     if (!target) return;
-    const r = target.getBoundingClientRect();
+    const r = pageRect(target);
     const w = tip.offsetWidth;
     const h = tip.offsetHeight;
-    let left = Math.min(innerWidth - w - 8, Math.max(8, r.left + r.width / 2 - w / 2));
+    let left = Math.min(viewW() - w - 8, Math.max(8, r.left + r.width / 2 - w / 2));
     let top = r.top - h - 8;
     tip.classList.toggle('below', top < 8);
     if (top < 8) top = r.bottom + 8;

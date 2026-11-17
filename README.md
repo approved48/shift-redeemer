@@ -6,21 +6,30 @@ Works with Borderlands 4, Tiny Tina's Wonderlands, Borderlands 3, The Pre-Sequel
 
 > Free, non-commercial fan tool. Not affiliated with, endorsed by or sponsored by Gearbox Software, 2K or Take-Two. Borderlands and SHiFT are trademarks of their respective owners.
 
-## Download and install
+## Download
 
-Go to the [**Releases page**](https://github.com/approved48/shift-redeemer/releases/latest) and download the file for your computer:
+### 🪟 Windows 10 / 11: most people want this one
 
-| Your computer | Download |
+## [⬇ Download SHiFT Redeemer for Windows](https://github.com/approved48/shift-redeemer/releases/latest/download/SHiFT-Redeemer-Setup-Windows.exe)
+
+Open the downloaded file and click through. That's it: SHiFT Redeemer opens when it finishes, it's in your Start menu, and it **updates itself** from then on.
+
+> If Windows shows **"Windows protected your PC"**, click **More info → Run anyway**. It appears because the app isn't code-signed (that costs money, and this is a free fan tool).
+
+### 🍎 Mac (Apple Silicon or Intel)
+
+**[⬇ Download for Mac](https://github.com/approved48/shift-redeemer/releases/latest/download/SHiFT-Redeemer-macOS.dmg)**. Open it and drag **SHiFT Redeemer** into **Applications**. The first time, right-click the app and choose **Open**. If macOS still refuses, go to **System Settings → Privacy & Security → Open Anyway**.
+
+### Which download is right for me?
+
+| Download | Choose it if… |
 | --- | --- |
-| **Windows 10 / 11** | `SHiFT-Redeemer-Setup-…-Windows.exe` |
-| **Mac** (Apple Silicon or Intel) | `SHiFT-Redeemer-…-macOS.dmg` |
-| Linux | `SHiFT-Redeemer-…-Linux-x64.tar.gz` |
+| **[Windows installer](https://github.com/approved48/shift-redeemer/releases/latest/download/SHiFT-Redeemer-Setup-Windows.exe)** ⭐ | You're on Windows. Installs like any app (no admin password), adds a Start menu shortcut, can start with your computer, and updates itself. **Best for almost everyone.** |
+| [Windows portable](https://github.com/approved48/shift-redeemer/releases/latest/download/SHiFT-Redeemer-Windows-Portable.exe) | You can't or don't want to install anything, e.g. a work PC or a USB stick. It's one file you double-click. Keep it in a folder you can write to so it can update itself. |
+| [Mac](https://github.com/approved48/shift-redeemer/releases/latest/download/SHiFT-Redeemer-macOS.dmg) | You're on a Mac. |
+| [Linux](https://github.com/approved48/shift-redeemer/releases/latest/download/SHiFT-Redeemer-Linux-x64.tar.gz) | You're on Linux (64-bit). Extract it and run `shift-redeemer`. |
 
-You don't need to install anything else.
-
-**Windows:** run the Setup file and click through it. If you see **"Windows protected your PC"**, click **More info → Run anyway**. This appears because the app isn't code-signed, which costs money and isn't worth it for a free fan tool. SHiFT Redeemer opens when setup finishes and is in your Start menu from then on.
-
-**Mac:** open the `.dmg` and drag **SHiFT Redeemer** into **Applications**. The first time, right-click the app and choose **Open**. If macOS still refuses, go to **System Settings → Privacy & Security** and click **Open Anyway**.
+**Never used GitHub?** You don't need an account or anything else. The links above download the newest version straight away. (On the [Releases page](https://github.com/approved48/shift-redeemer/releases/latest) the same files are under **Assets**. Ignore the "Source code" files.)
 
 ## Using it
 
@@ -49,7 +58,7 @@ You can run the wizard again any time from **Settings**. After setup, a **Gettin
 
 That's it. The app searches the web for codes, checks each one with SHiFT, and redeems it for every game and platform you picked. It remembers what it has already done, so nothing is redeemed twice.
 
-**Want it fully automatic?** In **Settings**, turn on **Auto-pilot** and **Start with my computer**. SHiFT Redeemer then runs quietly in the background and redeems new codes every few hours.
+**Want it fully automatic?** In **Settings → Auto-pilot**, turn on **Run automatically** and **Start with my computer**. Choose every few hours, or set days and a time (say, every Wednesday at 3:00 while you're asleep). SHiFT Redeemer then runs quietly in the background.
 
 **Closing the app:** closing the window quits it, unless auto-pilot is on, in which case it keeps working in the background. The **⏻** button at the top always quits completely.
 
@@ -59,6 +68,7 @@ That's it. The app searches the web for codes, checks each one with SHiFT, and r
 - **Missing a platform?** SHiFT only redeems for platforms linked to your account. Link them on the SHiFT website under *Gaming Platforms*.
 - **Your data stays on your computer.** The app only talks to SHiFT and the code websites it searches.
 - **"Keep me signed in"** saves your SHiFT password in your system's secure password storage: **Windows Credential Manager** or the **macOS Keychain** (on Linux, GNOME Keyring or KWallet). If that isn't available, the app asks first and clearly warns you before saving it unencrypted, and you can always choose not to save it. **Forget saved password** on the Account tab removes it.
+- **Gentle on SHiFT:** requests are never closer than 3 seconds apart (10 by default), and **Smart pace** adjusts between 4 and 18 seconds as it goes.
 - **Updating:** when a new version is out, the dashboard shows a banner. Select **Update now** and the app downloads it, checks it against GitHub's published checksum, restarts and keeps your codes and settings. **Settings → Updates** has **Check now** and an option to install updates automatically. (Self-updating works from version 1.4.0 onwards. For anything older, install the new version over the old one once.)
 - **Uninstalling (Windows):** Settings → Apps → SHiFT Redeemer → Uninstall.
 

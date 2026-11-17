@@ -147,7 +147,7 @@
         <div class="seg" id="statusFilter" role="tablist">
           <button data-v="all">All</button>
           <button data-v="queue">Queue</button>
-          <button data-v="done">Redeemed</button>
+          <button data-v="done">Done</button>
           <button data-v="dead">Dead</button>
           <button data-v="other">Not for you</button>
         </div>
@@ -317,61 +317,101 @@
         <p class="hero-sub">Automation, game launching, pace and your data. Changes save as you make them.</p>
         <div class="hero-actions"><button class="btn btn-ghost" id="btnSetupAgain">Run setup again</button></div>
       </div>
-      <div class="grid-2">
-        <section class="panel step" id="setAutopilot">
-          <div class="step-head"><h2 class="step-title"><span class="step-n">1</span>Auto-pilot</h2><button class="btn btn-sm btn-ghost" data-help="auto-pilot">?</button></div>
-          <p class="step-hint">Keeps hunting for new codes while the app is running.</p>
-          <label class="switch-row"><input type="checkbox" class="switch" data-setting="autoRun.enabled"><span><b>Run automatically</b><small>Find new codes and redeem them on a timer.</small></span></label>
-          <label class="field inline"><span class="label">Every</span>
-            <select data-setting="autoRun.intervalMinutes" data-num>
-              <option value="60">1 hour</option><option value="120">2 hours</option><option value="180">3 hours</option><option value="360">6 hours</option><option value="720">12 hours</option><option value="1440">24 hours</option>
-            </select>
-          </label>
-          <label class="switch-row"><input type="checkbox" class="switch" data-setting="autoRun.collectFirst"><span><b>Search sources first</b><small>Look for new codes before each automatic run.</small></span></label>
-          <label class="switch-row js-autostart-row"><input type="checkbox" class="switch js-autostart"><span><b>Start with my computer</b><small>Opens quietly in the background when you sign in, so auto-pilot keeps working.</small></span></label>
-          <p class="hint" id="nextRun"></p>
-          <p class="hint">With auto-pilot on, closing the window keeps the app running in the background. Use <b>⏻</b> at the top to quit completely.</p>
-        </section>
-        <section class="panel step" id="setAssist">
-          <div class="step-head"><h2 class="step-title"><span class="step-n">2</span>Game launch assist</h2><button class="btn btn-sm btn-ghost" data-help="game launch assist">?</button></div>
-          <p class="step-hint">SHiFT sometimes stops accepting codes until a SHiFT-enabled game is launched. This handles it for you.</p>
-          <div class="seg" data-setting="gameAssist.mode"><button data-v="auto">Automatically</button><button data-v="ask">Ask me</button><button data-v="off">Off</button></div>
-          <p class="hint" id="assistModeHint"></p>
-          <div class="field-row">
-            <label class="field"><span class="label">Game to launch</span><select data-setting="gameAssist.game" id="assistGame"></select></label>
-            <label class="field"><span class="label">Keep the game open for at most</span>
-              <select data-setting="gameAssist.warmupSeconds" data-num><option value="45">45 seconds</option><option value="60">1 minute</option><option value="75">75 seconds</option><option value="90">90 seconds</option><option value="120">2 minutes</option><option value="180">3 minutes</option></select>
+      <div class="set-layout">
+        <nav class="set-nav" id="setNav" aria-label="Settings sections" role="tablist">
+          <button type="button" role="tab" data-set="setAutopilot"><span class="sn-ic" aria-hidden="true">⏱</span><span><b>Auto-pilot</b><small>When it runs by itself</small></span></button>
+          <button type="button" role="tab" data-set="setAssist"><span class="sn-ic" aria-hidden="true">🕹</span><span><b>Game launching</b><small>When SHiFT asks for a game</small></span></button>
+          <button type="button" role="tab" data-set="setPace"><span class="sn-ic" aria-hidden="true">🐢</span><span><b>Pace</b><small>How fast it asks SHiFT</small></span></button>
+          <button type="button" role="tab" data-set="setUpdates"><span class="sn-ic" aria-hidden="true">⬆</span><span><b>Updates</b><small>New versions</small></span></button>
+          <button type="button" role="tab" data-set="setData"><span class="sn-ic" aria-hidden="true">🖥</span><span><b>Display &amp; data</b><small>Size, walkthrough, your data</small></span></button>
+        </nav>
+        <div class="set-panel">
+          <section class="panel step set-sec" id="setAutopilot" role="tabpanel">
+            <div class="step-head"><h2 class="step-title">Auto-pilot</h2><button class="btn btn-sm btn-ghost" data-help="auto-pilot">?</button></div>
+            <p class="step-hint">Finds new codes and redeems them by itself, so you never miss one.</p>
+            <label class="switch-row"><input type="checkbox" class="switch" data-setting="autoRun.enabled"><span><b>Run automatically</b><small>Find new codes and redeem them on a schedule.</small></span></label>
+            <div class="field"><span class="label">When</span>
+              <div class="seg" data-setting="autoRun.when"><button data-v="interval">Every few hours</button><button data-v="times">On set days &amp; times</button></div>
+            </div>
+            <label class="field inline" id="apInterval"><span class="label">Every</span>
+              <select data-setting="autoRun.intervalMinutes" data-num>
+                <option value="60">1 hour</option><option value="120">2 hours</option><option value="180">3 hours</option><option value="360">6 hours</option><option value="720">12 hours</option><option value="1440">24 hours</option>
+              </select>
             </label>
-          </div>
-          <p class="hint">It closes as soon as SHiFT accepts codes again, usually well before this.</p>
-          <label class="switch-row"><input type="checkbox" class="switch" data-setting="gameAssist.closeAfter"><span><b>Close the game afterwards</b><small>Only a game this app started. A game you opened yourself is never closed.</small></span></label>
-          <label class="switch-row" id="assistRemindRow"><input type="checkbox" class="switch" data-setting="gameAssist.dontAsk"><span><b>Don't suggest turning automatic launching back on</b><small>When this is set to Ask me or Off, the dashboard occasionally offers to switch back to Automatically. Turn this on to stop that.</small></span></label>
-          <label class="field"><span class="label">Epic Games launch link <small>(optional)</small></span><input data-setting="gameAssist.epicLink" placeholder="com.epicgames.launcher://apps/…?action=launch&amp;silent=true" spellcheck="false"></label>
-          <p class="hint">In the Epic launcher, right-click a Borderlands game → <b>Manage</b> → <b>Desktop shortcut</b>. Then right-click the shortcut → <b>Properties</b> and copy the URL.</p>
-          <div class="assist-detect" id="assistDetect"></div>
-          <div class="card-foot"><span class="foot-note">The game opens briefly and closes as soon as SHiFT is ready.</span><button class="btn btn-sm btn-ghost" id="btnRescan">Re-scan games</button><button class="btn btn-sm" id="btnTestLaunch">Test launch</button></div>
-        </section>
-        <section class="panel step" id="setPace">
-          <div class="step-head"><h2 class="step-title"><span class="step-n">3</span>Pace <span class="tag-opt">Optional</span></h2><button class="btn btn-sm btn-ghost" data-help="rate limit">?</button></div>
-          <p class="step-hint">SHiFT rate-limits fast clients. Slower is safer.</p>
-          <label class="field"><span class="label">Delay between SHiFT requests <output id="delayOut"></output></span><input type="range" min="2" max="30" step="1" data-setting="delaySeconds" id="delayRange"></label>
-          <label class="field inline"><span class="label">Max codes to check per run <small>(0 = no limit)</small></span><input type="number" min="0" max="5000" data-setting="maxChecksPerRun"></label>
-        </section>
-        <section class="panel step" id="setUpdates">
-          <div class="step-head"><h2 class="step-title"><span class="step-n">5</span>Updates</h2><button class="btn btn-sm btn-ghost" data-help="update the app">?</button></div>
-          <p class="step-hint">New versions install from inside the app: no website, no installer to find. Your codes and settings are kept.</p>
-          <div class="update-status" id="updateStatus"></div>
-          <label class="switch-row"><input type="checkbox" class="switch" data-setting="updates.autoCheck"><span><b>Check for updates automatically</b><small>When the app starts, then every few hours.</small></span></label>
-          <label class="switch-row"><input type="checkbox" class="switch" data-setting="updates.autoInstall"><span><b>Install updates automatically</b><small>Handy with auto-pilot: when nothing is running, the update installs and the app restarts by itself.</small></span></label>
-          <div class="card-foot"><span class="foot-note" id="updateChecked"></span><button class="btn btn-sm" data-act="update-check">Check now</button><button class="btn btn-sm btn-eridian" data-act="update-install" id="btnUpdateNow" hidden>Update now</button></div>
-        </section>
-        <section class="panel step" id="setData">
-          <div class="step-head"><h2 class="step-title"><span class="step-n">4</span>Data &amp; display</h2><button class="btn btn-sm btn-ghost" data-help="where is my data">?</button></div>
-          <p class="step-hint">Codes, results and settings are saved on this computer only.</p>
-          <label class="switch-row"><input type="checkbox" class="switch" id="reduceMotion"><span><b>Reduce animations</b><small>Turns off the menu transitions and effects on this computer.</small></span></label>
-          <p class="hint" id="dataDir"></p>
-          <div class="card-foot"><span class="foot-note" id="versionLine"></span><a class="btn btn-sm btn-ghost" href="/api/export" download="shift-redeemer-export.json">Export JSON</a><button class="btn btn-sm" id="btnOpenData">Open data folder</button></div>
-        </section>
+            <div id="apTimes">
+              <div class="field"><span class="label">On</span>
+                <div class="day-picks" id="apDays" role="group" aria-label="Days">
+                  <button type="button" data-day="1">Mon</button><button type="button" data-day="2">Tue</button><button type="button" data-day="3">Wed</button><button type="button" data-day="4">Thu</button><button type="button" data-day="5">Fri</button><button type="button" data-day="6">Sat</button><button type="button" data-day="0">Sun</button>
+                </div>
+              </div>
+              <label class="field inline"><span class="label">At</span><input type="time" data-setting="autoRun.time" id="apTime"></label>
+              <p class="hint" id="apClock"></p>
+            </div>
+            <label class="switch-row"><input type="checkbox" class="switch" data-setting="autoRun.collectFirst"><span><b>Search sources first</b><small>Look for new codes before each automatic run.</small></span></label>
+            <label class="switch-row js-autostart-row"><input type="checkbox" class="switch js-autostart"><span><b>Start with my computer</b><small>Opens quietly in the background when you sign in, so auto-pilot keeps working.</small></span></label>
+            <p class="hint" id="nextRun"></p>
+            <p class="hint">With auto-pilot on, closing the window keeps the app running in the background. Use <b>⏻</b> at the top to quit completely. If SHiFT asks for a game while you're away, see <button type="button" class="link-btn" data-set-go="setAssist">Game launching</button>.</p>
+          </section>
+
+          <section class="panel step set-sec" id="setAssist" role="tabpanel" hidden>
+            <div class="step-head"><h2 class="step-title">Game launching</h2><button class="btn btn-sm btn-ghost" data-help="game launch assist">?</button></div>
+            <p class="step-hint">SHiFT sometimes stops accepting codes until a SHiFT-enabled game has been started. This handles it for you.</p>
+            <div class="seg" data-setting="gameAssist.mode"><button data-v="auto">Automatically</button><button data-v="ask">Ask me</button><button data-v="off">Off</button></div>
+            <p class="hint" id="assistModeHint"></p>
+            <div class="field-row">
+              <label class="field"><span class="label">Game to launch</span><select data-setting="gameAssist.game" id="assistGame"></select></label>
+              <label class="field"><span class="label">Keep the game open for at most</span>
+                <select data-setting="gameAssist.warmupSeconds" data-num><option value="45">45 seconds</option><option value="60">1 minute</option><option value="75">75 seconds</option><option value="90">90 seconds</option><option value="120">2 minutes</option><option value="180">3 minutes</option></select>
+              </label>
+            </div>
+            <p class="hint">It closes as soon as SHiFT accepts codes again, usually well before this.</p>
+            <label class="switch-row"><input type="checkbox" class="switch" data-setting="gameAssist.closeAfter"><span><b>Close the game afterwards</b><small>Only a game this app started (and the 2K launcher if it opened). A game you opened yourself is never closed.</small></span></label>
+            <label class="switch-row"><input type="checkbox" class="switch" data-setting="gameAssist.mute"><span><b>Start games muted</b><small>So a game opening at 3am doesn't wake anyone. Windows only; the game's normal volume is back the next time you play.</small></span></label>
+            <label class="switch-row"><input type="checkbox" class="switch" data-setting="gameAssist.nudgeMenu"><span><b>Get past the title screen</b><small>Presses Enter a few times so the game reaches its main menu, which is where SHiFT notices it. Windows only, and only for a game this app started.</small></span></label>
+            <label class="switch-row" id="assistRemindRow"><input type="checkbox" class="switch" data-setting="gameAssist.dontAsk"><span><b>Don't suggest turning automatic launching back on</b><small>When this is set to Ask me or Off, the dashboard occasionally offers to switch back to Automatically. Turn this on to stop that.</small></span></label>
+            <label class="field"><span class="label">Epic Games launch link <small>(optional)</small></span><input data-setting="gameAssist.epicLink" placeholder="com.epicgames.launcher://apps/…?action=launch&amp;silent=true" spellcheck="false"></label>
+            <p class="hint">In the Epic launcher, right-click a Borderlands game → <b>Manage</b> → <b>Desktop shortcut</b>. Then right-click the shortcut → <b>Properties</b> and copy the URL.</p>
+            <p class="hint">Steam shows the 2K launcher first for some games? In Steam, right-click the game → <b>Properties</b> → <b>Launch options</b>, type <code>-NoLauncher</code>, and it starts straight away.</p>
+            <div class="assist-detect" id="assistDetect"></div>
+            <div class="card-foot"><span class="foot-note">The game opens briefly and closes as soon as SHiFT is ready.</span><button class="btn btn-sm btn-ghost" id="btnRescan">Re-scan games</button><button class="btn btn-sm" id="btnTestLaunch">Test launch</button></div>
+          </section>
+
+          <section class="panel step set-sec" id="setPace" role="tabpanel" hidden>
+            <div class="step-head"><h2 class="step-title">Pace</h2><button class="btn btn-sm btn-ghost" data-help="pace delay too fast">?</button></div>
+            <p class="step-hint">How long to wait between requests to SHiFT. Going gently keeps Gearbox's servers happy and makes pauses less likely.</p>
+            <label class="field"><span class="label">Seconds between SHiFT requests <output id="delayOut"></output></span><input type="range" min="3" max="30" step="1" data-setting="delaySeconds" id="delayRange"></label>
+            <div class="callout is-warn" id="paceWarn" hidden><span class="co-ic" aria-hidden="true">!</span><div class="co-body"><b class="co-title">That's quite fast</b>Under 10 seconds puts more load on SHiFT, and SHiFT is more likely to pause you. Consider 10 seconds or more, or turn on smart pace.</div></div>
+            <label class="switch-row"><input type="checkbox" class="switch" data-setting="smartPace" id="smartPace"><span><b>Smart pace</b><small>Starts from the delay above and adjusts as it goes, between 4 and 18 seconds: quicker through dead codes, slower while codes are being redeemed (which is what SHiFT limits). If SHiFT says “slow down”, it goes straight to the slowest.</small></span></label>
+            <p class="hint" id="paceNow"></p>
+            <label class="field inline"><span class="label">Max codes to check per run <small>(0 = no limit)</small></span><input type="number" min="0" max="5000" data-setting="maxChecksPerRun"></label>
+            <p class="hint">The minimum is 3 seconds and can't be lowered.</p>
+          </section>
+
+          <section class="panel step set-sec" id="setUpdates" role="tabpanel" hidden>
+            <div class="step-head"><h2 class="step-title">Updates</h2><button class="btn btn-sm btn-ghost" data-help="update the app">?</button></div>
+            <p class="step-hint">New versions install from inside the app: no website, no installer to find. Your codes and settings are kept.</p>
+            <div class="update-status" id="updateStatus"></div>
+            <label class="switch-row"><input type="checkbox" class="switch" data-setting="updates.autoCheck"><span><b>Check for updates automatically</b><small>When the app starts, then every few hours.</small></span></label>
+            <label class="switch-row"><input type="checkbox" class="switch" data-setting="updates.autoInstall"><span><b>Install updates automatically</b><small>Handy with auto-pilot: when nothing is running, the update installs and the app restarts by itself.</small></span></label>
+            <div class="card-foot"><span class="foot-note" id="updateChecked"></span><button class="btn btn-sm" data-act="update-check">Check now</button><button class="btn btn-sm btn-eridian" data-act="update-install" id="btnUpdateNow" hidden>Update now</button></div>
+          </section>
+
+          <section class="panel step set-sec" id="setData" role="tabpanel" hidden>
+            <div class="step-head"><h2 class="step-title">Display &amp; data</h2><button class="btn btn-sm btn-ghost" data-help="where is my data">?</button></div>
+            <p class="step-hint">How the app looks on this computer, the walkthrough, and where your data lives.</p>
+            <label class="field inline" id="displaySizeRow"><span class="label">Display size</span>
+              <select id="displaySize">
+                <option value="auto">Automatic (fits your screen)</option>
+                <option value="0.9">90%</option><option value="1">100%</option><option value="1.15">115%</option><option value="1.3">130%</option><option value="1.5">150%</option>
+              </select>
+            </label>
+            <p class="hint" id="displaySizeHint">Automatic makes everything bigger on large, high-resolution and ultrawide screens, and adjusts when you resize the window or move it to another monitor.</p>
+            <label class="switch-row"><input type="checkbox" class="switch" data-setting="tour.enabled" id="tourEnabled"><span><b>Show the walkthrough</b><small>A short guided tour of the app. Turning this on starts it now.</small></span></label>
+            <label class="switch-row"><input type="checkbox" class="switch" id="reduceMotion"><span><b>Reduce animations</b><small>Turns off the menu transitions and effects on this computer.</small></span></label>
+            <p class="hint" id="dataDir"></p>
+            <div class="card-foot"><span class="foot-note" id="versionLine"></span><a class="btn btn-sm btn-ghost" href="/api/export" download="shift-redeemer-export.json">Export JSON</a><button class="btn btn-sm" id="btnOpenData">Open data folder</button></div>
+          </section>
+        </div>
       </div>
       <p class="legal">A free, non-commercial helper that automates what you'd otherwise do by hand on the SHiFT rewards page. Not affiliated with, endorsed by, or sponsored by Gearbox Software, 2K or Take-Two. Borderlands and SHiFT are trademarks of their respective owners.</p>
     </section>
@@ -396,6 +436,7 @@
           <section class="wz-page" data-step="0">
             <h2 class="step-title">Welcome, Vault Hunter</h2>
             <p class="lead">SHiFT Redeemer finds SHiFT codes across the web and redeems them on your account automatically: Golden Keys, Diamond Keys, skins, the lot.</p>
+            <button type="button" class="wz-start" data-act="wz-start"><span class="wz-start-ic" aria-hidden="true">▶</span><span><b>Start setup</b><small>About two minutes. Start here.</small></span></button>
             <div class="tile-grid">
               <div class="tile"><span class="tile-ic" aria-hidden="true">🔎</span><div><b>Finds codes</b><span>Community feeds, official Steam news, Reddit, guides and deal sites.</span></div></div>
               <div class="tile"><span class="tile-ic" aria-hidden="true">🗝️</span><div><b>Redeems them for you</b><span>For every game and platform you choose, never the same one twice.</span></div></div>
@@ -435,7 +476,7 @@
           </section>
           <!-- 5 -->
           <section class="wz-page" data-step="4" hidden>
-            <h2 class="step-title">Auto-pilot</h2>
+            <h2 class="step-title">Auto-pilot <button type="button" class="q-btn" data-help="auto-pilot" title="Questions about auto-pilot" aria-label="Questions about auto-pilot">?</button></h2>
             <p class="lead">Let SHiFT Redeemer check for new codes every few hours and redeem them without you lifting a finger.</p>
             <label class="switch-row"><input type="checkbox" class="switch" data-setting="autoRun.enabled"><span><b>Run automatically</b><small>Search for new codes and redeem them on a timer.</small></span></label>
             <label class="field inline"><span class="label">Every</span>

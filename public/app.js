@@ -3,7 +3,12 @@
 import { initHelp } from './help.js';
 import { initReport } from './report.js';
 import { initLists } from './lists.js';
+import { watchDisplaySize, getDisplaySize, setDisplaySize, uiZoom } from './zoom.js';
+
+// Size the interface for this screen before anything is drawn.
+watchDisplaySize();
 import { initTips } from './glossary.js';
+import { initTour } from './tour.js';
 import { artSVG, isLightArt, accentOf } from './titleart.js';
 
 const $ = (s, el = document) => el.querySelector(s);
@@ -489,7 +494,7 @@ function titlePicksHTML() {
       const on = all || st.titles.selected.includes(t.id);
       const n = codeCountFor(t.id);
       return `<label class="pick ${on ? 'on' : ''} ${all ? 'locked' : ''} ${lastPick === t.id ? 'just' : ''}" style="--c:${t.color}">
-        <input type="checkbox" data-pick="titles" value="${esc(t.id)}" ${on ? 'checked' : ''} ${all ? 'disabled' : ''}>
+        <input type="checkbox" data-pick="titles" value="${esc(t.id)}" ${on ? 'checked' : ''}>
         <span class="tick">${ICON.check}</span>
         <span class="big">${esc(t.short)}</span>
         <span class="nm">${esc(t.name)}</span>
@@ -508,7 +513,7 @@ function platPicksHTML() {
     .map((p) => {
       const on = all ? !known || p.linked : st.platforms.selected.includes(p.id);
       return `<label class="pick ${on ? 'on' : ''} ${all ? 'locked' : ''} ${all && known && !p.linked ? 'dim' : ''} ${lastPick === p.id ? 'just' : ''}" style="--c:${C.eridian}">
-        <input type="checkbox" data-pick="platforms" value="${esc(p.id)}" ${on ? 'checked' : ''} ${all ? 'disabled' : ''}>
+        <input type="checkbox" data-pick="platforms" value="${esc(p.id)}" ${on ? 'checked' : ''}>
         <span class="tick">${ICON.check}</span>
         <span class="big">${esc(p.glyph)}</span>
         <span class="nm">${esc(p.name)}${p.linked ? '<span class="tag-linked">Linked</span>' : ''}</span>
@@ -537,7 +542,7 @@ function startSteps() {
     { done: linked, t: 'Link your gaming platforms', d: linked ? 'Linked platforms found.' : 'On the SHiFT website. The app sees them after its first check.', act: '<a class="btn btn-xs" href="#account" data-goto="stepLinks">How</a>' },
     { done: !!S.settings.setupComplete, t: 'Pick your games & platforms', d: 'Or leave everything on.', act: '<a class="btn btn-xs" href="#targets">Choose</a>' },
     { done: !!S.engine.lastRun, t: 'Run Find & redeem', d: 'The first run takes a few minutes.', act: '<button class="btn btn-xs btn-eridian" data-act="first-run">Run it</button>' },
-    { done: !!S.settings.autoRun.enabled, t: 'Turn on auto-pilot', d: 'Keeps redeeming new codes by itself.', act: '<a class="btn btn-xs" href="#settings" data-goto="setAutopilot">Settings</a>', optional: true },
+    { done: !!S.settings.autoRun.enabled, t: 'Turn on auto-pilot', d: 'Keeps redeeming new codes by itself.', act: '<span class="row gap-xs"><button type="button" class="q-btn" data-help="auto-pilot" aria-label="What is auto-pilot?">?</button><a class="btn btn-xs" href="#settings" data-goto="setAutopilot">Settings</a></span>', optional: true },
     { done: tipsSeen, t: 'Read the best-practice tips', d: 'A dozen habits worth knowing.', act: '<button class="btn btn-xs" data-help-open="tips">Open</button>', optional: true },
   ];
 }
@@ -581,7 +586,7 @@ function renderChecklist() {
 const GS = { data: null, base: null, live: false, timer: null, bumped: new Set() };
 async function loadGameStrip() {
   try {
-    GS.data = await api('GET', '/api/report');
+    GS.data = await api('GET', '/api/report?targets=1');
     renderGameStrip();
   } catch {
     /* the strip is optional */
@@ -768,6 +773,18 @@ function assistToggle() {
   return `<button type="button" class="mini-toggle ${on ? 'on' : ''}" data-act="assist-toggle" role="switch" aria-checked="${on}" data-tip="${esc(tip)}" ${canLaunch || on ? '' : 'disabled'}>Auto-launch games<i aria-hidden="true"></i></button>`;
 }
 
+// With auto-pilot and auto-launch both on, a game can start while nobody is watching: say so, and
+// make closing it (and muting it) one click away.
+function autopilotGameNote() {
+  const st = S.settings;
+  if (!st?.autoRun.enabled || st.gameAssist?.mode !== 'auto') return '';
+  const ga = st.gameAssist;
+  const sw = (key, on, label) => `<button type="button" class="mini-toggle ${on ? 'on' : ''}" data-act="ga-flip" data-key="${key}" role="switch" aria-checked="${on}">${label}<i aria-hidden="true"></i></button>`;
+  return `<div class="ap-note ${ga.closeAfter ? '' : 'warn'}"><span class="ap-ic" aria-hidden="true">🕹</span><span>${
+    ga.closeAfter ? 'While auto-pilot runs, a game may start when SHiFT asks. It closes again by itself.' : '<b>Heads up:</b> games auto-pilot starts <b>won’t be closed</b> by themselves.'
+  }</span>${sw('closeAfter', !!ga.closeAfter, 'Close it afterwards')}${sw('mute', ga.mute !== false, 'Muted')}<button type="button" class="q-btn" data-help="game launch assist" aria-label="About game launching">?</button></div>`;
+}
+
 // Where a game launch is up to: start → wait for SHiFT → close → resume.
 function assistTrack(a) {
   const own = a.via === 'the game you have open';
@@ -799,11 +816,13 @@ function renderRun() {
     <div class="cmd-line"><span class="cmd-dot ${dot}"></span><span class="cmd-phase ${live ? 'live' : ''} ${paused ? 'warn' : ''} ${phase !== lastPhase && lastPhase !== null ? 'flick' : ''}">${phase}</span><span class="cmd-current">${current}</span></div>
     <div class="bar ${live ? 'live' : ''} ${e.assist ? 'assist' : ''}"><i style="width:${live ? Math.max(warmPct ?? pct, 2) : 0}%"></i></div>
     ${live && e.assist ? assistTrack(e.assist) : ''}
+    ${autopilotGameNote()}
     <div class="cmd-meta">
       <span>Last search <b>${e.lastCollect ? `${ago(e.lastCollect.at)} · ${e.lastCollect.added} new` : 'never'}</b></span>
       <span>Last run <b>${lr ? `${ago(lr.finishedAt || lr.at)} · ${lr.redeemed} redeemed` : 'never'}</b></span>
-      <span>Auto-pilot <b>${S.settings?.autoRun.enabled ? (e.nextRun ? `next ${ago(e.nextRun)}` : 'on') : 'off'}</b></span>
+      <span>Auto-pilot <b>${S.settings?.autoRun.enabled ? (e.nextRun ? `next ${ago(e.nextRun)}` : 'on') : 'off'}</b> <button type="button" class="q-btn" data-help="auto-pilot" title="What is auto-pilot?" aria-label="What is auto-pilot?">?</button></span>
       ${assistToggle()}
+      ${live && e.pace ? `<span>Pace <b>${e.pace}s</b>${e.smartPace ? ' <small class="muted">smart</small>' : ''}</span>` : ''}
       ${e.message && !e.assist ? `<span class="cmd-msg">${esc(e.message)}</span>` : ''}
     </div>`;
   lastPhase = phaseChanged;
@@ -883,9 +902,9 @@ function renderStats() {
   $('#tabCount').textContent = s.total ? s.total : '';
   const cells = [
     ['In queue', s.queue, C.eridian, 'Codes waiting to be checked or redeemed'],
-    ['Redeemed', s.successes, C.green, 'Rewards unlocked by this app'],
-    ['Done', s.redeemed, C.teal, 'Codes fully redeemed for your targets'],
-    ['Dead', (s.expired || 0) + (s.invalid || 0) + (s.unavailable || 0) + (s.stale || 0), C.red, 'Expired or invalid codes'],
+    ['Rewards', s.successes, C.green, s.successesAll > s.successes ? `Rewards unlocked for your current games and platforms (${s.successesAll} in total, all games and platforms)` : 'Rewards unlocked by this app for your games and platforms'],
+    ['Done', s.redeemed, C.teal, 'Codes fully redeemed for your games and platforms'],
+    ['Dead', (s.expired || 0) + (s.invalid || 0) + (s.unavailable || 0) + (s.stale || 0), C.red, 'Expired, invalid or likely expired codes'],
     ['Known', s.total, C.ink, `${s.filtered || 0} not for your games or platforms`],
   ];
   if (!$('#stats').children.length) $('#stats').innerHTML = cells.map(([l, n, c, tip]) => `<div class="sb-cell" style="--c:${c}" title="${esc(tip)}"><b data-k="${l}"></b><span>${l}</span></div>`).join('');
@@ -946,8 +965,9 @@ function appendLog(e) {
 
 // --- targets
 
+// Codes that can still give something for this game (dead ones don't count).
 function codeCountFor(titleId) {
-  return S.codes.filter((c) => c.games.includes(titleId) || c.offers.some((o) => o.titleId === titleId || `raw:${o.title}` === titleId)).length;
+  return S.codes.filter((c) => STATUS[c.status]?.group !== 'dead' && (c.games.includes(titleId) || c.offers.some((o) => o.titleId === titleId || `raw:${o.title}` === titleId))).length;
 }
 
 function renderTargets() {
@@ -1043,14 +1063,100 @@ function renderSettingsBound() {
     if (el.type === 'checkbox') el.checked = !!v;
     else el.value = v;
   });
-  $('#delayOut').textContent = `${S.settings.delaySeconds} sec`;
-  const nr = S.engine.nextRun;
-  $('#nextRun').textContent = S.settings.autoRun.enabled
-    ? nr
-      ? `Next automatic run ${ago(nr)} (${new Date(nr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}).`
-      : 'Scheduled.'
-    : 'Auto-pilot is off.';
+  renderPace();
+  renderSchedule();
 }
+
+// Settings → Pace
+function renderPace() {
+  const d = Number(S.settings.delaySeconds) || 10;
+  $('#delayOut').textContent = `${d} sec`;
+  $('#paceWarn').hidden = d >= 10;
+  const e = S.engine;
+  $('#paceNow').textContent = e.running && e.pace ? `Right now: ${e.pace} seconds between requests${e.smartPace ? ' (smart pace)' : ''}.` : S.settings.smartPace ? `Smart pace will start at ${Math.min(18, Math.max(4, d))} seconds.` : '';
+}
+
+// Settings → Auto-pilot schedule
+const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+function renderSchedule() {
+  const a = S.settings.autoRun;
+  const times = a.when === 'times';
+  $$('[data-setting="autoRun.when"] button').forEach((b) => b.classList.toggle('on', b.dataset.v === (a.when || 'interval')));
+  $('#apInterval').hidden = times;
+  $('#apTimes').hidden = !times;
+  const days = a.days || [];
+  $$('#apDays [data-day]').forEach((b) => {
+    const on = days.includes(Number(b.dataset.day));
+    b.classList.toggle('on', on);
+    b.setAttribute('aria-pressed', String(on));
+  });
+  $('#apClock').textContent = `Uses this computer's clock. It's ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} now. Early morning (like 3:00) runs while you're asleep; if the computer is asleep then, it runs soon after it wakes.`;
+  const nr = S.engine.nextRun;
+  const when = (t) => {
+    const d = new Date(t);
+    const days = Math.round((new Date(d.getFullYear(), d.getMonth(), d.getDate()) - new Date(new Date().toDateString())) / 86400000);
+    const hm = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return days === 0 ? `today at ${hm}` : days === 1 ? `tomorrow at ${hm}` : `${DAY_NAMES[d.getDay()]} at ${hm}`;
+  };
+  $('#nextRun').textContent = a.enabled ? (nr ? `Next automatic run: ${when(nr)} (${ago(nr)}).` : 'Scheduled.') : 'Auto-pilot is off.';
+}
+
+// Settings layout: a menu on the left, one section on the right.
+const SET_KEY = 'sr.settingsSection';
+function showSettingsSection(id, { remember = true } = {}) {
+  const sec = document.getElementById(id);
+  if (!sec || !sec.classList.contains('set-sec')) return;
+  $$('.set-sec').forEach((x) => (x.hidden = x !== sec));
+  $$('#setNav [data-set]').forEach((b) => {
+    const on = b.dataset.set === id;
+    b.classList.toggle('on', on);
+    b.setAttribute('aria-selected', String(on));
+  });
+  if (!reducedMotion()) {
+    sec.classList.remove('tab-in');
+    void sec.offsetWidth;
+    sec.classList.add('tab-in');
+  }
+  if (remember)
+    try {
+      localStorage.setItem(SET_KEY, id);
+    } catch {
+      /* storage unavailable */
+    }
+}
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-set], [data-set-go]');
+  if (!b) return;
+  showSettingsSection(b.dataset.set || b.dataset.setGo);
+});
+$('#setNav').addEventListener('keydown', (e) => {
+  if (!['ArrowDown', 'ArrowUp', 'ArrowLeft', 'ArrowRight'].includes(e.key)) return;
+  e.preventDefault();
+  const tabs = $$('#setNav [data-set]');
+  const i = tabs.indexOf(document.activeElement);
+  const n = tabs[(i + (e.key === 'ArrowDown' || e.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length];
+  n.focus();
+  showSettingsSection(n.dataset.set);
+});
+// Auto-pilot day picks
+$('#apDays').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-day]');
+  if (!b) return;
+  const d = Number(b.dataset.day);
+  const days = new Set(S.settings.autoRun.days || []);
+  if (days.has(d) && days.size === 1) return toast('Keep at least one day, or switch to “Every few hours”.');
+  days.has(d) ? days.delete(d) : days.add(d);
+  setSetting('autoRun.days', [...days].sort(), { now: true });
+});
+(() => {
+  let first = 'setAutopilot';
+  try {
+    first = localStorage.getItem(SET_KEY) || first;
+  } catch {
+    /* storage unavailable */
+  }
+  showSettingsSection(document.getElementById(first) ? first : 'setAutopilot', { remember: false });
+})();
 
 // --- codes
 
@@ -1141,13 +1247,16 @@ function openWizard(step = 0) {
   WZ.step = step;
   $('#wizard').hidden = false;
   renderWizard();
-  setTimeout(() => $('#wzNext').focus(), 50);
+  setTimeout(() => (WZ.step === 0 ? $('.wz-start') : $('#wzNext')).focus(), 50);
 }
 
 function closeWizard({ toast: say = false } = {}) {
   WZ.open = false;
   $('#wizard').hidden = true;
-  if (S.settings && !S.settings.setupComplete) setSetting('setupComplete', true, { now: true });
+  const firstTime = S.settings && !S.settings.setupComplete;
+  if (firstTime) setSetting('setupComplete', true, { now: true });
+  // New users get the walkthrough right after setup (unless they've turned it off).
+  if (firstTime && S.settings.tour?.enabled !== false && !S.settings.tour?.done) setTimeout(() => tour.start(), 500);
   if (say) toast('You can run setup again any time from Settings.');
 }
 
@@ -1195,6 +1304,7 @@ function renderWizard() {
   });
 
   const next = $('#wzNext');
+  next.hidden = WZ.step === 0; // the big Start setup button is the way in
   next.textContent =
     WZ.step === 0 ? 'Start setup' : WZ.step === 1 && !loggedIn ? 'Skip for now' : WZ.step === WZ.last ? (loggedIn ? 'Find & redeem now' : 'Finish') : 'Next';
   next.className = `btn ${WZ.step === 1 && !loggedIn ? '' : 'btn-eridian'}`;
@@ -1312,6 +1422,11 @@ document.addEventListener('click', async (ev) => {
     }
   } else if (a === 'update-install') {
     await act(() => api('POST', '/api/update/install'), 'Downloading the update…').catch(() => {});
+  } else if (a === 'ga-flip') {
+    const key = t.dataset.key;
+    const on = key === 'mute' ? S.settings.gameAssist.mute === false : !S.settings.gameAssist[key];
+    setSetting(`gameAssist.${key}`, on, { now: true });
+    toast(key === 'mute' ? (on ? 'Games will start muted' : 'Games will start with sound') : on ? 'Games will be closed afterwards' : 'Games will be left open', 'ok');
   } else if (a === 'assist-toggle') {
     const on = S.settings.gameAssist.mode !== 'auto';
     setSetting('gameAssist.askedAt', Date.now());
@@ -1323,6 +1438,9 @@ document.addEventListener('click', async (ev) => {
     await act(() => api('POST', '/api/games/resume'), 'Launching the game, then resuming…').catch(() => {});
   } else if (a === 'setup') {
     openWizard(S.account.loggedIn ? 2 : 1);
+  } else if (a === 'wz-start') {
+    WZ.step = 1;
+    renderWizard();
   } else if (a === 'wz-play') {
     const yes = t.dataset.v === 'yes';
     WZ.played = t.dataset.v;
@@ -1434,11 +1552,24 @@ document.addEventListener('change', async (e) => {
   const el = e.target;
   if (el.dataset.pick) {
     const kind = el.dataset.pick;
-    const sel = new Set(S.settings[kind].selected);
+    const wasAll = S.settings[kind].mode === 'all';
+    // Clicking one while "All" is on means "all except this one": switch to Pick for them,
+    // starting from everything that was on.
+    let sel;
+    if (wasAll) {
+      const known = kind === 'platforms' && S.catalog.platforms.some((p) => p.linked);
+      const items = kind === 'titles' ? S.catalog.titles : S.catalog.platforms.filter((p) => !known || p.linked);
+      sel = new Set(items.map((x) => x.id));
+    } else sel = new Set(S.settings[kind].selected);
     el.checked ? sel.add(el.value) : sel.delete(el.value);
     lastPick = el.value;
-    setSetting(`${kind}.selected`, [...sel]);
+    if (wasAll) setSetting(`${kind}.mode`, 'select');
+    setSetting(`${kind}.selected`, [...sel], { now: wasAll });
     lastPick = null;
+    if (wasAll) {
+      const name = kind === 'titles' ? titleLabel(el.value) : platformById(el.value)?.name || el.value;
+      toast(`Switched to Pick: ${name} is ${el.checked ? 'on' : 'off'}, everything else stays on.`, 'ok');
+    }
   } else if (el.dataset.source) {
     api('PUT', '/api/settings', { sources: { [el.dataset.source]: { enabled: el.checked } } }).then((st) => applyState(st));
   } else if (el.classList.contains('js-autostart')) {
@@ -1457,7 +1588,10 @@ document.addEventListener('change', async (e) => {
     setSetting(el.dataset.setting, v);
   }
 });
-$('#delayRange').addEventListener('input', (e) => ($('#delayOut').textContent = `${e.target.value} sec`));
+$('#delayRange').addEventListener('input', (e) => {
+  $('#delayOut').textContent = `${e.target.value} sec`;
+  $('#paceWarn').hidden = Number(e.target.value) >= 10;
+});
 
 // sign-in forms (used on the Account tab and in setup)
 function askPlaintextConsent(err) {
@@ -1563,6 +1697,9 @@ setInterval(() => {
 // ------------------------------------------------------------------ help
 
 function goTo(tab, elId) {
+  // Settings shows one section at a time: open the one that holds the element first.
+  const sec = tab === 'settings' && elId ? document.getElementById(elId)?.closest('.set-sec') : null;
+  if (sec) showSettingsSection(sec.id, { remember: false });
   if (location.hash !== `#${tab}`) location.hash = `#${tab}`;
   else showTab();
   if (!elId) return;
@@ -1594,7 +1731,7 @@ function getDiagnostics() {
     `SHiFT Redeemer ${S.app?.version || '?'} · ${S.app?.platform || navigator.platform} · ${S.app?.packaged ? 'installed app' : 'from source'}`,
     `Signed in: ${S.account.loggedIn ? 'yes' : 'no'} · password saved: ${S.account.saved ? (S.account.saved.secure ? `securely (${S.account.saved.storeName})` : 'plain text') : 'no'} · secure storage: ${S.account.secureStore?.available ? 'available' : `unavailable (${S.account.secureStore?.reason || '?'})`}`,
     `Titles: ${st.titles?.mode === 'all' ? 'all' : (st.titles?.selected || []).join(', ')} · Platforms: ${st.platforms?.mode === 'all' ? 'all linked' : (st.platforms?.selected || []).join(', ')} · Linked: ${S.catalog.platforms.filter((p) => p.linked).map((p) => p.id).join(', ') || 'none seen'}`,
-    `Auto-pilot: ${st.autoRun?.enabled ? `on, every ${st.autoRun.intervalMinutes} min` : 'off'} · Game assist: ${st.gameAssist?.mode} (Steam ${S.games.steam?.found ? `found, installed: ${(S.games.steam.installed || []).join(', ') || 'none'}` : 'not found'}) · Delay: ${st.delaySeconds}s`,
+    `Auto-pilot: ${st.autoRun?.enabled ? `on, every ${st.autoRun.intervalMinutes} min` : 'off'} · Game assist: ${st.gameAssist?.mode} (Steam ${S.games.steam?.found ? `found, installed: ${(S.games.steam.installed || []).join(', ') || 'none'}` : 'not found'}) · Delay: ${st.delaySeconds}s${st.smartPace ? ' (smart)' : ''} · Schedule: ${st.autoRun?.when === 'times' ? `days ${(st.autoRun.days || []).join(',')} at ${st.autoRun.time}` : 'interval'}`,
     `Codes: ${S.stats.total || 0} known, ${S.stats.queue || 0} queued, ${S.stats.successes || 0} redeemed`,
     lr ? `Last run: ${new Date(lr.finishedAt || lr.at).toISOString()} · checked ${lr.checked}, redeemed ${lr.redeemed}, already ${lr.already}, dead ${lr.dead}, errors ${lr.errors}, launches ${lr.assists || 0}${lr.stopped ? `, stopped: ${lr.stopped}` : ''}${lr.pause ? `, paused (${lr.pause.why}): ${lr.pause.message}` : ''}` : 'Last run: never',
     'Sources: ' + S.sources.map((x) => `${x.id}=${x.enabled ? (x.status ? (x.status.ok ? `ok(${x.status.found})` : 'error') : 'unused') : 'off'}`).join(' '),
@@ -1614,6 +1751,23 @@ const lists = initLists({
     loadCodes();
   },
 });
+// Display size (per computer, like the screen itself)
+function showDisplaySize() {
+  const pref = getDisplaySize();
+  $('#displaySize').value = pref;
+  $('#displaySizeHint').textContent = `${pref === 'auto' ? `Automatic is using ${Math.round(uiZoom() * 100)}% on this screen. ` : ''}Automatic makes everything bigger on large, high-resolution and ultrawide screens, and adjusts when you resize the window or move it to another monitor.`;
+}
+$('#displaySize').addEventListener('change', (e) => {
+  setDisplaySize(e.target.value);
+  showDisplaySize();
+  toast(`Display size: ${e.target.value === 'auto' ? `automatic (${Math.round(uiZoom() * 100)}%)` : `${Math.round(Number(e.target.value) * 100)}%`}`, 'ok');
+});
+addEventListener('uizoom', () => {
+  showDisplaySize();
+  moveInk();
+  fitNav();
+});
+showDisplaySize();
 $('#reduceMotion').checked = document.documentElement.classList.contains('reduce-motion');
 $('#reduceMotion').addEventListener('change', (e) => {
   document.documentElement.classList.toggle('reduce-motion', e.target.checked);
@@ -1634,6 +1788,24 @@ const help = initHelp({
   renderChecklist: (el) => el && S.settings && (el.innerHTML = checklistHTML(startSteps(), { compact: true })),
 });
 initTips();
+const tour = initTour({
+  goTo,
+  openHelp: (q) => help.open(q),
+  // Skip: off for good, until turned back on in Settings.
+  onSkip: () => {
+    setSetting('tour.enabled', false, { now: true });
+    toast('Walkthrough off. Turn it back on any time in Settings → Data & display.');
+  },
+  onDone: () => {
+    setSetting('tour.done', true, { now: true });
+    toast('That’s the tour! Press ? any time for help.', 'ok');
+  },
+});
+$('#tourEnabled').addEventListener('change', (e) => {
+  if (!e.target.checked) return;
+  setSetting('tour.done', false, { now: true });
+  tour.start();
+});
 // Refresh the checklist when Help closes (reading the tips ticks a step).
 new MutationObserver(() => $('#helpOverlay').hidden && renderChecklist()).observe($('#helpOverlay'), { attributes: true, attributeFilter: ['hidden'] });
 

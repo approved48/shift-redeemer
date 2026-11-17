@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 import crypto from 'node:crypto';
 import { Store } from './lib/store.js';
 import { ShiftClient, parseCookieInput } from './lib/shift.js';
-import { Engine } from './lib/engine.js';
+import { Engine, PACE } from './lib/engine.js';
 import { extractCodes } from './lib/catalog.js';
 import * as rt from './lib/runtime.js';
 import { buildReport } from './lib/rewards.js';
@@ -169,8 +169,15 @@ const routes = {
   'GET /api/state': () => fullState(),
   'GET /api/report': ({ query }) => {
     const days = Number(query.get('days')) || 0;
-    const platform = query.get('platform') || null;
-    return buildReport(store.db, { since: days ? Date.now() - days * 86_400_000 : null, platform, wants: (titleId, service) => engine.wantsTitle(null, titleId) && engine.wantsService(service) });
+    let platform = query.get('platform') || null;
+    let titleIds = null;
+    // targets=1: only your current games and platforms (the dashboard tiles use this).
+    if (query.get('targets') === '1') {
+      const s = store.settings;
+      if (s.platforms.mode === 'select') platform = s.platforms.selected;
+      if (s.titles.mode === 'select') titleIds = s.titles.selected;
+    }
+    return buildReport(store.db, { since: days ? Date.now() - days * 86_400_000 : null, platform, titleIds, wants: (titleId, service) => engine.wantsTitle(null, titleId) && engine.wantsService(service) });
   },
   'GET /api/codes': () => ({ codes: Object.values(store.db.codes).map((c) => engine.codeView(c)), stats: engine.stats() }),
 
@@ -224,9 +231,18 @@ const routes = {
   },
 
   'PUT /api/settings': async ({ body }) => {
-    const allowed = ['titles', 'platforms', 'delaySeconds', 'skipExpired', 'useSourceHints', 'maxChecksPerRun', 'autoRun', 'sources', 'setupComplete', 'gameAssist', 'updates'];
+    const allowed = ['titles', 'platforms', 'delaySeconds', 'smartPace', 'skipExpired', 'useSourceHints', 'maxChecksPerRun', 'autoRun', 'sources', 'setupComplete', 'gameAssist', 'updates', 'tour'];
     const patch = {};
     for (const k of allowed) if (k in body) patch[k] = body[k];
+    // Never faster than one SHiFT request every 3 seconds, whatever is sent.
+    if ('delaySeconds' in patch) patch.delaySeconds = Math.min(120, Math.max(PACE.MIN_DELAY, Math.round(Number(patch.delaySeconds)) || PACE.DEFAULT));
+    if ('smartPace' in patch) patch.smartPace = !!patch.smartPace;
+    if (patch.autoRun) {
+      const a = patch.autoRun;
+      if ('when' in a && !['interval', 'times'].includes(a.when)) throw bad('Unknown auto-pilot schedule');
+      if ('days' in a) a.days = [...new Set((Array.isArray(a.days) ? a.days : []).map(Number).filter((d) => d >= 0 && d <= 6))].sort();
+      if ('time' in a && !/^([01]\d|2[0-3]):[0-5]\d$/.test(String(a.time))) throw bad('Use a time like 03:00');
+    }
     if (patch.gameAssist) {
       const g = patch.gameAssist;
       if ('mode' in g && !['auto', 'ask', 'off'].includes(g.mode)) throw bad('Unknown game launch mode');
