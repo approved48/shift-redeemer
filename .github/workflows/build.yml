@@ -99,7 +99,7 @@ jobs:
           if (Test-Path $exe) { throw "Uninstall left the app behind" }
           Write-Host "Installer test passed"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: SHiFT-Redeemer-${{ matrix.target }}
           path: dist/release/*
@@ -111,7 +111,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           path: release
           merge-multiple: true
