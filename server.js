@@ -16,6 +16,7 @@ import { extractCodes } from './lib/catalog.js';
 import * as rt from './lib/runtime.js';
 import { buildReport } from './lib/rewards.js';
 import * as updater from './lib/updater.js';
+import { listBrowsers, findShiftSessions } from './lib/browsers.js';
 
 const ROOT = rt.isPackaged ? path.dirname(process.execPath) : path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC = path.join(ROOT, 'public');
@@ -216,6 +217,28 @@ const routes = {
     const account = await engine.useCookies(cookies);
     if (!account.loggedIn) throw bad('SHiFT did not accept that cookie — copy the "si" value again while signed in.');
     return { account };
+  },
+  // Find the SHiFT sign-in in the user's installed browsers (only shift.gearboxsoftware.com cookies).
+  'GET /api/account/browsers': async () => ({ browsers: listBrowsers().map((b) => ({ id: b.id, name: b.name, profiles: b.profiles.length })) }),
+  'POST /api/account/browser': async ({ body }) => {
+    const want = typeof body.browser === 'string' && /^[a-z]+$/.test(body.browser) ? body.browser : 'all';
+    const results = await findShiftSessions({ browser: want });
+    const before = { ...shift.jar.cookies };
+    for (const r of results.filter((x) => x.cookies)) {
+      const account = await engine.useCookies(r.cookies);
+      if (account.loggedIn) {
+        engine.log('ok', `Signed in using the SHiFT session from ${r.name}${r.profile ? ` (${r.profile})` : ''}`);
+        return { ok: true, from: { name: r.name, profile: r.profile }, account: await accountView(), results: results.map(({ cookies, ...x }) => x) };
+      }
+      r.code = 'expired';
+      r.error = 'Found a SHiFT session, but it has expired. Sign in at shift.gearboxsoftware.com in this browser and try again.';
+    }
+    // Nothing worked: put back whatever session we had before.
+    if (results.some((x) => x.cookies)) {
+      shift.setCookies(before);
+      await engine.refreshAccount().catch(() => {});
+    }
+    return { ok: false, results: results.map(({ cookies, ...x }) => x) };
   },
   'POST /api/account/check': async () => {
     await engine.refreshAccount();

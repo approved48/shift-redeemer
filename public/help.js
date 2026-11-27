@@ -61,9 +61,13 @@ const FAQ = [
   { cat: 'Getting started', q: 'How do I sign in?', a: [
     'Open <b>Account</b> and enter the email and password you use on the SHiFT website.',
     'Tick <b>Keep me signed in</b> if you want auto-pilot to sign back in by itself when SHiFT\'s session expires.'], go: { tab: 'account', el: 'stepConnect', label: 'Show me' } },
-  { cat: 'Getting started', q: 'What is the browser session option?', a: [
-    'If SHiFT asks for extra verification when you sign in, you can borrow the session from a browser where you\'re already signed in:',
-    '<ol><li>Open the SHiFT rewards page in Chrome or Edge while signed in.</li><li>Press <kbd>F12</kbd>, then go to <b>Application</b> → <b>Cookies</b>.</li><li>Copy the value of the cookie called <code>si</code> and paste it into <b>Account → Browser session</b>.</li></ol>'], go: { tab: 'account', el: 'stepConnect', label: 'Show me' } },
+  { cat: 'Getting started', q: 'Can I sign in using my web browser?', a: [
+    'Yes. If you are already signed in to SHiFT in your browser, open <b>Account → From my browser</b> and press <b>Find my sign-in</b>. Pick one browser, or let it look in all of them.',
+    'It works with Firefox, Edge, Brave, Opera, Vivaldi and Chrome. It only reads the SHiFT sign-in, nothing else. If a browser says its cookies are locked, close it fully and try again.',
+    'On Windows, new versions of Chrome lock their cookies so no other app can read them. Use another browser, or copy the sign-in by hand: open the SHiFT rewards page, press <kbd>F12</kbd>, go to <b>Application</b> → <b>Cookies</b>, copy the value of <code>si</code> and paste it under <b>Or copy it by hand</b>.'], go: { tab: 'account', el: 'stepConnect', label: 'Show me' } },
+  { cat: 'Getting started', q: 'Is this made by Gearbox?', a: [
+    'No. SHiFT Redeemer is a free tool made by fans. It is not linked to or approved by Gearbox Software, 2K or Take-Two. It just does what you could do by hand on the SHiFT website.',
+    'Please play fair: use it on your own account, don\'t spam SHiFT, and support Gearbox by buying and playing the games. The full note and the credits are in <b>Settings → About &amp; credits</b>.'], go: { tab: 'settings', el: 'setAbout', label: 'Show me' } },
   { cat: 'Getting started', q: 'How do I run setup again?', a: ['Open <b>Settings</b> and select <b>Run setup again</b>. Nothing is lost; it just walks you through the main choices again.'], go: { action: 'setup', label: 'Run setup now' } },
   { cat: 'Getting started', q: 'Which games are supported?', a: [
     'Borderlands 4, Tiny Tina\'s Wonderlands, Borderlands 3, The Pre-Sequel, Borderlands 2 and Borderlands: Game of the Year Edition.',
@@ -201,7 +205,7 @@ const FAQ = [
   // ---- Troubleshooting
   { cat: 'Troubleshooting', q: 'Sign-in fails or asks for verification', a: [
     'Check you can sign in on the SHiFT website with the same email and password.',
-    'If SHiFT asks for extra verification, use <b>Browser session</b> on the Account page instead.'], go: { tab: 'account', el: 'stepConnect', label: 'Show me' } },
+    'If SHiFT asks for extra checks, use <b>From my browser</b> on the Account page instead.'], go: { tab: 'account', el: 'stepConnect', label: 'Show me' } },
   { cat: 'Troubleshooting', q: 'Nothing gets redeemed', a: [
     '<ol><li>Check you\'re signed in (top right).</li><li>Check <b>Games &amp; Platforms</b> has something selected.</li><li>Check your platforms are linked on the SHiFT website.</li><li>Press <b>Find &amp; redeem</b> to look for new codes. If the queue is empty, there\'s nothing new right now.</li></ol>'] },
   { cat: 'Troubleshooting', q: 'The game launched but redeeming is still paused', a: [
@@ -225,7 +229,8 @@ const FAQ = [
 
 const SETTINGS = [
   { ic: '🔑', name: 'Sign in', desc: 'Account · step 1', tab: 'account', el: 'stepConnect', k: 'sign in login email password connect account' },
-  { ic: '🍪', name: 'Browser session', desc: 'Account · step 1', tab: 'account', el: 'stepConnect', k: 'cookie si browser session verification chrome edge' },
+  { ic: '🍪', name: 'Sign in from my browser', desc: 'Account · step 1', tab: 'account', el: 'stepConnect', k: 'cookie si browser session verification chrome edge firefox brave opera find automatic' },
+  { ic: '♥', name: 'About & credits', desc: 'Settings · About & credits', tab: 'settings', el: 'setAbout', k: 'credits thanks disclaimer affiliated gearbox fair play about license'},
   { ic: '🔗', name: 'Linked platforms', desc: 'Account · step 2', tab: 'account', el: 'stepLinks', k: 'link platforms steam epic playstation xbox switch gaming' },
   { ic: '🎮', name: 'Titles', desc: 'Games & Platforms · step 1', tab: 'targets', el: 'stepTitles', k: 'games titles borderlands choose pick select' },
   { ic: '🖥️', name: 'Platforms', desc: 'Games & Platforms · step 2', tab: 'targets', el: 'stepPlatforms', k: 'platforms steam epic playstation xbox switch' },
@@ -292,7 +297,7 @@ const SYNONYMS = {
 const STOP = new Set(['the', 'a', 'an', 'to', 'of', 'and', 'or', 'in', 'on', 'is', 'it', 'my', 'i', 'do', 'how', 'can', 'what', 'why', 'for', 'with', 'does', 'be', 'are', 'me', 'this', 'that', 'when']);
 
 const TOPICS = [
-  ['Getting started', 'what does shift redeemer do'], ['Sign in', 'sign in'], ['Browser session', 'browser session'], ['Paused for a game', 'why redeeming paused asking game'],
+  ['Getting started', 'what does shift redeemer do'], ['Sign in', 'sign in'], ['Sign in from my browser', 'sign in using my web browser'], ['Paused for a game', 'why redeeming paused asking game'],
   ['Game launch assist', 'game launch assist'], ['Runs hidden?', 'game run hidden'], ['Epic Games', 'epic'], ['Consoles', 'playstation xbox switch'],
   ['Code statuses', 'code statuses'], ['Already had', 'already had'], ['Not targeted', 'not targeted'], ['Likely expired', 'likely expired'],
   ['Add a code', 'add a code'], ['Check again', 'check a code again'], ['Choose games', 'choose games'], ['Linked platforms', 'platform linked'],

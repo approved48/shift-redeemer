@@ -324,6 +324,7 @@
           <button type="button" role="tab" data-set="setPace"><span class="sn-ic" aria-hidden="true">🐢</span><span><b>Pace</b><small>How fast it asks SHiFT</small></span></button>
           <button type="button" role="tab" data-set="setUpdates"><span class="sn-ic" aria-hidden="true">⬆</span><span><b>Updates</b><small>New versions</small></span></button>
           <button type="button" role="tab" data-set="setData"><span class="sn-ic" aria-hidden="true">🖥</span><span><b>Display &amp; data</b><small>Size, walkthrough, your data</small></span></button>
+          <button type="button" role="tab" data-set="setAbout"><span class="sn-ic" aria-hidden="true">♥</span><span><b>About &amp; credits</b><small>Fair play and thanks</small></span></button>
         </nav>
         <div class="set-panel">
           <section class="panel step set-sec" id="setAutopilot" role="tabpanel">
@@ -411,6 +412,12 @@
             <p class="hint" id="dataDir"></p>
             <div class="card-foot"><span class="foot-note" id="versionLine"></span><a class="btn btn-sm btn-ghost" href="/api/export" download="shift-redeemer-export.json">Export JSON</a><button class="btn btn-sm" id="btnOpenData">Open data folder</button></div>
           </section>
+          <section class="panel step set-sec" id="setAbout" role="tabpanel" hidden>
+            <div class="step-head"><h2 class="step-title">About &amp; credits</h2></div>
+            <div class="js-fairplay"></div>
+            <h3 class="eyebrow cr-title">Credits &amp; thanks</h3>
+            <div class="js-credits"></div>
+          </section>
         </div>
       </div>
       <p class="legal">A free, non-commercial helper that automates what you'd otherwise do by hand on the SHiFT rewards page. Not affiliated with, endorsed by, or sponsored by Gearbox Software, 2K or Take-Two. Borderlands and SHiFT are trademarks of their respective owners.</p>
@@ -423,48 +430,58 @@
   <div class="overlay" id="wizard" hidden>
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="wzTitle">
       <div class="hero panel modal-hero">
-        <div class="hero-actions"><button class="icon-btn" id="wzClose" title="Close setup" aria-label="Close setup"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
+        <div class="hero-actions"><button class="icon-btn" id="wzClose" title="Finish setup later" aria-label="Finish setup later"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
         <span class="kicker" id="wzKicker">Setup</span>
         <h1 class="hero-title" id="wzTitle">First-time setup</h1>
-        <ol class="wz-steps" id="wzSteps">
-          <li>Welcome</li><li>Account</li><li>Link platforms</li><li>Games</li><li>Auto-pilot</li><li>How you play</li><li>Done</li>
-        </ol>
+        <div class="wz-progress" id="wzProgress" role="progressbar" aria-label="Setup progress" aria-valuemin="1" aria-valuemax="8" aria-valuenow="1">
+          <ol class="wz-segs" id="wzSteps">
+            <li data-i="0"><i></i><span>Welcome</span></li><li data-i="1"><i></i><span>Fair play</span></li><li data-i="2"><i></i><span>Sign in</span></li><li data-i="3"><i></i><span>Platforms</span></li><li data-i="4"><i></i><span>Games</span></li><li data-i="5"><i></i><span>Auto-pilot</span></li><li data-i="6"><i></i><span>How you play</span></li><li data-i="7"><i></i><span>Done</span></li>
+          </ol>
+          <span class="wz-key" aria-hidden="true"><svg viewBox="0 0 64 40"><circle cx="16" cy="20" r="10"/><path d="M26 20h32v8M48 20v7"/></svg></span>
+        </div>
       </div>
       <div class="pop-card panel">
         <div class="pop-scroll">
-          <!-- 1 -->
+          <!-- 0 -->
           <section class="wz-page" data-step="0">
             <h2 class="step-title">Welcome, Vault Hunter</h2>
-            <p class="lead">SHiFT Redeemer finds SHiFT codes across the web and redeems them on your account automatically: Golden Keys, Diamond Keys, skins, the lot.</p>
-            <button type="button" class="wz-start" data-act="wz-start"><span class="wz-start-ic" aria-hidden="true">▶</span><span><b>Start setup</b><small>About two minutes. Start here.</small></span></button>
+            <p class="lead">This app finds SHiFT codes on the internet and uses them on your account for you. You get Golden Keys, skins and more, without typing a thing.</p>
+            <button type="button" class="wz-start" data-act="wz-start"><span class="wz-start-ic" aria-hidden="true">▶</span><span><b>Start setup</b><small>8 short steps. About two minutes.</small></span></button>
             <div class="tile-grid">
-              <div class="tile"><span class="tile-ic" aria-hidden="true">🔎</span><div><b>Finds codes</b><span>Community feeds, official Steam news, Reddit, guides and deal sites.</span></div></div>
-              <div class="tile"><span class="tile-ic" aria-hidden="true">🗝️</span><div><b>Redeems them for you</b><span>For every game and platform you choose, never the same one twice.</span></div></div>
-              <div class="tile"><span class="tile-ic" aria-hidden="true">🔒</span><div><b>Stays on your computer</b><span>Your sign-in only ever goes to SHiFT. Saved passwords go into Windows Credential Manager or the macOS Keychain.</span></div></div>
+              <div class="tile"><span class="tile-ic" aria-hidden="true">🔎</span><div><b>Finds codes</b><span>It checks code lists, game news, Reddit and deal sites.</span></div></div>
+              <div class="tile"><span class="tile-ic" aria-hidden="true">🗝️</span><div><b>Uses them for you</b><span>For every game and platform you pick. Never the same code twice.</span></div></div>
+              <div class="tile"><span class="tile-ic" aria-hidden="true">🔒</span><div><b>Stays on your computer</b><span>Your sign-in only goes to SHiFT. Nobody else sees it.</span></div></div>
             </div>
-            <p class="hint">Setup takes about two minutes. You can change anything later, and press <kbd>?</kbd> any time for help.</p>
+          </section>
+          <!-- 1 -->
+          <section class="wz-page" data-step="1" hidden>
+            <h2 class="step-title">Fair play</h2>
+            <div class="js-fairplay"></div>
+            <label class="check wz-agree"><input type="checkbox" id="wzAgree"> <span><b>I understand, and I'll play fair.</b></span></label>
+            <details class="wz-credits"><summary>Credits &amp; thanks</summary><div class="js-credits"></div></details>
           </section>
           <!-- 2 -->
-          <section class="wz-page" data-step="1" hidden>
-            <h2 class="step-title">Connect your SHiFT account</h2>
-            <p class="lead">Rewards go to the SHiFT account you sign in with, the same one you use at <a href="https://shift.gearboxsoftware.com" target="_blank" rel="noopener">shift.gearboxsoftware.com</a>.</p>
+          <section class="wz-page" data-step="2" hidden>
+            <h2 class="step-title">Sign in to SHiFT</h2>
+            <p class="lead">Use the account from <a href="https://shift.gearboxsoftware.com" target="_blank" rel="noopener">shift.gearboxsoftware.com</a>. Your rewards go there.</p>
             <div class="callout is-success" id="wzConnected" hidden></div>
             <div class="js-connect"></div>
           </section>
           <!-- 3 -->
-          <section class="wz-page" data-step="2" hidden>
-            <h2 class="step-title">Link your gaming platforms</h2>
-            <p class="lead">SHiFT can only deliver rewards to platforms linked to your SHiFT account. Link every platform you play on. This happens on the SHiFT website, not in this app.</p>
+          <section class="wz-page" data-step="3" hidden>
+            <h2 class="step-title">Link your platforms</h2>
+            <p class="lead">SHiFT can only send rewards to platforms linked to your account. Link every one you play on. You do this on the SHiFT website.</p>
             <div class="js-links"></div>
+            <label class="check wz-agree" id="wzLinkedRow"><input type="checkbox" id="wzLinked"> <span><b>Done. My platforms are linked.</b></span></label>
           </section>
           <!-- 4 -->
-          <section class="wz-page" data-step="3" hidden>
+          <section class="wz-page" data-step="4" hidden>
             <h2 class="step-title">Pick your games &amp; platforms</h2>
-            <p class="lead">Most people leave everything on. Narrow it down if you only play some games.</p>
+            <p class="lead">Most people leave everything on. Pick only some if you don't play them all.</p>
             <div class="wz-split">
               <div>
-                <h3 class="eyebrow">Titles</h3>
-                <div class="seg" data-setting="titles.mode"><button data-v="all">All titles</button><button data-v="select">Pick</button></div>
+                <h3 class="eyebrow">Games</h3>
+                <div class="seg" data-setting="titles.mode"><button data-v="all">All games</button><button data-v="select">Pick</button></div>
                 <div class="pick-grid tight js-title-grid"></div>
               </div>
               <div>
@@ -475,40 +492,48 @@
             </div>
           </section>
           <!-- 5 -->
-          <section class="wz-page" data-step="4" hidden>
+          <section class="wz-page" data-step="5" hidden>
             <h2 class="step-title">Auto-pilot <button type="button" class="q-btn" data-help="auto-pilot" title="Questions about auto-pilot" aria-label="Questions about auto-pilot">?</button></h2>
-            <p class="lead">Let SHiFT Redeemer check for new codes every few hours and redeem them without you lifting a finger.</p>
-            <label class="switch-row"><input type="checkbox" class="switch" data-setting="autoRun.enabled"><span><b>Run automatically</b><small>Search for new codes and redeem them on a timer.</small></span></label>
-            <label class="field inline"><span class="label">Every</span>
-              <select data-setting="autoRun.intervalMinutes" data-num>
-                <option value="60">1 hour</option><option value="120">2 hours</option><option value="180">3 hours</option><option value="360">6 hours</option><option value="720">12 hours</option><option value="1440">24 hours</option>
-              </select>
-            </label>
-            <label class="switch-row js-autostart-row"><input type="checkbox" class="switch js-autostart"><span><b>Start with my computer</b><small>Runs quietly in the background after you sign in to your computer.</small></span></label>
+            <p class="lead">Should the app look for new codes by itself every few hours?</p>
+            <div class="choice-grid" role="radiogroup" aria-label="Use auto-pilot?">
+              <button type="button" class="choice" role="radio" data-act="wz-auto" data-v="yes"><span class="tile-ic" aria-hidden="true">🚀</span><span><b>Yes, do it for me</b><small>It checks on a timer and uses new codes. You don't have to press anything.</small></span></button>
+              <button type="button" class="choice" role="radio" data-act="wz-auto" data-v="no"><span class="tile-ic" aria-hidden="true">👆</span><span><b>No, I'll press the button</b><small>Nothing happens until you press <i>Find &amp; redeem</i>. You can turn auto-pilot on later.</small></span></button>
+            </div>
+            <div id="wzAutoMore" hidden>
+              <label class="field inline"><span class="label">Check every</span>
+                <select data-setting="autoRun.intervalMinutes" data-num>
+                  <option value="60">1 hour</option><option value="120">2 hours</option><option value="180">3 hours</option><option value="360">6 hours</option><option value="720">12 hours</option><option value="1440">24 hours</option>
+                </select>
+              </label>
+              <label class="switch-row js-autostart-row"><input type="checkbox" class="switch js-autostart"><span><b>Start with my computer</b><small>The app opens quietly when you turn on your computer.</small></span></label>
+              <p class="hint">You can also pick days and a time (like Wednesday at 3 am) in Settings later.</p>
+            </div>
             <div class="callout is-warn" id="wzAutoHint" hidden></div>
           </section>
           <!-- 6 -->
-          <section class="wz-page" data-step="5" hidden>
+          <section class="wz-page" data-step="6" hidden>
             <h2 class="step-title">Will you play Borderlands while this runs?</h2>
-            <p class="lead">Now and then SHiFT stops accepting codes until a SHiFT-enabled game has been started. SHiFT Redeemer can start one, wait until SHiFT notices it (usually under a minute) and close it again, but that would get in your way if you're playing.</p>
+            <p class="lead">Sometimes SHiFT stops taking codes until you start a Borderlands game. The app can start one for about a minute, then close it. That would get in your way if you're playing.</p>
             <div class="choice-grid" role="radiogroup" aria-label="Will you play while SHiFT Redeemer runs?">
-              <button type="button" class="choice" role="radio" data-act="wz-play" data-v="yes"><span class="tile-ic" aria-hidden="true">🎮</span><span><b>Yes, I'll often be playing</b><small>It never starts or closes a game by itself. If you're already in a Borderlands game, SHiFT sees it and redeeming carries on. Otherwise you get a one-click <i>Launch &amp; resume</i>.</small></span></button>
-              <button type="button" class="choice" role="radio" data-act="wz-play" data-v="no"><span class="tile-ic" aria-hidden="true">💤</span><span><b>No, it mostly runs while I'm away</b><small>When SHiFT asks, it starts a game, closes it as soon as SHiFT is ready (usually within a minute) and carries on. It only ever closes a game it started.</small></span></button>
+              <button type="button" class="choice" role="radio" data-act="wz-play" data-v="yes"><span class="tile-ic" aria-hidden="true">🎮</span><span><b>Yes, I'll often be playing</b><small>It never starts or closes a game by itself. If SHiFT needs a game, you get a button to start one.</small></span></button>
+              <button type="button" class="choice" role="radio" data-act="wz-play" data-v="no"><span class="tile-ic" aria-hidden="true">💤</span><span><b>No, it runs while I'm away</b><small>It starts a game when SHiFT asks, waits about a minute, then closes it. It only closes games it started.</small></span></button>
             </div>
             <p class="hint" id="wzAssistText"></p>
           </section>
           <!-- 7 -->
-          <section class="wz-page" data-step="6" hidden>
-            <h2 class="step-title">You're all set</h2>
+          <section class="wz-page" data-step="7" hidden>
+            <div class="wz-done-key" aria-hidden="true"><svg viewBox="0 0 64 40"><circle cx="16" cy="20" r="10"/><path d="M26 20h32v8M48 20v7"/></svg></div>
+            <h2 class="step-title">You're all set!</h2>
             <dl class="summary" id="wzSummary"></dl>
-            <p class="lead">Press <b>Find &amp; redeem</b> to grab everything that's out there right now. The first run checks a lot of codes, so give it a few minutes.</p>
-            <p class="hint">The <b>Getting started</b> checklist on the dashboard shows what's left to do, and <button type="button" class="link-btn" data-help-open="tips">Help → Best practice</button> has a dozen tips for getting the most out of the app.</p>
+            <p class="lead">Press <b>Find &amp; redeem</b> to grab every code that's out there now. The first time takes a few minutes, because there are lots of codes to check.</p>
+            <p class="hint">Stuck? The <b>Getting started</b> list on the dashboard shows what's left, and <button type="button" class="link-btn" data-help-open="tips">Help → Best practice</button> has tips.</p>
           </section>
         </div>
+        <p class="wz-need" id="wzNeed" role="status" hidden></p>
         <div class="pop-foot">
           <button class="btn btn-ghost" id="wzBack">Back</button>
-          <span class="foot-note"><button class="link-btn" id="wzSkip">Skip setup</button></span>
-          <button class="btn btn-eridian" id="wzNext">Start setup</button>
+          <span class="foot-note"><button class="link-btn" id="wzSkip">Finish later</button></span>
+          <button class="btn btn-eridian" id="wzNext">Next</button>
         </div>
       </div>
     </div>

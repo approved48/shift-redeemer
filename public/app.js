@@ -9,6 +9,7 @@ import { watchDisplaySize, getDisplaySize, setDisplaySize, uiZoom } from './zoom
 watchDisplaySize();
 import { initTips } from './glossary.js';
 import { initTour } from './tour.js';
+import { fairPlayHTML, creditsHTML } from './credits.js';
 import { artSVG, isLightArt, accentOf } from './titleart.js';
 
 const $ = (s, el = document) => el.querySelector(s);
@@ -442,7 +443,7 @@ function connectHTML() {
   return `<div class="connect">
     <div class="seg" role="tablist">
       <button type="button" class="on" data-ctab="login">Email &amp; password</button>
-      <button type="button" data-ctab="cookie">Browser session</button>
+      <button type="button" data-ctab="cookie">From my browser</button>
     </div>
     <div data-cpane="login">
       <form class="stack-form" data-form="login">
@@ -451,10 +452,19 @@ function connectHTML() {
         <label class="check"><input type="checkbox" name="remember" checked> <span>Keep me signed in for auto-pilot <small class="remember-hint"></small></span></label>
         <button class="btn btn-eridian" type="submit">Sign in</button>
       </form>
-      <p class="hint alt">No SHiFT account? <a href="https://shift.gearboxsoftware.com/home" target="_blank" rel="noopener">Create one free</a>. If SHiFT asks for extra verification, use <button type="button" class="link-btn" data-ctab="cookie">Browser session</button> instead.</p>
+      <p class="hint alt">No SHiFT account? <a href="https://shift.gearboxsoftware.com/home" target="_blank" rel="noopener">Create one free</a>. Already signed in to SHiFT in your web browser? Use <button type="button" class="link-btn" data-ctab="cookie">From my browser</button>. It also helps if SHiFT asks for extra checks.</p>
     </div>
     <div data-cpane="cookie" hidden>
-      <p class="hint" style="margin:0 0 var(--s3)">Already signed in to SHiFT in Chrome or Edge? Borrow that session instead. No password needed.</p>
+      <div class="auto-find">
+        <p class="hint">Signed in to SHiFT in your web browser? The app can find that sign-in for you. No password needed.</p>
+        <div class="af-row">
+          <label class="field inline"><span class="label">Look in</span><select class="js-browser-pick" aria-label="Which browser to look in"><option value="all">All my browsers</option></select></label>
+          <button type="button" class="btn btn-eridian" data-act="find-browser">Find my sign-in</button>
+        </div>
+        <div class="js-browser-results" aria-live="polite"></div>
+        <p class="hint">It only reads SHiFT's sign-in, nothing else from your browser.</p>
+      </div>
+      <details class="by-hand"><summary>Or copy it by hand</summary>
       <ol class="steps">
         <li><span>Open <a href="https://shift.gearboxsoftware.com/rewards" target="_blank" rel="noopener">shift.gearboxsoftware.com/rewards</a> in Chrome or Edge while signed in.</span></li>
         <li><span>Press <kbd>F12</kbd>, then go to <b>Application</b> → <b>Cookies</b> → <code>https://shift.gearboxsoftware.com</code>.</span></li>
@@ -464,6 +474,7 @@ function connectHTML() {
         <label class="field"><span class="label">Value of the <code>si</code> cookie</span><input name="cookie" autocomplete="off" spellcheck="false" placeholder="e.g. 2fa8c1…"></label>
         <button class="btn btn-eridian" type="submit">Connect session</button>
       </form>
+      </details>
     </div>
   </div>`;
 }
@@ -1239,98 +1250,177 @@ function renderCodes() {
 
 // ------------------------------------------------------------------ first-time setup
 
-const WZ = { open: false, step: 0, last: 6 };
+// Steps: 0 welcome · 1 fair play · 2 sign in · 3 platforms · 4 games · 5 auto-pilot · 6 how you play · 7 done.
+// Each step has to be finished before the next one opens, so nobody misses anything.
+const WZ = { open: false, step: 0, last: 7 };
+const WZ_STEP_KEY = 'sr.setupStep';
+const WZ_FAIR_KEY = 'sr.fairPlay';
+const local = {
+  get: (k) => {
+    try {
+      return localStorage.getItem(k);
+    } catch {
+      return null;
+    }
+  },
+  set: (k, v) => {
+    try {
+      localStorage.setItem(k, v);
+    } catch {
+      /* storage unavailable */
+    }
+  },
+};
+
+/** What the step still needs before "Next" works (empty when it's done). */
+function wzNeed(step) {
+  const st = S.settings;
+  if (step === 1 && !$('#wzAgree').checked) return 'Tick the box to say you’ll play fair.';
+  if (step === 2 && !S.account.loggedIn) return 'Sign in to SHiFT to keep going.';
+  if (step === 3 && !S.catalog.platforms.some((p) => p.linked) && !$('#wzLinked').checked) return 'Link your platforms on the SHiFT website, then tick the box.';
+  if (step === 4) {
+    if (st.titles.mode === 'select' && !st.titles.selected.length) return 'Pick at least one game, or choose “All games”.';
+    if (st.platforms.mode === 'select' && !st.platforms.selected.length) return 'Pick at least one platform, or choose “All linked”.';
+  }
+  if (step === 5 && !WZ.auto) return 'Choose Yes or No.';
+  if (step === 6 && !wzPlaying()) return 'Choose Yes or No.';
+  return '';
+}
+const wzPlaying = () => WZ.played ?? (S.settings.setupComplete ? (S.settings.gameAssist.mode === 'auto' ? 'no' : 'yes') : null);
+/** The furthest step someone can be on, given what's done so far. */
+function wzReachable(want) {
+  let i = 0;
+  while (i < Math.min(want, WZ.last) && (i === 0 || !wzNeed(i))) i++;
+  return i;
+}
 
 function openWizard(step = 0) {
   WZ.open = true;
   WZ.played = undefined;
-  WZ.step = step;
+  WZ.auto = S.settings?.setupComplete ? (S.settings.autoRun.enabled ? 'yes' : 'no') : null;
+  $('#wzAgree').checked = local.get(WZ_FAIR_KEY) === '1';
   $('#wizard').hidden = false;
+  WZ.step = wzReachable(step);
   renderWizard();
   setTimeout(() => (WZ.step === 0 ? $('.wz-start') : $('#wzNext')).focus(), 50);
 }
 
-function closeWizard({ toast: say = false } = {}) {
+function wzGo(step) {
+  WZ.step = Math.max(0, Math.min(WZ.last, step));
+  if (!S.settings.setupComplete) local.set(WZ_STEP_KEY, String(WZ.step));
+  renderWizard();
+  $('.pop-scroll', $('#wizard')).scrollTop = 0;
+}
+
+function closeWizard({ finished = false } = {}) {
   WZ.open = false;
   $('#wizard').hidden = true;
   const firstTime = S.settings && !S.settings.setupComplete;
-  if (firstTime) setSetting('setupComplete', true, { now: true });
+  if (!firstTime) return;
+  if (!finished) {
+    toast('Setup will carry on where you left off next time. It’s also in Settings → Run setup again.');
+    return;
+  }
+  setSetting('setupComplete', true, { now: true });
+  local.set(WZ_STEP_KEY, '0');
   // New users get the walkthrough right after setup (unless they've turned it off).
-  if (firstTime && S.settings.tour?.enabled !== false && !S.settings.tour?.done) setTimeout(() => tour.start(), 500);
-  if (say) toast('You can run setup again any time from Settings.');
+  if (S.settings.tour?.enabled !== false && !S.settings.tour?.done) setTimeout(() => tour.start(), 500);
 }
 
 function renderWizard() {
   if (!WZ.open || !S.settings) return;
   const loggedIn = !!S.account.loggedIn;
+  const st = S.settings;
   $$('.wz-page').forEach((p) => (p.hidden = Number(p.dataset.step) !== WZ.step));
   $$('#wzSteps li').forEach((li, i) => {
     li.classList.toggle('current', i === WZ.step);
     li.classList.toggle('done', i < WZ.step);
+    li.title = i < WZ.step ? `Back to: ${li.textContent}` : li.textContent;
   });
+  const prog = $('#wzProgress');
+  prog.classList.toggle('complete', WZ.step === WZ.last);
+  prog.setAttribute('aria-valuenow', String(WZ.step + 1));
+  prog.setAttribute('aria-valuetext', `Step ${WZ.step + 1} of ${WZ.last + 1}: ${$$('#wzSteps li')[WZ.step].textContent}`);
   $('#wzBack').hidden = WZ.step === 0;
-  $('#wzKicker').textContent = `Setup · step ${WZ.step + 1} of ${WZ.last + 1}`;
-  $('#wzSkip').textContent = WZ.step === WZ.last ? 'Close without running' : 'Skip setup';
+  $('#wzKicker').textContent = `Setup · step ${WZ.step + 1} of ${WZ.last + 1} · ${$$('#wzSteps li')[WZ.step].textContent}`;
+  $('#wzSkip').textContent = st.setupComplete ? 'Close' : 'Finish later';
+  $('#wzSkip').hidden = WZ.step === WZ.last;
 
-  // Account step: show the connected state instead of the forms once signed in.
-  const page1 = $('.wz-page[data-step="1"]');
-  const showForms = !loggedIn || page1.dataset.change === '1';
+  // Sign-in step: show the connected state instead of the forms once signed in.
+  const page = $('.wz-page[data-step="2"]');
+  const showForms = !loggedIn || page.dataset.change === '1';
   $('#wzConnected').hidden = !loggedIn;
   $('#wzConnected').innerHTML = loggedIn
-    ? `<span class="co-ic" aria-hidden="true">✓</span><div class="co-body"><b class="co-title">Connected</b>Signed in as <b>${esc(S.account.email || 'your SHiFT account')}</b>${S.account.saved?.secure ? ', password saved securely' : ''}.</div>${showForms ? '' : '<div class="co-actions"><button type="button" class="btn btn-sm btn-ghost" data-act="wz-change">Use a different account</button></div>'}`
+    ? `<span class="co-ic" aria-hidden="true">✓</span><div class="co-body"><b class="co-title">Signed in</b>Signed in as <b>${esc(S.account.email || 'your SHiFT account')}</b>${S.account.saved?.secure ? '. Your password is saved safely.' : '.'}</div>${showForms ? '' : '<div class="co-actions"><button type="button" class="btn btn-sm btn-ghost" data-act="wz-change">Use a different account</button></div>'}`
     : '';
-  $('.js-connect', page1).hidden = !showForms;
+  $('.js-connect', page).hidden = !showForms;
 
+  // Platforms step: the tick box is only needed if SHiFT doesn't show any linked platforms yet.
+  $('#wzLinkedRow').hidden = S.catalog.platforms.some((p) => p.linked);
+
+  // Auto-pilot step
+  $$('[data-act="wz-auto"]').forEach((b) => {
+    b.classList.toggle('on', b.dataset.v === WZ.auto);
+    b.setAttribute('aria-checked', String(b.dataset.v === WZ.auto));
+  });
+  $('#wzAutoMore').hidden = WZ.auto !== 'yes';
   const hint = $('#wzAutoHint');
-  const needsSave = S.settings.autoRun.enabled && loggedIn && !S.account.saved;
+  const needsSave = WZ.auto === 'yes' && loggedIn && !S.account.saved;
   hint.hidden = !needsSave;
-  hint.innerHTML = needsSave ? '<span class="co-ic" aria-hidden="true">!</span><div class="co-body"><b class="co-title">Tip</b>Auto-pilot works best with “Keep me signed in”. Without it, auto-pilot pauses when SHiFT’s session expires until you sign in again.</div>' : '';
+  hint.innerHTML = needsSave ? '<span class="co-ic" aria-hidden="true">!</span><div class="co-body"><b class="co-title">Tip</b>Auto-pilot works best if you sign in with “Keep me signed in” ticked. Without it, auto-pilot stops when SHiFT signs you out.</div>' : '';
 
-  if (WZ.step === WZ.last) {
-    const st = S.settings;
-    const row = (k, v, cls = '') => `<dt>${k}</dt><dd class="${cls}">${v}</dd>`;
-    $('#wzSummary').innerHTML =
-      row('SHiFT account', loggedIn ? esc(S.account.email || 'Connected') : 'Not connected yet. Do this on the Account tab.', loggedIn ? 'ok' : 'bad') +
-      row('Titles', st.titles.mode === 'all' ? 'All titles' : st.titles.selected.map(titleLabel).join(', ') || 'None', st.titles.mode === 'select' && !st.titles.selected.length ? 'bad' : '') +
-      row('Platforms', st.platforms.mode === 'all' ? 'All linked platforms' : st.platforms.selected.map((p) => platformById(p)?.name || p).join(', ') || 'None', st.platforms.mode === 'select' && !st.platforms.selected.length ? 'bad' : '') +
-      row('Auto-pilot', st.autoRun.enabled ? `On, every ${st.autoRun.intervalMinutes >= 60 ? `${st.autoRun.intervalMinutes / 60} h` : `${st.autoRun.intervalMinutes} min`}` : 'Off') +
-      row('Game launches', { auto: 'Automatic: starts a game for a minute when SHiFT asks', ask: 'Asks first, so it never interrupts your game', off: 'Off' }[st.gameAssist.mode] || 'Off');
-  }
-  // "How you play" step: reflect the current choice.
-  const playing = WZ.played ?? (S.settings.gameAssist.mode === 'auto' ? 'no' : S.settings.gameAssist.playing ? 'yes' : null);
+  // How you play
+  const playing = wzPlaying();
   $$('[data-act="wz-play"]').forEach((b) => {
     b.classList.toggle('on', b.dataset.v === playing);
     b.setAttribute('aria-checked', String(b.dataset.v === playing));
   });
 
+  if (WZ.step === WZ.last) {
+    const row = (k, v, cls = '') => `<dt>${k}</dt><dd class="${cls}">${v}</dd>`;
+    $('#wzSummary').innerHTML =
+      row('SHiFT account', loggedIn ? esc(S.account.email || 'Signed in') : 'Not signed in', loggedIn ? 'ok' : 'bad') +
+      row('Games', st.titles.mode === 'all' ? 'All games' : st.titles.selected.map(titleLabel).join(', ')) +
+      row('Platforms', st.platforms.mode === 'all' ? 'All linked platforms' : st.platforms.selected.map((p) => platformById(p)?.name || p).join(', ')) +
+      row('Auto-pilot', st.autoRun.enabled ? `On, every ${st.autoRun.intervalMinutes >= 60 ? `${st.autoRun.intervalMinutes / 60} h` : `${st.autoRun.intervalMinutes} min`}` : 'Off. Press Find & redeem when you like.') +
+      row('Game launches', { auto: 'Starts a game for about a minute when SHiFT asks', ask: 'Asks you first, so it never gets in your way', off: 'Off' }[st.gameAssist.mode] || 'Off');
+  }
+
+  const need = WZ.step > 0 && WZ.step < WZ.last ? wzNeed(WZ.step) : '';
+  $('#wzNeed').hidden = !need;
+  $('#wzNeed').textContent = need ? `To continue: ${need}` : '';
   const next = $('#wzNext');
   next.hidden = WZ.step === 0; // the big Start setup button is the way in
-  next.textContent =
-    WZ.step === 0 ? 'Start setup' : WZ.step === 1 && !loggedIn ? 'Skip for now' : WZ.step === WZ.last ? (loggedIn ? 'Find & redeem now' : 'Finish') : 'Next';
-  next.className = `btn ${WZ.step === 1 && !loggedIn ? '' : 'btn-eridian'}`;
+  next.disabled = !!need;
+  next.textContent = WZ.step === WZ.last ? (loggedIn ? 'Find & redeem now' : 'Finish') : 'Next';
 }
 
 $('#wzNext').addEventListener('click', () => {
   if (WZ.step < WZ.last) {
-    WZ.step++;
-    renderWizard();
+    if (wzNeed(WZ.step)) return renderWizard();
+    if (WZ.step === 1) local.set(WZ_FAIR_KEY, '1');
+    wzGo(WZ.step + 1);
     return;
   }
   const go = !!S.account.loggedIn;
-  closeWizard();
+  closeWizard({ finished: true });
   location.hash = go ? '#dashboard' : '#account';
   if (go) act(() => api('POST', '/api/run', { collectFirst: true }), 'Finding and redeeming codes…').catch(() => {});
 });
-$('#wzBack').addEventListener('click', () => {
-  WZ.step = Math.max(0, WZ.step - 1);
-  renderWizard();
+$('#wzBack').addEventListener('click', () => wzGo(WZ.step - 1));
+$('#wzSteps').addEventListener('click', (e) => {
+  const i = Number(e.target.closest('li')?.dataset.i);
+  if (i < WZ.step) wzGo(i); // only back: steps ahead open in order
 });
-$('#wzSkip').addEventListener('click', () => closeWizard({ toast: WZ.step !== WZ.last }));
-$('#wzClose').addEventListener('click', () => closeWizard({ toast: true }));
+['#wzAgree', '#wzLinked'].forEach((s) => $(s).addEventListener('change', renderWizard));
+$('#wzSkip').addEventListener('click', () => closeWizard());
+$('#wzClose').addEventListener('click', () => closeWizard());
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && WZ.open && $('#plainModal').hidden && !help.isOpen()) closeWizard({ toast: true });
+  if (e.key === 'Escape' && WZ.open && $('#plainModal').hidden && !help.isOpen()) closeWizard();
 });
 $('#btnSetupAgain').addEventListener('click', () => openWizard(0));
+$$('.js-fairplay').forEach((el) => (el.innerHTML = fairPlayHTML()));
+$$('.js-credits').forEach((el) => (el.innerHTML = creditsHTML()));
 
 // ------------------------------------------------------------------ events
 
@@ -1342,6 +1432,11 @@ document.addEventListener('click', async (ev) => {
     const box = t.closest('.connect');
     $$('[data-ctab]', box).forEach((b) => b.closest('.seg') && b.classList.toggle('on', b.dataset.ctab === t.dataset.ctab));
     $$('[data-cpane]', box).forEach((p) => (p.hidden = p.dataset.cpane !== t.dataset.ctab));
+    if (t.dataset.ctab === 'cookie') loadBrowsers();
+    return;
+  }
+  if (t.dataset.act === 'find-browser') {
+    findBrowserSignIn(t);
     return;
   }
   if (t.closest('.seg[data-setting]')) {
@@ -1437,9 +1532,12 @@ document.addEventListener('click', async (ev) => {
   } else if (a === 'assist-resume') {
     await act(() => api('POST', '/api/games/resume'), 'Launching the game, then resuming…').catch(() => {});
   } else if (a === 'setup') {
-    openWizard(S.account.loggedIn ? 2 : 1);
+    openWizard(S.account.loggedIn ? 3 : 2);
   } else if (a === 'wz-start') {
-    WZ.step = 1;
+    wzGo(1);
+  } else if (a === 'wz-auto') {
+    WZ.auto = t.dataset.v;
+    setSetting('autoRun.enabled', WZ.auto === 'yes', { now: true });
     renderWizard();
   } else if (a === 'wz-play') {
     const yes = t.dataset.v === 'yes';
@@ -1464,7 +1562,7 @@ document.addEventListener('click', async (ev) => {
     goTo('codes');
     runAction('import');
   } else if (a === 'wz-change') {
-    $('.wz-page[data-step="1"]').dataset.change = '1';
+    $('.wz-page[data-step="2"]').dataset.change = '1';
     renderWizard();
   }
 });
@@ -1472,7 +1570,7 @@ document.addEventListener('click', async (ev) => {
 function needLogin() {
   if (S.account.loggedIn) return false;
   toast('Connect your SHiFT account first', 'err');
-  openWizard(1);
+  openWizard(2);
   return true;
 }
 
@@ -1614,12 +1712,9 @@ function askPlaintextConsent(err) {
 
 async function afterConnect() {
   await loadState();
-  const page1 = $('.wz-page[data-step="1"]');
-  delete page1.dataset.change;
-  if (WZ.open && WZ.step === 1 && S.account.loggedIn) {
-    WZ.step = 2;
-    renderWizard();
-  }
+  delete $('.wz-page[data-step="2"]').dataset.change;
+  if (WZ.open && WZ.step === 2 && S.account.loggedIn) wzGo(3);
+  else renderWizard();
 }
 
 async function submitLogin(f) {
@@ -1648,6 +1743,48 @@ async function submitLogin(f) {
   } finally {
     btn.disabled = false;
     btn.textContent = 'Sign in';
+  }
+}
+
+// "From my browser": list installed browsers, then look for a SHiFT sign-in in them.
+let browsersLoaded;
+async function loadBrowsers() {
+  browsersLoaded ??= api('GET', '/api/account/browsers')
+    .then(({ browsers }) => {
+      $$('.js-browser-pick').forEach((sel) => {
+        sel.innerHTML = `<option value="all">All my browsers${browsers.length ? ` (${browsers.length})` : ''}</option>${browsers.map((b) => `<option value="${esc(b.id)}">${esc(b.name)}</option>`).join('')}`;
+      });
+      if (!browsers.length)
+        $$('.js-browser-results').forEach((el) => (el.innerHTML = '<p class="af-note bad">No supported browsers found on this computer. Copy the sign-in by hand below.</p>'));
+    })
+    .catch(() => (browsersLoaded = undefined));
+  return browsersLoaded;
+}
+
+async function findBrowserSignIn(btn) {
+  const box = btn.closest('.auto-find');
+  const out = $('.js-browser-results', box);
+  btn.disabled = true;
+  btn.textContent = 'Looking…';
+  out.innerHTML = '';
+  try {
+    const r = await api('POST', '/api/account/browser', { browser: $('.js-browser-pick', box).value });
+    if (r.ok) {
+      toast(`Signed in using ${r.from.name}`, 'ok');
+      await afterConnect();
+      return;
+    }
+    const tip = { locked: '', appbound: 'Try another browser (Firefox and Edge usually work), or copy the sign-in by hand below.', none: 'Sign in at shift.gearboxsoftware.com in this browser first.' };
+    out.innerHTML = r.results.length
+      ? `<ul class="af-list">${r.results
+          .map((x) => `<li class="${x.code === 'found' ? 'ok' : 'bad'}"><b>${esc(x.name)}${x.profile ? ` · ${esc(x.profile)}` : ''}</b><span>${esc(x.error || 'Found')} ${esc(tip[x.code] || '')}</span></li>`)
+          .join('')}</ul>`
+      : '<p class="af-note bad">No SHiFT sign-in found. Sign in at shift.gearboxsoftware.com in your browser, then try again.</p>';
+  } catch (e) {
+    out.innerHTML = `<p class="af-note bad">${esc(e.message)}</p>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Find my sign-in';
   }
 }
 
@@ -1856,7 +1993,7 @@ loadState()
     if (!S.settings.setupComplete) {
       // People who were already up and running before setup existed don't need it.
       if (S.account.loggedIn && S.engine.lastRun) setSetting('setupComplete', true, { now: true });
-      else openWizard(0);
+      else openWizard(Number(local.get(WZ_STEP_KEY)) || 0);
     }
   })
   .catch((e) => toast(`Could not reach the app: ${e.message}`, 'err'));

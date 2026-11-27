@@ -10,7 +10,7 @@ import { ShiftClient, parseCookieInput, classifyMessage } from '../lib/shift.js'
 import { Engine } from '../lib/engine.js';
 import { parseOffers } from '../lib/html.js';
 import { extractCodes, resolveTitle, detectTitles } from '../lib/catalog.js';
-import { codesFromHtml, codesFromText } from '../lib/sources.js';
+import { codesFromHtml, codesFromText, codesFromOzbFeed, ozbExpiry } from '../lib/sources.js';
 
 process.env.QUIET = '1';
 let mock;
@@ -166,6 +166,93 @@ test('German code lists are translated (GIGA)', async () => {
   assert.deepEqual(fromGerman({ reward: 'Mint Chipset Vault Hunter Skin für Loveless the Hacker · 31. Dezember 2030', expires: '' }, nov), { reward: 'Mint Chipset Vault Hunter Skin for Loveless the Hacker', expires: 'December 31, 2030' });
   assert.deepEqual(fromGerman({ reward: '1x Goldener Schlüssel · Unbekannt', expires: '' }, nov), { reward: '1 Golden Key', expires: '' });
   assert.equal(fromGerman({ reward: '3x Goldene Schlüssel · 2. Januar', expires: '' }, nov).expires, 'January 2, 2027', 'a January date seen in November is next year');
+});
+
+test('OzBargain feed: codes, games, rewards and Australian expiry dates', () => {
+  const item = (title, desc, date = 'Thu, 26 Nov 2026 09:18:33 +1100') =>
+    `<item><title>${title}</title><link>https://www.ozbargain.com.au/node/1</link><description><![CDATA[<p>${desc}</p>]]></description><pubDate>${date}</pubDate></item>`;
+  const xml = `<rss><channel>${[
+    item('Shift Code for All Borderlands Franchise Games - 5 Golden/Skeleton Keys @ Gearbox Software', 'Get this code: Z6RBB-9JZHB-BJJTT-JTJJT-3T5X9 Redeem in-game. Expires 1/12. Good luck'),
+    item('5 Golden or Skeleton Keys Borderlands 1, 2, 3, 4, The Pre-Sequel &amp; Tiny Tina&#039;s Wonderlands @ Gearbox Software', 'S6X33-CT9S3-TJBTB-BTTBB-H533C expires 10/11'),
+    item('SHiFT Code for Borderlands 4 - &quot;Mint Chipset&quot; Skin @ Gearbox Software', '3HFBJ-H3JJK-CF3JC-J3BBB-XXKC6', 'Tue, 29 Dec 2026 10:00:00 +1100'),
+    item('Two codes @ Gearbox', 'AAAAA-BBBBB-CCCCC-DDDDD-EEEEE and AAAAA-BBBBB-CCCCC-DDDDD-FFFFF'),
+  ].join('')}</channel></rss>`;
+  const r = Object.fromEntries(codesFromOzbFeed(xml).map((c) => [c.code, c]));
+  assert.deepEqual(r['Z6RBB-9JZHB-BJJTT-JTJJT-3T5X9'].games, [], 'all games');
+  assert.equal(r['Z6RBB-9JZHB-BJJTT-JTJJT-3T5X9'].reward, '5 Golden/Skeleton Keys');
+  assert.equal(r['Z6RBB-9JZHB-BJJTT-JTJJT-3T5X9'].expires, '2026-12-01', '1/12 is 1 December');
+  assert.deepEqual(r['S6X33-CT9S3-TJBTB-BTTBB-H533C'].games.sort(), ['bl1', 'bl2', 'bl3', 'bl4', 'tps', 'ttw']);
+  assert.equal(r['S6X33-CT9S3-TJBTB-BTTBB-H533C'].reward, '5 Golden or Skeleton Keys');
+  assert.deepEqual(r['3HFBJ-H3JJK-CF3JC-J3BBB-XXKC6'].games, ['bl4']);
+  assert.equal(r['3HFBJ-H3JJK-CF3JC-J3BBB-XXKC6'].reward, '"Mint Chipset" Skin');
+  assert.equal(r['AAAAA-BBBBB-CCCCC-DDDDD-EEEEE'].reward, '', 'several codes in one deal: no guessing');
+  assert.equal(ozbExpiry('Expires 5/1', Date.parse('2026-12-20')), '2027-01-05', 'a date earlier in the year is next year');
+  assert.equal(ozbExpiry('expires 31/12/2026'), '2026-12-31');
+  assert.deepEqual(detectTitles('Borderlands 1, 2 & 3').sort(), ['bl1', 'bl2', 'bl3']);
+});
+
+test('sign in from my browser: finds the SHiFT session in Firefox and Chrome-family browsers', async () => {
+  const { DatabaseSync } = await import('node:sqlite');
+  const crypto = await import('node:crypto');
+  const { listBrowsers, findShiftSessions, decryptChromium } = await import('../lib/browsers.js');
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'shift-home-'));
+  const mk = (file, sql) => {
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    const db = new DatabaseSync(file);
+    db.exec(sql);
+    db.close();
+  };
+  // Firefox (plain text) with a SHiFT cookie, another site's cookie and an expired one.
+  mk(path.join(home, '.mozilla/firefox/ab12cd34.default-release/cookies.sqlite'),
+    `CREATE TABLE moz_cookies (name TEXT, value TEXT, host TEXT, expiry INTEGER);
+     INSERT INTO moz_cookies VALUES ('si', 'ff-session', '.shift.gearboxsoftware.com', ${Math.floor(Date.now() / 1000) + 3600});
+     INSERT INTO moz_cookies VALUES ('old', 'x', 'shift.gearboxsoftware.com', 100);
+     INSERT INTO moz_cookies VALUES ('si', 'not-ours', 'example.com', 0);`);
+  // Chrome on Linux: "v10" encryption with the built-in password, database version 24 (hash prefix).
+  const key = crypto.pbkdf2Sync('peanuts', 'saltysalt', 1, 16, 'sha1');
+  const c = crypto.createCipheriv('aes-128-cbc', key, Buffer.alloc(16, ' '));
+  const enc = Buffer.concat([Buffer.from('v10'), c.update(Buffer.concat([Buffer.alloc(32, 7), Buffer.from('chrome-session')])), c.final()]);
+  mk(path.join(home, '.config/google-chrome/Default/Network/Cookies'),
+    `CREATE TABLE meta (key TEXT, value TEXT); INSERT INTO meta VALUES ('version', '24');
+     CREATE TABLE cookies (host_key TEXT, name TEXT, value TEXT, encrypted_value BLOB);
+     INSERT INTO cookies VALUES ('shift.gearboxsoftware.com', 'si', '', X'${enc.toString('hex')}');
+     INSERT INTO cookies VALUES ('shift.gearboxsoftware.com', '_session_id', 'plain', X'');`);
+  fs.writeFileSync(path.join(home, '.config/google-chrome/Local State'), JSON.stringify({ profile: { info_cache: { Default: { name: 'Person 1' } } } }));
+  // Edge with no SHiFT sign-in.
+  mk(path.join(home, '.config/microsoft-edge/Default/Cookies'), 'CREATE TABLE cookies (host_key TEXT, name TEXT, value TEXT, encrypted_value BLOB);');
+
+  const opts = { home, platform: 'linux', env: {} };
+  assert.deepEqual(listBrowsers(opts).map((b) => b.id), ['firefox', 'chrome', 'edge']);
+  const all = await findShiftSessions(opts);
+  const by = Object.fromEntries(all.map((r) => [r.browser, r]));
+  assert.deepEqual(by.firefox.cookies, { si: 'ff-session' }, 'only live SHiFT cookies');
+  assert.deepEqual(by.chrome.cookies, { si: 'chrome-session', _session_id: 'plain' });
+  assert.equal(by.chrome.profile, 'Person 1');
+  assert.equal(by.edge.code, 'none');
+  assert.equal((await findShiftSessions({ ...opts, browser: 'firefox' })).length, 1);
+
+  // Windows (AES-GCM with the DPAPI-protected key) and macOS (Keychain password) formats.
+  const wkey = crypto.randomBytes(32);
+  const nonce = crypto.randomBytes(12);
+  const g = crypto.createCipheriv('aes-256-gcm', wkey, nonce);
+  const body = Buffer.concat([g.update('win-session'), g.final()]);
+  assert.equal(decryptChromium(Buffer.concat([Buffer.from('v10'), nonce, body, g.getAuthTag()]), { platform: 'win32', key: wkey }), 'win-session');
+  assert.throws(() => decryptChromium(Buffer.from('v20xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'), { platform: 'win32', key: wkey }), /locks its cookies/);
+  const mkey = crypto.pbkdf2Sync('keychain-pw', 'saltysalt', 1003, 16, 'sha1');
+  const m = crypto.createCipheriv('aes-128-cbc', mkey, Buffer.alloc(16, ' '));
+  assert.equal(decryptChromium(Buffer.concat([Buffer.from('v10'), m.update('mac-session'), m.final()]), { platform: 'darwin', password: 'keychain-pw' }), 'mac-session');
+
+  // The session found in a browser signs the app in to SHiFT.
+  const signIn = new ShiftClient({ baseUrl: mock.url });
+  await signIn.login('vault@hunter.test', 'hunter2');
+  fs.rmSync(path.join(home, '.config'), { recursive: true });
+  const ffdb = new DatabaseSync(path.join(home, '.mozilla/firefox/ab12cd34.default-release/cookies.sqlite'));
+  ffdb.prepare("UPDATE moz_cookies SET value = ? WHERE name = 'si' AND host LIKE '%gearbox%'").run(signIn.jar.cookies.si);
+  ffdb.close();
+  const [found] = await findShiftSessions(opts);
+  const { engine } = makeEngine();
+  assert.equal((await engine.useCookies(found.cookies)).loggedIn, true);
+  fs.rmSync(home, { recursive: true, force: true });
 });
 
 test('source parsing: tables and free text', () => {

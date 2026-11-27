@@ -1,13 +1,9 @@
 ## What's new
-- **Getting started is clearer.** A big **Start setup** button, and a short **walkthrough** of the app after setup. Skip it and it stays off. Turn it back on any time in **Settings → Data & display**.
-- **Fits big screens.** A new **Display size** setting. **Automatic** scales the app up on large, high-resolution and ultrawide monitors and adjusts when you move the window to another screen. Or pick 90–150%.
-- **Easier game and platform picking.** Unticking one while "All" is on switches to **Pick** with everything else still ticked.
-- **Counts that agree.** Every dashboard number follows the games and platforms you picked, the per-game tiles match, and "Done" means the same thing everywhere.
-- **Auto-pilot answers.** Little **?** buttons next to auto-pilot open the right help, with new answers to the most common questions.
-- **Auto-pilot on a schedule.** Run every few hours, or on set days and times, e.g. **every Wednesday at 3:00** while you're asleep (your computer's clock).
-- **New Settings layout.** A menu on the left (Auto-pilot, Game launching, Pace, Updates, Display & data) and one section at a time on the right.
-- **Gentler on SHiFT.** Requests are never closer than 3 seconds apart, the default is now 10 seconds, and below 10 the app suggests slowing down. New **Smart pace** adjusts between 4 and 18 seconds: quicker through dead codes, slower while redeeming.
-- **Better game launches (Windows).** Games start **muted**, the app presses Enter to get past the title screen so SHiFT notices the game, and it closes everything it started, including the 2K launcher. If the 2K launcher gets in the way, the app tells you how to skip it. While auto-pilot is on, the dashboard shows whether games will be closed and muted, with one-click switches.
+- **Setup that doesn't miss a step.** First-time setup now has 8 short steps, and each one has to be done before the next opens. A progress bar fills as you go and ends with the SHiFT key, which lights up when you're finished. If you close setup early, it carries on where you left off next time. The wording is shorter and easier to read.
+- **Sign in from your browser.** Already signed in to SHiFT in Firefox, Edge, Brave, Opera, Vivaldi or Chrome? **Account → From my browser → Find my sign-in** finds it for you, with no password and no copying cookies by hand. Pick one browser or let it check them all. It only reads SHiFT's sign-in. (On Windows, new versions of Chrome lock their cookies so no app can read them; the app tells you if so.)
+- **More codes from OzBargain.** The app now reads OzBargain's SHiFT Code and Borderlands deal feeds, so codes posted there show up quickly, with the right games, reward and expiry date. The new "5 Golden/Skeleton Keys for every Borderlands game" code (expires 1 December) is in there.
+- **Fair play and credits.** A short note on playing fair, and that we're fans, not Gearbox. It's in setup and in **Settings → About & credits**, along with thanks to the projects and sites the app uses.
+- New installs start with an updated starter list (expired codes removed).
 
 If you have 1.4.0 or newer, select **Update now** when the app offers it.
 
@@ -42,13 +38,16 @@ The files without a version number are the same downloads under a fixed name (us
 3. Optional: run `./install-desktop-entry.sh` to add it to your applications menu.
 
 ## First run
-1. **Sign in** with your SHiFT email and password.
-2. **Pick your games and platforms**, or leave everything selected.
-3. Tell setup whether you'll **play Borderlands while it runs**.
-4. Press **Find & redeem**.
+Setup walks you through it, one step at a time:
+1. Read the **fair play** note.
+2. **Sign in** with your SHiFT email and password, or let the app find your sign-in in your web browser.
+3. **Link your platforms** on the SHiFT website.
+4. **Pick your games and platforms**, or leave everything selected.
+5. Choose **auto-pilot** or not, and whether you'll **play Borderlands while it runs**.
+6. Press **Find & redeem**.
 
 **Keep me signed in** stores your password in **Windows Credential Manager** or the **macOS Keychain**, never in a plain file. If secure storage isn't available, the app asks you first and warns you before saving anything unencrypted.
 
 **Updating:** from 1.4.0 on, the app updates itself: select **Update now** when it tells you a new version is out. For older versions, install the new version over the old one once. Your codes and settings are always kept.
 
-*Free, non-commercial fan tool. Not affiliated with Gearbox Software, 2K or Take-Two.*
+*Free, non-commercial fan tool, made by fans. Not affiliated with Gearbox Software, 2K or Take-Two. Please play fair, and support Gearbox by buying and playing the games. Credits: see the [README](https://github.com/approved48/shift-redeemer#credits--thanks).*
