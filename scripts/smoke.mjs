@@ -47,7 +47,9 @@ const relServer = http.createServer((req, res) => {
 });
 await new Promise((r) => relServer.listen(0, '127.0.0.1', r));
 
-const env = { ...process.env, NO_OPEN: '1', NO_UPDATE_CHECK: '1', PORT: String(PORT), DATA_DIR: dataDir, SHIFT_BASE_URL: mock.url, SHIFT_UPDATE_API: `http://127.0.0.1:${relServer.address().port}/release` };
+// A pretend home folder with a Firefox profile, for "sign in from my browser".
+const browserHome = fs.mkdtempSync(path.join(os.tmpdir(), 'shift-smoke-home-'));
+const env = { ...process.env, SHIFT_BROWSER_HOME: browserHome, NO_OPEN: '1', NO_UPDATE_CHECK: '1', PORT: String(PORT), DATA_DIR: dataDir, SHIFT_BASE_URL: mock.url, SHIFT_UPDATE_API: `http://127.0.0.1:${relServer.address().port}/release` };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const api = async (method, p, body) => {
   const r = await fetch(base + p, { method, headers: { 'content-type': 'application/json', 'x-shift-redeemer': '1' }, body: body ? JSON.stringify(body) : undefined });
@@ -86,6 +88,28 @@ try {
   }
   assert.ok(starter >= 100, `a new install should start with the starter list (has ${starter} codes)`);
   console.log(`✔ new install starts with ${starter} starter codes`);
+
+  // 3a. sign in from my browser (reads a Firefox cookie database with the app's built-in SQLite)
+  {
+    const { DatabaseSync } = await import('node:sqlite');
+    const { ShiftClient } = await import('../lib/shift.js');
+    const web = new ShiftClient({ baseUrl: mock.url });
+    await web.login('vault@hunter.test', 'hunter2');
+    const ff = { win32: 'AppData/Roaming/Mozilla/Firefox/Profiles', darwin: 'Library/Application Support/Firefox/Profiles' }[process.platform] || '.mozilla/firefox';
+    const dbFile = path.join(browserHome, ff, 'smoke.default', 'cookies.sqlite');
+    fs.mkdirSync(path.dirname(dbFile), { recursive: true });
+    const db = new DatabaseSync(dbFile);
+    db.exec('CREATE TABLE moz_cookies (name TEXT, value TEXT, host TEXT, expiry INTEGER)');
+    db.prepare('INSERT INTO moz_cookies VALUES (?, ?, ?, 0)').run('si', web.jar.cookies.si, '.shift.gearboxsoftware.com');
+    db.close();
+    const list = (await api('GET', '/api/account/browsers')).browsers;
+    assert.ok(list.some((b) => b.id === 'firefox'), `Firefox should be listed (got ${JSON.stringify(list)})`);
+    const r = await api('POST', '/api/account/browser', { browser: 'all' });
+    assert.equal(r.ok, true, `signing in from the browser should work: ${JSON.stringify(r)}`);
+    assert.equal(r.account.loggedIn, true);
+    console.log('✔ "sign in from my browser" finds the SHiFT session in Firefox');
+    await api('POST', '/api/account/logout');
+  }
 
   // 3. sign in + redeem
   await api('POST', '/api/account/login', { email: 'vault@hunter.test', password: 'hunter2' });

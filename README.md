@@ -4,7 +4,7 @@
 
 Works with Borderlands 4, Tiny Tina's Wonderlands, Borderlands 3, The Pre-Sequel, Borderlands 2 and Borderlands GOTY, on Steam, Epic, PlayStation, Xbox and Nintendo.
 
-> Free, non-commercial fan tool. Not affiliated with, endorsed by or sponsored by Gearbox Software, 2K or Take-Two. Borderlands and SHiFT are trademarks of their respective owners.
+> Free, non-commercial fan tool, made by fans who love Borderlands. Not affiliated with, endorsed by or sponsored by Gearbox Software, 2K or Take-Two. Borderlands and SHiFT are trademarks of their respective owners. Please [play fair](#play-fair), and support Gearbox by buying and playing the games.
 
 ## Download
 
@@ -33,16 +33,17 @@ Open the downloaded file and click through. That's it: SHiFT Redeemer opens when
 
 ## Using it
 
-The first time you open it, a short **setup wizard** walks you through everything:
+The first time you open it, a short **setup** walks you through everything, one step at a time. A progress bar shows how far you are, and each step has to be done before the next one opens, so nothing gets missed:
 
-1. **Connect your SHiFT account**: your SHiFT email and password, or (if SHiFT asks for extra verification) a session borrowed from your browser.
-2. **Link your gaming platforms** on the SHiFT website, so rewards have somewhere to go.
-3. **Pick your games and platforms**, or leave everything selected.
-4. **Turn on auto-pilot** if you'd like it to keep going on its own.
-5. Say whether you'll **play Borderlands while it runs**. If you will, the app never starts or closes a game by itself.
-6. Press **Find & redeem**.
+1. **Fair play**: a quick note on using the app fairly.
+2. **Sign in to SHiFT**: your SHiFT email and password, or **From my browser**, which finds your SHiFT sign-in in Firefox, Edge, Brave, Opera, Vivaldi or Chrome for you.
+3. **Link your gaming platforms** on the SHiFT website, so rewards have somewhere to go.
+4. **Pick your games and platforms**, or leave everything selected.
+5. **Auto-pilot**: yes or no.
+6. Say whether you'll **play Borderlands while it runs**. If you will, the app never starts or closes a game by itself.
+7. Press **Find & redeem**.
 
-You can run the wizard again any time from **Settings**. After setup, a **Getting started** checklist on the dashboard shows what's left, and **Help → Best practice** has a dozen tips for getting the most out of the app.
+If you close setup early, it carries on where you left off next time. You can run it again any time from **Settings**. After setup, a **Getting started** checklist on the dashboard shows what's left, and **Help → Best practice** has a dozen tips for getting the most out of the app.
 
 **Share code lists.** On **Codes**, **Import list** takes a friend's or community list: drop in a text, CSV or SHiFT Redeemer list file, or paste it. You see how many codes are new before anything is added, and can redeem them straight away. **Export list** saves your working codes, your queue or everything as text, CSV or a list file to share or back up. Exports never include your account or which rewards you've had.
 
@@ -81,7 +82,7 @@ That's it. The app searches the web for codes, checks each one with SHiFT, and r
 | Steam news | Official announcements for each game |
 | Reddit | Recent "SHiFT code" posts in the Borderlands subreddits |
 | Steam Community guides | Popular "SHiFT codes" guides for each game |
-| OzBargain | Deals and posts that mention Borderlands SHiFT codes |
+| OzBargain | The "SHiFT Code" and "Borderlands" deal feeds, where codes are often posted within minutes |
 | Eurogamer, PCGamesN, Game8 | Games-press code guides with rewards and expiry dates (Borderlands 4, plus Borderlands 3 on PCGamesN) |
 | esports.net, Fossbytes | Code lists for Borderlands 3 and Tiny Tina's Wonderlands |
 | GIGA (Germany) | A Borderlands 4 list updated several times a month; rewards are translated to English |
@@ -89,6 +90,39 @@ That's it. The app searches the web for codes, checks each one with SHiFT, and r
 | Starter list | New installs start with codes that were working when the version was released, so the first run has something to redeem |
 | An AI assistant | Download instructions for ChatGPT, Claude, Gemini or Grok, then import its answer |
 | Your own | Add any web page, or paste codes you found anywhere (tweets, Discord, …) |
+
+## Play fair
+
+SHiFT Redeemer is made by fans, for fans. It isn't made by, linked to or approved by Gearbox Software, 2K or Take-Two. It just does what you could do by hand on the SHiFT website.
+
+- Only use it on your own SHiFT account.
+- Don't sell codes or use the app to spam SHiFT.
+- Keep the wait between checks, so SHiFT's servers stay happy (the app won't go below 3 seconds).
+- Support Gearbox: buy the games and DLC and play them. That's how we get more Borderlands.
+
+## Credits & thanks
+
+Only projects and sites the app actually uses are listed. The same list is in the app under **Settings → About & credits**.
+
+**Code and ideas**
+- [Fabbi/autoshift](https://github.com/Fabbi/autoshift): how the app signs in to SHiFT and redeems codes is based on this project.
+- [ugoogalizer/autoshift-codes](https://github.com/ugoogalizer/autoshift-codes): the community code feed, our main list of codes.
+
+**Where codes come from**
+- [MentalMars](https://mentalmars.com): code tables for every game (they also feed the community list).
+- [Steam](https://store.steampowered.com): official game news (public Steam Web API) and community guides.
+- [Reddit](https://www.reddit.com/r/Borderlands/): code posts in the Borderlands subreddits.
+- [OzBargain](https://www.ozbargain.com.au/tag/shift-code): codes shared by the OzBargain community.
+- Eurogamer, PCGamesN, Game8, esports.net, Fossbytes and GIGA: code guides from games websites.
+- Lockercodes, Supercheats, Mobalytics, Icy Veins and GameStar: extra code lists, only used if you turn them on.
+
+**Game info**
+- [Borderlands Wiki](https://borderlands.fandom.com) (Fandom, CC BY-SA): facts behind the rewards guide and tips.
+
+**Built with**
+- [Node.js](https://nodejs.org) (single executable applications), esbuild, postject and rcedit to package the app, [Inno Setup](https://jrsoftware.org/isinfo.php) for the Windows installer, and [Google Fonts](https://fonts.google.com) (Saira Stencil One, Barlow, Share Tech Mono and the game-banner fonts, SIL Open Font License).
+
+Thank you to everyone who finds and shares codes.
 
 ---
 
@@ -123,6 +157,7 @@ The workflow builds every platform, tests the apps and the Windows installer (si
 | `lib/shift.js` | SHiFT website client (sign-in, code check, redemption) |
 | `lib/engine.js` | Queue, targeting, redemption runs, auto-pilot scheduler |
 | `lib/sources.js` | Code discovery |
+| `lib/browsers.js` | "Sign in from my browser": reads only the SHiFT cookies from Firefox and Chrome-family browsers |
 | `lib/runtime.js` | Packaged-app behaviour (data folder, app window, start with computer) |
 | `lib/updater.js` | In-app updates: check GitHub releases, download and verify, install and restart |
 | `lib/apply-update.js` | Windows update helper (a copy of the app) that installs the update and restarts it |
@@ -135,6 +170,4 @@ The workflow builds every platform, tests the apps and the Windows installer (si
 
 The installed app stores its data in `%APPDATA%\SHiFT Redeemer` (Windows), `~/Library/Application Support/SHiFT Redeemer` (macOS) or `~/.local/share/shift-redeemer` (Linux). When run from source it uses `./data`.
 
-Environment overrides: `PORT`, `DATA_DIR`, `NO_OPEN=1`, `NO_UPDATE_CHECK=1`, `SHIFT_BASE_URL` (point at the mock for testing).
-
-Credit: the SHiFT request flow is based on [Fabbi/autoshift](https://github.com/Fabbi/autoshift).
+Environment overrides: `PORT`, `DATA_DIR`, `NO_OPEN=1`, `NO_UPDATE_CHECK=1`, `SHIFT_BASE_URL` (point at the mock for testing), `SHIFT_BROWSER_HOME` (a pretend home folder for "sign in from my browser" tests).
